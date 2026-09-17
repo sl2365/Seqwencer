@@ -1,6 +1,8 @@
 # Seqwencer
 ## Coming soon...
 
+![Seqwencer1](Resources/Seqwencer1.jpg)
+
 Seqwencer is a dual sequencer plugin with ease of use and flexibility in mind. You can use it on its own as a plugin in a DAW, where the built in FX can be sequenced individually, just drag any parameter starting with :: to the relevant target panel. Draw your sequence using the mouse, just click and drag. Several FX are built into the sequencer:
 - Gate / Noise gate
 - Filter: Cutoff / Resonance
