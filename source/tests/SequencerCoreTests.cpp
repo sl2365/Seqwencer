@@ -493,6 +493,54 @@ int main()
                 retainedNegativeStep);
     expectNear ("semantic zero has the same canonical centre in both modes",
                 seqwencer::canonicalFromUnipolar (0.0f), 0.5f);
+
+    const auto bipolarSaw = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::saw, true);
+    expectNear ("Bipolar Saw begins at the bottom", bipolarSaw[0], 0.0f);
+    expectNear ("Bipolar Saw reaches the top", bipolarSaw[31], 1.0f);
+    const auto unipolarSaw = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::saw, false);
+    expectNear ("Unipolar Saw stores its visible bottom at canonical centre",
+                unipolarSaw[0], 0.5f);
+    expectNear ("Unipolar Saw still reaches the visible top",
+                unipolarSaw[31], 1.0f);
+    const auto doubleSaw = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::sawDouble, true);
+    expectNear ("Double Saw completes its first cycle", doubleSaw[15], 1.0f);
+    expectNear ("Double Saw restarts for its second cycle", doubleSaw[16], 0.0f);
+    const auto sawDown = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::sawDown, true);
+    expectNear ("Saw Down begins at the top", sawDown[0], 1.0f);
+    expectNear ("Saw Down reaches the bottom", sawDown[31], 0.0f);
+    const auto sawDownDouble = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::sawDownDouble, true);
+    expectNear ("Double Saw Down completes its first cycle",
+                sawDownDouble[15], 0.0f);
+    expectNear ("Double Saw Down restarts at the top",
+                sawDownDouble[16], 1.0f);
+    const auto sine = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::sine, true);
+    expectNear ("Sine reaches the top quarter-cycle", sine[8], 1.0f);
+    expectNear ("Sine reaches the bottom three-quarter-cycle", sine[24], 0.0f);
+    const auto triangle = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::triangle, true);
+    expectNear ("Triangle begins at the bottom", triangle[0], 0.0f);
+    expectNear ("Triangle reaches the top halfway through", triangle[16], 1.0f);
+    const auto pulse25 = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::pulse25, true);
+    expectNear ("Pulse 25 keeps its first quarter high", pulse25[7], 1.0f);
+    expectNear ("Pulse 25 drops after its first quarter", pulse25[8], 0.0f);
+    const auto square = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::square, true);
+    expectNear ("Square keeps its first half high", square[15], 1.0f);
+    expectNear ("Square drops for its second half", square[16], 0.0f);
+    const auto pulse75Double = seqwencer::makeWaveformPreset (
+        seqwencer::WaveformPreset::pulse75Double, true);
+    expectNear ("Double Pulse 75 keeps twelve steps high",
+                pulse75Double[11], 1.0f);
+    expectNear ("Double Pulse 75 drops on step thirteen",
+                pulse75Double[12], 0.0f);
+
     const auto bipolarPositiveForGate = seqwencer::targetValueFromCanonical (
         seqwencer::canonicalFromUnipolar (0.75f),
         seqwencer::ModulationTarget::gateLevel);
@@ -590,6 +638,32 @@ int main()
     expectEqual ("Long Step target choice restores",
                  static_cast<int> (seqwencer::targetFromChoice (4.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::longGateLength));
+    expectEqual ("Noise Gate Threshold target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (5.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::noiseGateThreshold));
+    expectEqual ("Delay Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (12.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::delayMix));
+    expectEqual ("Reverb Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (16.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::reverbMix));
+    expectEqual ("Gate Volume remains a unipolar destination",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::gateLevel) ? 1 : 0,
+                 0);
+    expectEqual ("Noise Gate targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::noiseGateThreshold) ? 1 : 0,
+                 1);
+    expectEqual ("Delay targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::delayTime) ? 1 : 0,
+                 1);
+    expectEqual ("Reverb targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::reverbSize) ? 1 : 0,
+                 1);
     expectNear ("Depth target scales from zero to its knob ceiling",
                 seqwencer::modulatedCeiling (0.8f, 0.25f), 0.2f);
     expectNear ("Short Step target never passes its ten-percent floor",

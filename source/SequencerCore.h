@@ -27,6 +27,32 @@ enum class SequenceMode
     played = 3
 };
 
+enum class SequencerEngine
+{
+    gate = 0,
+    phi,
+    delay,
+    reverb
+};
+
+enum class WaveformPreset
+{
+    saw = 0,
+    sawDouble,
+    sawDown,
+    sawDownDouble,
+    sine,
+    sineDouble,
+    triangle,
+    triangleDouble,
+    pulse25,
+    pulse25Double,
+    square,
+    squareDouble,
+    pulse75,
+    pulse75Double
+};
+
 inline SequenceMode sequenceModeFromChoice (float choice) noexcept
 {
     const auto index = std::clamp (
@@ -155,16 +181,31 @@ enum class ModulationTarget
     gateLevel = 1,
     gateDepth = 2,
     shortGateLength = 3,
-    longGateLength = 4
+    longGateLength = 4,
+    noiseGateThreshold = 5,
+    noiseGateAttack = 6,
+    noiseGateHold = 7,
+    noiseGateRelease = 8,
+    noiseGateRange = 9,
+    delayTime = 10,
+    delayFeedback = 11,
+    delayMix = 12,
+    reverbSize = 13,
+    reverbDamping = 14,
+    reverbWidth = 15,
+    reverbMix = 16
 };
 
-constexpr int gateModulationTargetCount = 4;
+constexpr int gateModulationTargetCount = 9;
+constexpr int delayModulationTargetCount = 3;
+constexpr int reverbModulationTargetCount = 4;
+constexpr int modulationTargetCount = 16;
 
 inline ModulationTarget targetFromChoice (float choice) noexcept
 {
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
-            && target <= static_cast<int> (ModulationTarget::longGateLength)
+            && target <= static_cast<int> (ModulationTarget::reverbMix)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -609,10 +650,84 @@ inline float displayFromCanonical (float canonicalValue,
     return bipolar ? canonicalValue : unipolarFromCanonical (canonicalValue);
 }
 
-inline bool targetSupportsBipolar (ModulationTarget) noexcept
+inline Pattern makeWaveformPreset (WaveformPreset preset,
+                                   bool bipolar) noexcept
 {
-    // Gate Level is currently the only destination, and volume has no
-    // meaningful negative range. Future Pan/Pitch targets can opt in here.
+    Pattern result {};
+    const auto presetIndex = static_cast<int> (preset);
+    const auto doubled = (presetIndex % 2) != 0;
+    const auto shape = presetIndex / 2;
+    const auto period = doubled ? stepsPerBank / 2 : stepsPerBank;
+    constexpr auto twoPi = 6.28318530717958647692f;
+
+    for (int step = 0; step < stepsPerBank; ++step)
+    {
+        const auto localStep = step % period;
+        const auto phase = static_cast<float> (localStep)
+                         / static_cast<float> (period);
+        auto displayed = 0.0f;
+
+        switch (shape)
+        {
+            case 0:
+                displayed = static_cast<float> (localStep)
+                          / static_cast<float> (period - 1);
+                break;
+            case 1:
+                displayed = 1.0f - static_cast<float> (localStep)
+                                   / static_cast<float> (period - 1);
+                break;
+            case 2:
+                displayed = 0.5f + 0.5f * std::sin (twoPi * phase);
+                break;
+            case 3:
+                displayed = 1.0f - std::abs (2.0f * phase - 1.0f);
+                break;
+            case 4:
+                displayed = phase < 0.25f ? 1.0f : 0.0f;
+                break;
+            case 5:
+                displayed = phase < 0.50f ? 1.0f : 0.0f;
+                break;
+            case 6:
+                displayed = phase < 0.75f ? 1.0f : 0.0f;
+                break;
+            default:
+                break;
+        }
+
+        result[static_cast<std::size_t> (step)] = bipolar
+            ? std::clamp (displayed, 0.0f, 1.0f)
+            : canonicalFromUnipolar (displayed);
+    }
+
+    return result;
+}
+
+inline bool targetSupportsBipolar (ModulationTarget target) noexcept
+{
+    switch (target)
+    {
+        case ModulationTarget::noiseGateThreshold:
+        case ModulationTarget::noiseGateAttack:
+        case ModulationTarget::noiseGateHold:
+        case ModulationTarget::noiseGateRelease:
+        case ModulationTarget::noiseGateRange:
+        case ModulationTarget::delayTime:
+        case ModulationTarget::delayFeedback:
+        case ModulationTarget::delayMix:
+        case ModulationTarget::reverbSize:
+        case ModulationTarget::reverbDamping:
+        case ModulationTarget::reverbWidth:
+        case ModulationTarget::reverbMix:
+            return true;
+        case ModulationTarget::none:
+        case ModulationTarget::gateLevel:
+        case ModulationTarget::gateDepth:
+        case ModulationTarget::shortGateLength:
+        case ModulationTarget::longGateLength:
+            return false;
+    }
     return false;
 }
 

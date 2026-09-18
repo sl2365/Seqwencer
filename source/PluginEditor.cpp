@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 namespace
@@ -17,17 +18,46 @@ constexpr auto colourB = 0xffff9d4d;
 constexpr auto colourBoth = 0xffb98cff;
 constexpr auto globalAccent = 0xff8aa3b5;
 constexpr auto gateAccent = 0xff62cf8a;
+constexpr auto delayAccent = 0xffc58aff;
+constexpr auto reverbAccent = 0xffff6f91;
 constexpr auto phiAccent = 0xff68a8ff;
 constexpr auto targetDragPrefix = "seqwencer-target:";
 constexpr int designWidth = 1280;
-constexpr int designHeight = 650;
+constexpr int designHeight = 680;
+
+struct StoredEditorSettings
+{
+    juce::Point<int> size { designWidth, designHeight };
+    float hueA = juce::Colour (colourA).getHue();
+    float hueB = juce::Colour (colourB).getHue();
+};
 
 constexpr std::array<seqwencer::ModulationTarget,
                      seqwencer::gateModulationTargetCount> gateTargets {
     seqwencer::ModulationTarget::gateLevel,
     seqwencer::ModulationTarget::gateDepth,
     seqwencer::ModulationTarget::shortGateLength,
-    seqwencer::ModulationTarget::longGateLength
+    seqwencer::ModulationTarget::longGateLength,
+    seqwencer::ModulationTarget::noiseGateThreshold,
+    seqwencer::ModulationTarget::noiseGateAttack,
+    seqwencer::ModulationTarget::noiseGateHold,
+    seqwencer::ModulationTarget::noiseGateRelease,
+    seqwencer::ModulationTarget::noiseGateRange
+};
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::delayModulationTargetCount> delayTargets {
+    seqwencer::ModulationTarget::delayTime,
+    seqwencer::ModulationTarget::delayFeedback,
+    seqwencer::ModulationTarget::delayMix
+};
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::reverbModulationTargetCount> reverbTargets {
+    seqwencer::ModulationTarget::reverbSize,
+    seqwencer::ModulationTarget::reverbDamping,
+    seqwencer::ModulationTarget::reverbWidth,
+    seqwencer::ModulationTarget::reverbMix
 };
 
 juce::String targetDragID (seqwencer::ModulationTarget target)
@@ -45,13 +75,13 @@ seqwencer::ModulationTarget targetFromDragID (const juce::String& dragID)
                 .getIntValue()));
 }
 
-juce::Point<int> loadStoredEditorSize()
+StoredEditorSettings loadStoredEditorSettings()
 {
-    auto size = juce::Point<int> { designWidth, designHeight };
+    StoredEditorSettings settings;
     const auto file = SeqwencerAudioProcessor::getPortableDataDirectory()
                           .getChildFile ("Settings.ini");
     if (! file.existsAsFile())
-        return size;
+        return settings;
 
     juce::StringArray lines;
     lines.addLines (file.loadFileAsString());
@@ -70,27 +100,45 @@ juce::Point<int> loadStoredEditorSize()
         if (separator <= 0)
             continue;
         const auto key = line.substring (0, separator).trim();
-        const auto value = line.substring (separator + 1).getIntValue();
+        const auto valueText = line.substring (separator + 1).trim();
         if (key.equalsIgnoreCase ("Width"))
-            size.x = value;
+            settings.size.x = valueText.getIntValue();
         else if (key.equalsIgnoreCase ("Height"))
-            size.y = value;
+            settings.size.y = valueText.getIntValue();
+        else if (key.equalsIgnoreCase ("SequencerAColour"))
+            settings.hueA = juce::jlimit (0.0f, 1.0f,
+                                          valueText.getFloatValue());
+        else if (key.equalsIgnoreCase ("SequencerBColour"))
+            settings.hueB = juce::jlimit (0.0f, 1.0f,
+                                          valueText.getFloatValue());
     }
-    size.x = juce::jlimit (960, 1600, size.x);
-    size.y = static_cast<int> (std::lround (
-        static_cast<double> (size.x) * designHeight / designWidth));
-    return size;
+    settings.size.x = juce::jlimit (960, 1600, settings.size.x);
+    settings.size.y = static_cast<int> (std::lround (
+        static_cast<double> (settings.size.x) * designHeight / designWidth));
+    return settings;
 }
 
-void saveStoredEditorSize (int width, int height)
+void saveStoredEditorSettings (int width, int height,
+                               float hueA, float hueB)
 {
     const auto dataDirectory = SeqwencerAudioProcessor::getPortableDataDirectory();
     if (dataDirectory.createDirectory().failed())
         return;
     juce::String contents { "; Seqwencer portable settings\r\n" };
     contents << "[Interface]\r\nWidth=" << width
-             << "\r\nHeight=" << height << "\r\n";
+             << "\r\nHeight=" << height
+             << "\r\nSequencerAColour=" << juce::String (hueA, 6)
+             << "\r\nSequencerBColour=" << juce::String (hueB, 6)
+             << "\r\n";
     dataDirectory.getChildFile ("Settings.ini").replaceWithText (contents);
+}
+
+juce::Colour laneColourFromHue (int lane, float hue)
+{
+    const auto defaultColour = juce::Colour (lane == 0 ? colourA : colourB);
+    return juce::Colour::fromHSV (
+        juce::jlimit (0.0f, 1.0f, hue),
+        defaultColour.getSaturation(), defaultColour.getBrightness(), 1.0f);
 }
 }
 
@@ -110,6 +158,14 @@ public:
         setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
         setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
         setColour (juce::ToggleButton::textColourId, juce::Colour (text));
+    }
+
+    juce::Label* createSliderTextBox (juce::Slider& slider) override
+    {
+        auto* label = juce::LookAndFeel_V4::createSliderTextBox (slider);
+        label->setFont (juce::FontOptions { 11.0f });
+        label->setMinimumHorizontalScale (1.0f);
+        return label;
     }
 
     void drawRotarySlider (juce::Graphics& graphics,
@@ -278,7 +334,7 @@ public:
         auto& state = processor.getParameterState();
         gateEnabledParameter = state.getParameter ("gate_enabled");
         jassert (gateEnabledParameter != nullptr);
-        setPhiEngine (false);
+        setEngine (seqwencer::SequencerEngine::gate);
         setMouseCursor (juce::MouseCursor::CrosshairCursor);
     }
 
@@ -287,32 +343,70 @@ public:
         endGestures();
     }
 
-    void setPhiEngine (bool shouldUsePhi)
+    void setAccentColour (juce::Colour newAccent)
     {
-        if (phiEngine == shouldUsePhi && stepParameters[0] != nullptr)
+        accent = newAccent;
+        repaint();
+    }
+
+    void applyWaveform (seqwencer::WaveformPreset preset)
+    {
+        endGestures();
+        const auto values = seqwencer::makeWaveformPreset (
+            preset, usesBipolarDisplay());
+        for (std::size_t step = 0; step < values.size(); ++step)
+        {
+            auto* parameter = stepParameters[step];
+            if (parameter == nullptr)
+                continue;
+
+            parameter->beginChangeGesture();
+            parameter->setValueNotifyingHost (
+                parameter->convertTo0to1 (values[step]));
+            parameter->endChangeGesture();
+        }
+        repaint();
+    }
+
+    void setEngine (seqwencer::SequencerEngine newEngine)
+    {
+        if (engine == newEngine && stepParameters[0] != nullptr)
             return;
 
         endGestures();
-        phiEngine = shouldUsePhi;
+        engine = newEngine;
         auto& state = processor.getParameterState();
-        const auto parameterID = [shouldUsePhi] (const juce::String& gateID)
+        const auto parameterID = [newEngine] (const juce::String& gateID)
         {
-            return shouldUsePhi ? "phi_" + gateID : gateID;
+            if (newEngine == seqwencer::SequencerEngine::phi)
+                return "phi_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::delay)
+                return "delay_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::reverb)
+                return "reverb_" + gateID;
+            return gateID;
         };
 
         for (int step = 0; step < seqwencer::stepsPerBank; ++step)
         {
             const auto index = static_cast<std::size_t> (step);
-            stepParameters[index] = state.getParameter (
-                shouldUsePhi
-                    ? SeqwencerAudioProcessor::phiStepParameterID (bank, step)
-                    : SeqwencerAudioProcessor::stepParameterID (bank, step));
+            const auto stepID = [newEngine] (int stepBank, int stepIndex)
+            {
+                if (newEngine == seqwencer::SequencerEngine::phi)
+                    return SeqwencerAudioProcessor::phiStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::delay)
+                    return SeqwencerAudioProcessor::delayStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::reverb)
+                    return SeqwencerAudioProcessor::reverbStepParameterID (
+                        stepBank, stepIndex);
+                return SeqwencerAudioProcessor::stepParameterID (
+                    stepBank, stepIndex);
+            };
+            stepParameters[index] = state.getParameter (stepID (bank, step));
             otherBankStepParameters[index] = state.getParameter (
-                shouldUsePhi
-                    ? SeqwencerAudioProcessor::phiStepParameterID (
-                        bank == 0 ? 1 : 0, step)
-                    : SeqwencerAudioProcessor::stepParameterID (
-                        bank == 0 ? 1 : 0, step));
+                stepID (bank == 0 ? 1 : 0, step));
             gateModeParameters[index] = state.getParameter (
                 SeqwencerAudioProcessor::gateModeParameterID (bank, step));
             jassert (stepParameters[index] != nullptr);
@@ -345,10 +439,10 @@ public:
         const auto values = readValues();
         const auto bipolar = usesBipolarDisplay();
         const auto activeStep = bank == 0
-            ? processor.getActiveStepA (phiEngine)
-            : processor.getActiveStepB (phiEngine);
+            ? processor.getActiveStepA (engine)
+            : processor.getActiveStepB (engine);
 
-        if (! phiEngine)
+        if (engine == seqwencer::SequencerEngine::gate)
         {
             const auto gateModes = readGateModes();
             const auto modeRow = getGateModeBounds();
@@ -528,7 +622,7 @@ public:
 
     void mouseDown (const juce::MouseEvent& event) override
     {
-        const auto inGateModeRow = ! phiEngine
+        const auto inGateModeRow = engine == seqwencer::SequencerEngine::gate
                                 && getGateModeBounds().contains (event.position);
         const auto inGraph = getGraphBounds().contains (event.position);
         if (! inGateModeRow && ! inGraph)
@@ -600,7 +694,7 @@ private:
     juce::Rectangle<float> getGraphBounds() const
     {
         const auto inner = getLocalBounds().toFloat().reduced (7.0f);
-        if (phiEngine)
+        if (engine != seqwencer::SequencerEngine::gate)
         {
             const auto graphTop = inner.getY() + 9.0f;
             return { inner.getX(), graphTop, inner.getWidth(),
@@ -849,7 +943,7 @@ private:
     SeqwencerAudioProcessor& processor;
     int bank = 0;
     juce::Colour accent;
-    bool phiEngine = false;
+    seqwencer::SequencerEngine engine = seqwencer::SequencerEngine::gate;
     std::array<juce::RangedAudioParameter*, seqwencer::stepsPerBank> stepParameters {};
     std::array<juce::RangedAudioParameter*, seqwencer::stepsPerBank>
         otherBankStepParameters {};
@@ -878,9 +972,12 @@ class SeqwencerAudioProcessorEditor::ModulationParameterLabel final
 {
 public:
     ModulationParameterLabel (SeqwencerAudioProcessor& audioProcessor,
-                              seqwencer::ModulationTarget modulationTarget)
+                              seqwencer::ModulationTarget modulationTarget,
+                              juce::String compactCaption = {})
         : target (modulationTarget),
-          caption (SeqwencerAudioProcessor::targetDisplayName (target))
+          caption (compactCaption.isNotEmpty()
+                       ? std::move (compactCaption)
+                       : SeqwencerAudioProcessor::targetDisplayName (target))
     {
         auto& state = audioProcessor.getParameterState();
         targetAParameter = state.getParameter (
@@ -907,7 +1004,7 @@ public:
 
         drawDragHandle (graphics, layout.handle, assignmentColour);
         graphics.setColour (assignmentColour);
-        graphics.setFont (juce::FontOptions { 10.0f, juce::Font::bold });
+        graphics.setFont (captionFont());
         graphics.drawText (caption, layout.caption,
                            juce::Justification::centred, false);
 
@@ -966,23 +1063,30 @@ private:
 
     ItemLayout getItemLayout (bool showClear) const
     {
-        constexpr int handleWidth = 10;
+        constexpr int handleWidth = 8;
+        const auto requiredCaptionWidth =
+            juce::GlyphArrangement::getStringWidthInt (captionFont(), caption) + 4;
         const auto captionWidth = juce::jlimit (
-            38, juce::jmax (38, getWidth() - 25), caption.length() * 6 + 5);
-        constexpr int clearWidth = 11;
-        constexpr int gap = 2;
+            30, juce::jmax (30, getWidth() - 18), requiredCaptionWidth);
+        constexpr int clearWidth = 8;
+        constexpr int gap = 1;
         const auto captionX = (getWidth() - captionWidth) / 2;
         const auto centreY = getHeight() / 2;
 
         ItemLayout result;
         result.handle = { captionX - gap - handleWidth,
-                          centreY - 5, handleWidth, 10 };
+                          centreY - 4, handleWidth, 8 };
         result.caption = { captionX, 0, captionWidth, getHeight() };
         result.clear = showClear
             ? juce::Rectangle<int> { result.caption.getRight() + gap,
                                      0, clearWidth, getHeight() }
             : juce::Rectangle<int>();
         return result;
+    }
+
+    static juce::Font captionFont()
+    {
+        return juce::Font (juce::FontOptions { 10.0f, juce::Font::bold });
     }
 
     static void drawDragHandle (juce::Graphics& graphics,
@@ -992,9 +1096,9 @@ private:
         graphics.setColour (colour.withAlpha (0.82f));
         for (int row = 0; row < 2; ++row)
             for (int column = 0; column < 2; ++column)
-                graphics.fillEllipse (static_cast<float> (bounds.getX() + column * 5),
-                                      static_cast<float> (bounds.getY() + row * 5),
-                                      2.5f, 2.5f);
+                graphics.fillEllipse (static_cast<float> (bounds.getX() + column * 4),
+                                      static_cast<float> (bounds.getY() + row * 4),
+                                      2.2f, 2.2f);
     }
 
     static bool hasAssignment (const juce::RangedAudioParameter* parameter)
@@ -1059,31 +1163,38 @@ private:
 public:
     TargetList (SeqwencerAudioProcessor& audioProcessor,
                 int bankIndex,
-                juce::Colour accentColour)
-        : bank (bankIndex), accent (accentColour), content (*this)
+                juce::Colour accentColour,
+                std::vector<seqwencer::ModulationTarget> availableTargets,
+                juce::String modeParameterID)
+        : bank (bankIndex), accent (accentColour),
+          targets (std::move (availableTargets)), content (*this)
     {
         auto& state = audioProcessor.getParameterState();
-        for (int index = 0; index < seqwencer::gateModulationTargetCount; ++index)
+        ownTargetParameters.resize (targets.size());
+        ownTargetEnabledParameters.resize (targets.size());
+        targetAParameters.resize (targets.size());
+        targetAEnabledParameters.resize (targets.size());
+        for (std::size_t index = 0; index < targets.size(); ++index)
         {
-            const auto target = gateTargets[static_cast<std::size_t> (index)];
-            ownTargetParameters[static_cast<std::size_t> (index)] =
+            const auto target = targets[index];
+            ownTargetParameters[index] =
                 state.getParameter (
                     SeqwencerAudioProcessor::targetAssignedParameterID (
                         bank, target));
-            ownTargetEnabledParameters[static_cast<std::size_t> (index)] =
+            ownTargetEnabledParameters[index] =
                 state.getParameter (
                     SeqwencerAudioProcessor::targetEnabledParameterID (
                         bank, target));
-            targetAParameters[static_cast<std::size_t> (index)] =
+            targetAParameters[index] =
                 state.getParameter (
                     SeqwencerAudioProcessor::targetAssignedParameterID (
                         0, target));
-            targetAEnabledParameters[static_cast<std::size_t> (index)] =
+            targetAEnabledParameters[index] =
                 state.getParameter (
                     SeqwencerAudioProcessor::targetEnabledParameterID (
                         0, target));
         }
-        modeParameter = state.getParameter ("playback_mode");
+        modeParameter = state.getParameter (modeParameterID);
         jassert (modeParameter != nullptr);
         setMouseCursor (juce::MouseCursor::PointingHandCursor);
         setTooltip ("Drop parameters here. Tick to bypass or restore a target; cross to remove it.");
@@ -1095,6 +1206,14 @@ public:
         viewport.setColour (juce::ScrollBar::trackColourId,
                             juce::Colours::transparentBlack);
         addAndMakeVisible (viewport);
+    }
+
+    void setAccentColour (juce::Colour newAccent)
+    {
+        accent = newAccent;
+        viewport.setColour (juce::ScrollBar::thumbColourId,
+                            accent.withAlpha (0.58f));
+        refresh();
     }
 
     void paint (juce::Graphics& graphics) override
@@ -1131,8 +1250,7 @@ public:
 
     bool isInterestedInDragSource (const SourceDetails& details) override
     {
-        return targetFromDragID (details.description.toString())
-            != seqwencer::ModulationTarget::none;
+        return targetIndex (targetFromDragID (details.description.toString())) >= 0;
     }
 
     void itemDragEnter (const SourceDetails&) override
@@ -1243,21 +1361,28 @@ private:
 
     int targetIndex (seqwencer::ModulationTarget target) const
     {
-        return juce::jlimit (0, seqwencer::gateModulationTargetCount - 1,
-                             static_cast<int> (target) - 1);
+        const auto found = std::find (targets.begin(), targets.end(), target);
+        return found == targets.end()
+            ? -1 : static_cast<int> (std::distance (targets.begin(), found));
     }
 
     juce::RangedAudioParameter* targetParameterToEdit (
         seqwencer::ModulationTarget target) const
     {
-        const auto index = static_cast<std::size_t> (targetIndex (target));
+        const auto foundIndex = targetIndex (target);
+        if (foundIndex < 0)
+            return nullptr;
+        const auto index = static_cast<std::size_t> (foundIndex);
         return isShared() ? targetAParameters[index] : ownTargetParameters[index];
     }
 
     juce::RangedAudioParameter* enabledParameterToEdit (
         seqwencer::ModulationTarget target) const
     {
-        const auto index = static_cast<std::size_t> (targetIndex (target));
+        const auto foundIndex = targetIndex (target);
+        if (foundIndex < 0)
+            return nullptr;
+        const auto index = static_cast<std::size_t> (foundIndex);
         return isShared() ? targetAEnabledParameters[index]
                           : ownTargetEnabledParameters[index];
     }
@@ -1279,7 +1404,7 @@ private:
     std::vector<seqwencer::ModulationTarget> getAssignedTargets() const
     {
         std::vector<seqwencer::ModulationTarget> result;
-        for (const auto target : gateTargets)
+        for (const auto target : targets)
             if (isTargetAssigned (target))
                 result.push_back (target);
         return result;
@@ -1342,14 +1467,11 @@ private:
     static constexpr int rowHeight = 28;
     int bank = 0;
     juce::Colour accent;
-    std::array<juce::RangedAudioParameter*, seqwencer::gateModulationTargetCount>
-        ownTargetParameters {};
-    std::array<juce::RangedAudioParameter*, seqwencer::gateModulationTargetCount>
-        ownTargetEnabledParameters {};
-    std::array<juce::RangedAudioParameter*, seqwencer::gateModulationTargetCount>
-        targetAParameters {};
-    std::array<juce::RangedAudioParameter*, seqwencer::gateModulationTargetCount>
-        targetAEnabledParameters {};
+    std::vector<seqwencer::ModulationTarget> targets;
+    std::vector<juce::RangedAudioParameter*> ownTargetParameters;
+    std::vector<juce::RangedAudioParameter*> ownTargetEnabledParameters;
+    std::vector<juce::RangedAudioParameter*> targetAParameters;
+    std::vector<juce::RangedAudioParameter*> targetAEnabledParameters;
     juce::RangedAudioParameter* modeParameter = nullptr;
     bool dragHighlighted = false;
     Content content;
@@ -1642,6 +1764,9 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     SeqwencerAudioProcessor& audioProcessor)
     : AudioProcessorEditor (&audioProcessor), processor (audioProcessor)
 {
+    const auto storedSettings = loadStoredEditorSettings();
+    laneAColour = laneColourFromHue (0, storedSettings.hueA);
+    laneBColour = laneColourFromHue (1, storedSettings.hueB);
     lookAndFeel = std::make_unique<SeqwencerLookAndFeel>();
     setLookAndFeel (lookAndFeel.get());
     setOpaque (true);
@@ -1649,9 +1774,9 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.setInterceptsMouseClicks (false, true);
 
     gridA = std::make_unique<StepGrid> (
-        processor, 0, juce::Colour (colourA));
+        processor, 0, laneAColour);
     gridB = std::make_unique<StepGrid> (
-        processor, 1, juce::Colour (colourB));
+        processor, 1, laneBColour);
     content.addAndMakeVisible (*gridA);
     content.addAndMakeVisible (*gridB);
 
@@ -1663,21 +1788,87 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor, seqwencer::ModulationTarget::shortGateLength);
     longParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::longGateLength);
+    noiseThresholdParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::noiseGateThreshold, "THRESH");
+    noiseAttackParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::noiseGateAttack, "ATTACK");
+    noiseHoldParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::noiseGateHold, "HOLD");
+    noiseReleaseParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::noiseGateRelease, "RELEASE");
+    noiseRangeParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::noiseGateRange, "RANGE");
+    delayTimeParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::delayTime);
+    delayFeedbackParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::delayFeedback, "FDBK");
+    delayMixParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::delayMix);
+    reverbSizeParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::reverbSize);
+    reverbDampingParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::reverbDamping);
+    reverbWidthParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::reverbWidth);
+    reverbMixParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::reverbMix);
     targetListA = std::make_unique<TargetList> (
-        processor, 0, juce::Colour (colourA));
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            gateTargets.begin(), gateTargets.end()), "playback_mode");
     targetListB = std::make_unique<TargetList> (
-        processor, 1, juce::Colour (colourB));
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            gateTargets.begin(), gateTargets.end()), "playback_mode");
+    delayTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            delayTargets.begin(), delayTargets.end()), "delay_playback_mode");
+    delayTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            delayTargets.begin(), delayTargets.end()), "delay_playback_mode");
+    reverbTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            reverbTargets.begin(), reverbTargets.end()), "reverb_playback_mode");
+    reverbTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            reverbTargets.begin(), reverbTargets.end()), "reverb_playback_mode");
     gateFxButton = std::make_unique<FxSelectorButton> (
         "GATE", juce::Colour (gateAccent));
+    delayFxButton = std::make_unique<FxSelectorButton> (
+        "DELAY", juce::Colour (delayAccent));
+    reverbFxButton = std::make_unique<FxSelectorButton> (
+        "REVERB", juce::Colour (reverbAccent));
     phiFxButton = std::make_unique<FxSelectorButton> (
         "PHI", juce::Colour (phiAccent));
     content.addAndMakeVisible (*baseParameterLabel);
     content.addAndMakeVisible (*depthParameterLabel);
     content.addAndMakeVisible (*shortParameterLabel);
     content.addAndMakeVisible (*longParameterLabel);
+    content.addAndMakeVisible (*noiseThresholdParameterLabel);
+    content.addAndMakeVisible (*noiseAttackParameterLabel);
+    content.addAndMakeVisible (*noiseHoldParameterLabel);
+    content.addAndMakeVisible (*noiseReleaseParameterLabel);
+    content.addAndMakeVisible (*noiseRangeParameterLabel);
+    content.addAndMakeVisible (*delayTimeParameterLabel);
+    content.addAndMakeVisible (*delayFeedbackParameterLabel);
+    content.addAndMakeVisible (*delayMixParameterLabel);
+    content.addAndMakeVisible (*reverbSizeParameterLabel);
+    content.addAndMakeVisible (*reverbDampingParameterLabel);
+    content.addAndMakeVisible (*reverbWidthParameterLabel);
+    content.addAndMakeVisible (*reverbMixParameterLabel);
     content.addAndMakeVisible (*targetListA);
     content.addAndMakeVisible (*targetListB);
+    content.addAndMakeVisible (*delayTargetListA);
+    content.addAndMakeVisible (*delayTargetListB);
+    content.addAndMakeVisible (*reverbTargetListA);
+    content.addAndMakeVisible (*reverbTargetListB);
     content.addAndMakeVisible (*gateFxButton);
+    content.addAndMakeVisible (*delayFxButton);
+    content.addAndMakeVisible (*reverbFxButton);
     content.addAndMakeVisible (*phiFxButton);
     content.addAndMakeVisible (presetsButton);
     presetsButton.setTooltip ("Open the portable Seqwencer preset browser");
@@ -1693,6 +1884,32 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     sequenceModeBox.setTooltip (
         "Choose forward looping, end-to-end bouncing, reverse playback, or first-note phrase retriggering");
     content.addAndMakeVisible (sequenceModeBox);
+    const auto configureWaveformBox = [this] (juce::ComboBox& box,
+                                              const juce::String& laneName)
+    {
+        box.addItem ("SAW", 1);
+        box.addItem ("SAW-DOUBLE", 2);
+        box.addItem ("SAW DOWN", 3);
+        box.addItem ("SAW DOWN-DOUBLE", 4);
+        box.addItem ("SINE", 5);
+        box.addItem ("SINE-DOUBLE", 6);
+        box.addItem ("TRI", 7);
+        box.addItem ("TRI-DOUBLE", 8);
+        box.addItem ("PULSE 25", 9);
+        box.addItem ("PULSE 25-DOUBLE", 10);
+        box.addItem ("SQUARE", 11);
+        box.addItem ("SQUARE-DOUBLE", 12);
+        box.addItem ("PULSE 75", 13);
+        box.addItem ("PULSE 75-DOUBLE", 14);
+        box.setTextWhenNothingSelected ("WAVEFORM " + laneName);
+        box.setTooltip ("Fill all 32 " + laneName
+                        + " steps for the selected FX; Double draws two cycles");
+        content.addAndMakeVisible (box);
+    };
+    configureWaveformBox (waveformABox, "A");
+    configureWaveformBox (waveformBBox, "B");
+    waveformABox.onChange = [this] { applyWaveformPreset (0); };
+    waveformBBox.onChange = [this] { applyWaveformPreset (1); };
 
     for (auto* button : { &syncButton, &phiTargetButton, &noiseGateButton,
                           &enableAButton, &enableBButton,
@@ -1709,6 +1926,14 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     gateFxButton->getEnableButton().setTooltip (
         "Turn the built-in Gate effect on or off");
     gateFxButton->onClick = [this] { selectFx (SelectedFx::gate); };
+    delayFxButton->setTooltip ("Show the Delay controls");
+    delayFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Delay effect on or off");
+    delayFxButton->onClick = [this] { selectFx (SelectedFx::delay); };
+    reverbFxButton->setTooltip ("Show the Reverb controls");
+    reverbFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Reverb effect on or off");
+    reverbFxButton->onClick = [this] { selectFx (SelectedFx::reverb); };
     phiFxButton->setTooltip ("Show the PHI integration controls");
     phiFxButton->getEnableButton().setTooltip (
         "Turn Seqwencer's PHI parameter output on or off");
@@ -1723,13 +1948,13 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor.requestPhiTargetBrowser();
     };
     enableAButton.setColour (juce::ToggleButton::tickColourId,
-                             juce::Colour (colourA));
+                             laneAColour);
     enableBButton.setColour (juce::ToggleButton::tickColourId,
-                             juce::Colour (colourB));
+                             laneBColour);
     bipolarAButton.setColour (juce::ToggleButton::tickColourId,
-                              juce::Colour (colourA));
+                              laneAColour);
     bipolarBButton.setColour (juce::ToggleButton::tickColourId,
-                              juce::Colour (colourB));
+                              laneBColour);
     enableAButton.setClickingTogglesState (true);
     enableBButton.setClickingTogglesState (true);
     bipolarAButton.setClickingTogglesState (true);
@@ -1747,12 +1972,23 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureKnob (noiseHoldSlider);
     configureKnob (noiseReleaseSlider);
     configureKnob (noiseRangeSlider);
+    configureKnob (delayTimeSlider);
+    configureKnob (delayFeedbackSlider);
+    configureKnob (delayMixSlider);
+    configureKnob (reverbSizeSlider);
+    configureKnob (reverbDampingSlider);
+    configureKnob (reverbWidthSlider);
+    configureKnob (reverbMixSlider);
+    delayTimeSlider.setTextBoxStyle (
+        juce::Slider::TextBoxBelow, false, 64, 15);
     shortLengthSlider.setRange (0.10, 0.60, 0.01);
     longLengthSlider.setRange (0.65, 0.95, 0.01);
     noiseThresholdSlider.setRange (-80.0, 0.0, 0.1);
     noiseAttackSlider.setRange (0.1, 100.0, 0.1);
     noiseHoldSlider.setRange (0.0, 500.0, 1.0);
     noiseReleaseSlider.setRange (5.0, 1000.0, 1.0);
+    delayTimeSlider.setRange (10.0, 2000.0, 0.1);
+    delayFeedbackSlider.setRange (0.0, 0.95, 0.001);
     shortLengthSlider.setTooltip (
         "Length of every Gate step set to Short (10-60% of one step)");
     longLengthSlider.setTooltip (
@@ -1767,25 +2003,46 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         "Time taken for the noise gate to close");
     noiseRangeSlider.setTooltip (
         "Amount of attenuation while the noise gate is closed");
+    delayTimeSlider.setTooltip ("Delay time from 10 to 2000 milliseconds");
+    delayFeedbackSlider.setTooltip ("Amount of delayed signal fed back into the delay");
+    delayMixSlider.setTooltip ("Balance between dry input and delayed signal");
+    reverbSizeSlider.setTooltip ("Size and decay character of the reverb space");
+    reverbDampingSlider.setTooltip ("High-frequency absorption inside the reverb");
+    reverbWidthSlider.setTooltip ("Stereo width of the reverb field");
+    reverbMixSlider.setTooltip ("Balance between dry input and reverberated signal");
     configureKnob (attackASlider);
     configureKnob (releaseASlider);
     configureKnob (attackBSlider);
     configureKnob (releaseBSlider);
+    configureColourKnob (colourASlider);
+    configureColourKnob (colourBSlider);
+    colourASlider.setValue (storedSettings.hueA, juce::dontSendNotification);
+    colourBSlider.setValue (storedSettings.hueB, juce::dontSendNotification);
+    colourASlider.setDoubleClickReturnValue (
+        true, juce::Colour (colourA).getHue());
+    colourBSlider.setDoubleClickReturnValue (
+        true, juce::Colour (colourB).getHue());
+    colourASlider.setTooltip ("Choose Sequencer A's interface colour");
+    colourBSlider.setTooltip ("Choose Sequencer B's interface colour");
+    colourASlider.onValueChange = [this] { updateLaneColours(); };
+    colourBSlider.onValueChange = [this] { updateLaneColours(); };
+    content.addAndMakeVisible (colourASlider);
+    content.addAndMakeVisible (colourBSlider);
 
     startSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                           juce::Colour (globalAccent));
+                           juce::Colour (gateAccent));
     endSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                         juce::Colour (globalAccent));
+                         juce::Colour (gateAccent));
     rateSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                          juce::Colour (globalAccent));
+                          juce::Colour (gateAccent));
     baseSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                          juce::Colour (globalAccent));
+                          juce::Colour (gateAccent));
     depthSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                           juce::Colour (globalAccent));
+                           juce::Colour (gateAccent));
     shortLengthSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                                 juce::Colour (globalAccent));
+                                 juce::Colour (gateAccent));
     longLengthSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                                juce::Colour (globalAccent));
+                                juce::Colour (gateAccent));
     for (auto* slider : { &noiseThresholdSlider, &noiseAttackSlider,
                           &noiseHoldSlider, &noiseReleaseSlider,
                           &noiseRangeSlider })
@@ -1793,30 +2050,39 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         slider->setColour (juce::Slider::rotarySliderFillColourId,
                            juce::Colour (gateAccent));
     }
+    for (auto* slider : { &delayTimeSlider, &delayFeedbackSlider,
+                          &delayMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (delayAccent));
+    }
+    for (auto* slider : { &reverbSizeSlider, &reverbDampingSlider,
+                          &reverbWidthSlider, &reverbMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (reverbAccent));
+    }
     attackASlider.setColour (juce::Slider::rotarySliderFillColourId,
-                             juce::Colour (colourA));
+                             laneAColour);
     releaseASlider.setColour (juce::Slider::rotarySliderFillColourId,
-                              juce::Colour (colourA));
+                              laneAColour);
     attackBSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                             juce::Colour (colourB));
+                             laneBColour);
     releaseBSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                              juce::Colour (colourB));
+                              laneBColour);
 
     configureLabel (rateLabel, "RATE");
     configureLabel (sequenceModeLabel, "DIRECTION");
     configureLabel (startLabel, "START");
     configureLabel (endLabel, "END");
-    configureLabel (noiseThresholdLabel, "THRESHOLD");
-    configureLabel (noiseAttackLabel, "ATTACK");
-    configureLabel (noiseHoldLabel, "HOLD");
-    configureLabel (noiseReleaseLabel, "RELEASE");
-    configureLabel (noiseRangeLabel, "RANGE");
     configureLabel (attackALabel, "ATTACK");
     configureLabel (releaseALabel, "RELEASE");
     configureLabel (attackBLabel, "ATTACK");
     configureLabel (releaseBLabel, "RELEASE");
     configureLabel (laneATitle, "GATE A");
     configureLabel (laneBTitle, "GATE B");
+    configureLabel (colourALabel, "A COLOUR");
+    configureLabel (colourBLabel, "B COLOUR");
     laneATitle.setColour (juce::Label::textColourId,
                           juce::Colour (gateAccent));
     laneBTitle.setColour (juce::Label::textColourId,
@@ -1832,6 +2098,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "sync_to_host", syncButton);
     gateAttachment = std::make_unique<ButtonAttachment> (
         state, "gate_enabled", gateFxButton->getEnableButton());
+    delayAttachment = std::make_unique<ButtonAttachment> (
+        state, "delay_enabled", delayFxButton->getEnableButton());
+    reverbAttachment = std::make_unique<ButtonAttachment> (
+        state, "reverb_enabled", reverbFxButton->getEnableButton());
     phiBridgeAttachment = std::make_unique<ButtonAttachment> (
         state, "phi_bridge_enabled", phiFxButton->getEnableButton());
     noiseGateAttachment = std::make_unique<ButtonAttachment> (
@@ -1854,6 +2124,20 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "noise_gate_release", noiseReleaseSlider);
     noiseRangeAttachment = std::make_unique<SliderAttachment> (
         state, "noise_gate_range", noiseRangeSlider);
+    delayTimeAttachment = std::make_unique<SliderAttachment> (
+        state, "delay_time", delayTimeSlider);
+    delayFeedbackAttachment = std::make_unique<SliderAttachment> (
+        state, "delay_feedback", delayFeedbackSlider);
+    delayMixAttachment = std::make_unique<SliderAttachment> (
+        state, "delay_mix", delayMixSlider);
+    reverbSizeAttachment = std::make_unique<SliderAttachment> (
+        state, "reverb_size", reverbSizeSlider);
+    reverbDampingAttachment = std::make_unique<SliderAttachment> (
+        state, "reverb_damping", reverbDampingSlider);
+    reverbWidthAttachment = std::make_unique<SliderAttachment> (
+        state, "reverb_width", reverbWidthSlider);
+    reverbMixAttachment = std::make_unique<SliderAttachment> (
+        state, "reverb_mix", reverbMixSlider);
     const auto gateLengthText = [] (double value)
     {
         return juce::String (std::lround (value * 100.0)) + "%";
@@ -1871,6 +2155,11 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     noiseAttackSlider.textFromValueFunction = millisecondsText;
     noiseHoldSlider.textFromValueFunction = millisecondsText;
     noiseReleaseSlider.textFromValueFunction = millisecondsText;
+    delayTimeSlider.textFromValueFunction = millisecondsText;
+    delayFeedbackSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (std::lround (value * 100.0)) + "%";
+    };
     startSlider.onValueChange = [this]
     {
         if (startStepParameter != nullptr)
@@ -1903,16 +2192,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     };
 
     setResizable (true, true);
-    setResizeLimits (960, 488, 1600, 813);
+    setResizeLimits (960, 510, 1600, 850);
     if (auto* editorConstrainer = getConstrainer())
         editorConstrainer->setFixedAspectRatio (
             static_cast<double> (designWidth)
                 / static_cast<double> (designHeight));
-    const auto storedSize = loadStoredEditorSize();
-    setSize (storedSize.x, storedSize.y);
+    setSize (storedSettings.size.x, storedSettings.size.y);
     bindSelectedEngine();
     updateRangeControls();
     updateFxPanel();
+    updateLaneColours();
     updateLaneVisuals();
     startTimerHz (30);
 }
@@ -1920,7 +2209,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
 SeqwencerAudioProcessorEditor::~SeqwencerAudioProcessorEditor()
 {
     stopTimer();
-    saveStoredEditorSize (getWidth(), getHeight());
+    saveStoredEditorSettings (
+        getWidth(), getHeight(),
+        static_cast<float> (colourASlider.getValue()),
+        static_cast<float> (colourBSlider.getValue()));
     if (presetWindow != nullptr)
         presetWindow->exitModalState (0);
     setLookAndFeel (nullptr);
@@ -1956,6 +2248,23 @@ void SeqwencerAudioProcessorEditor::configureKnob (juce::Slider& slider,
         return juce::String (std::lround (value * 100.0)) + suffix;
     };
     content.addAndMakeVisible (slider);
+}
+
+void SeqwencerAudioProcessorEditor::configureColourKnob (
+    juce::Slider& slider)
+{
+    slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    slider.setRotaryParameters (juce::MathConstants<float>::pi * 1.25f,
+                                juce::MathConstants<float>::pi * 2.75f,
+                                true);
+    slider.setRange (0.0, 1.0, 0.001);
+    // Reserve the same 15-pixel lower strip as every bottom-row knob. The
+    // value remains intentionally hidden, but JUCE now gives both sets of
+    // rotary dials identical drawing geometry.
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, true, 54, 15);
+    slider.setColour (juce::Slider::textBoxTextColourId,
+                      juce::Colours::transparentBlack);
+    slider.textFromValueFunction = [] (double) { return juce::String {}; };
 }
 
 void SeqwencerAudioProcessorEditor::configureStepKnob (juce::Slider& slider)
@@ -2097,10 +2406,15 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
         return;
 
     auto& state = processor.getParameterState();
-    const auto phiSelected = selectedFx == SelectedFx::phi;
-    const auto parameterID = [phiSelected] (const juce::String& gateID)
+    const auto parameterID = [this] (const juce::String& gateID)
     {
-        return phiSelected ? "phi_" + gateID : gateID;
+        if (selectedFx == SelectedFx::phi)
+            return "phi_" + gateID;
+        if (selectedFx == SelectedFx::delay)
+            return "delay_" + gateID;
+        if (selectedFx == SelectedFx::reverb)
+            return "reverb_" + gateID;
+        return gateID;
     };
 
     modeAttachment.reset();
@@ -2135,8 +2449,15 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
     releaseBAttachment = std::make_unique<SliderAttachment> (
         state, parameterID ("seq_b_release"), releaseBSlider);
 
-    gridA->setPhiEngine (phiSelected);
-    gridB->setPhiEngine (phiSelected);
+    const auto engine = selectedFx == SelectedFx::phi
+        ? seqwencer::SequencerEngine::phi
+        : selectedFx == SelectedFx::delay
+            ? seqwencer::SequencerEngine::delay
+            : selectedFx == SelectedFx::reverb
+                ? seqwencer::SequencerEngine::reverb
+                : seqwencer::SequencerEngine::gate;
+    gridA->setEngine (engine);
+    gridB->setEngine (engine);
     boundFx = selectedFx;
     bindingsInitialised = true;
     updateRangeControls();
@@ -2154,8 +2475,13 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     }
 
     const auto gateSelected = selectedFx == SelectedFx::gate;
+    const auto delaySelected = selectedFx == SelectedFx::delay;
+    const auto reverbSelected = selectedFx == SelectedFx::reverb;
+    const auto phiSelected = selectedFx == SelectedFx::phi;
     gateFxButton->setSelected (gateSelected);
-    phiFxButton->setSelected (! gateSelected);
+    delayFxButton->setSelected (delaySelected);
+    reverbFxButton->setSelected (reverbSelected);
+    phiFxButton->setSelected (phiSelected);
     phiFxButton->setVisible (phiAvailable);
 
     baseParameterLabel->setVisible (gateSelected);
@@ -2167,34 +2493,138 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     longParameterLabel->setVisible (gateSelected);
     longLengthSlider.setVisible (gateSelected);
     noiseGateButton.setVisible (gateSelected);
-    noiseThresholdLabel.setVisible (gateSelected);
+    noiseThresholdParameterLabel->setVisible (gateSelected);
     noiseThresholdSlider.setVisible (gateSelected);
-    noiseAttackLabel.setVisible (gateSelected);
+    noiseAttackParameterLabel->setVisible (gateSelected);
     noiseAttackSlider.setVisible (gateSelected);
-    noiseHoldLabel.setVisible (gateSelected);
+    noiseHoldParameterLabel->setVisible (gateSelected);
     noiseHoldSlider.setVisible (gateSelected);
-    noiseReleaseLabel.setVisible (gateSelected);
+    noiseReleaseParameterLabel->setVisible (gateSelected);
     noiseReleaseSlider.setVisible (gateSelected);
-    noiseRangeLabel.setVisible (gateSelected);
+    noiseRangeParameterLabel->setVisible (gateSelected);
     noiseRangeSlider.setVisible (gateSelected);
     targetListA->setVisible (gateSelected);
     targetListB->setVisible (gateSelected);
-    phiTargetButton.setVisible (phiAvailable && ! gateSelected);
+    delayTimeParameterLabel->setVisible (delaySelected);
+    delayTimeSlider.setVisible (delaySelected);
+    delayFeedbackParameterLabel->setVisible (delaySelected);
+    delayFeedbackSlider.setVisible (delaySelected);
+    delayMixParameterLabel->setVisible (delaySelected);
+    delayMixSlider.setVisible (delaySelected);
+    delayTargetListA->setVisible (delaySelected);
+    delayTargetListB->setVisible (delaySelected);
+    reverbSizeParameterLabel->setVisible (reverbSelected);
+    reverbSizeSlider.setVisible (reverbSelected);
+    reverbDampingParameterLabel->setVisible (reverbSelected);
+    reverbDampingSlider.setVisible (reverbSelected);
+    reverbWidthParameterLabel->setVisible (reverbSelected);
+    reverbWidthSlider.setVisible (reverbSelected);
+    reverbMixParameterLabel->setVisible (reverbSelected);
+    reverbMixSlider.setVisible (reverbSelected);
+    reverbTargetListA->setVisible (reverbSelected);
+    reverbTargetListB->setVisible (reverbSelected);
+    phiTargetButton.setVisible (phiAvailable && phiSelected);
 
-    const auto laneColour = juce::Colour (
-        gateSelected ? gateAccent : phiAccent);
-    laneATitle.setText (gateSelected ? "GATE A" : "PHI A",
+    const auto laneColour = juce::Colour (gateSelected ? gateAccent
+        : delaySelected ? delayAccent
+        : reverbSelected ? reverbAccent : phiAccent);
+    const juce::String fxName = gateSelected ? "GATE"
+                              : delaySelected ? "DELAY"
+                              : reverbSelected ? "REVERB" : "PHI";
+    laneATitle.setText (fxName + " A",
                         juce::dontSendNotification);
-    laneBTitle.setText (gateSelected ? "GATE B" : "PHI B",
+    laneBTitle.setText (fxName + " B",
                         juce::dontSendNotification);
     laneATitle.setColour (juce::Label::textColourId, laneColour);
     laneBTitle.setColour (juce::Label::textColourId, laneColour);
+
+    for (auto* slider : { &rateSlider, &startSlider, &endSlider })
+        slider->setColour (juce::Slider::rotarySliderFillColourId, laneColour);
+    if (gateSelected)
+    {
+        for (auto* slider : { &baseSlider, &depthSlider,
+                              &shortLengthSlider, &longLengthSlider,
+                              &noiseThresholdSlider, &noiseAttackSlider,
+                              &noiseHoldSlider, &noiseReleaseSlider,
+                              &noiseRangeSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
+    else if (delaySelected)
+    {
+        for (auto* slider : { &delayTimeSlider, &delayFeedbackSlider,
+                              &delayMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
+    else if (reverbSelected)
+    {
+        for (auto* slider : { &reverbSizeSlider, &reverbDampingSlider,
+                              &reverbWidthSlider, &reverbMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
 
     if (lastPhiAvailability != phiAvailable)
     {
         lastPhiAvailability = phiAvailable;
         repaint();
     }
+}
+
+void SeqwencerAudioProcessorEditor::updateLaneColours()
+{
+    laneAColour = laneColourFromHue (
+        0, static_cast<float> (colourASlider.getValue()));
+    laneBColour = laneColourFromHue (
+        1, static_cast<float> (colourBSlider.getValue()));
+
+    gridA->setAccentColour (laneAColour);
+    gridB->setAccentColour (laneBColour);
+    targetListA->setAccentColour (laneAColour);
+    targetListB->setAccentColour (laneBColour);
+    delayTargetListA->setAccentColour (laneAColour);
+    delayTargetListB->setAccentColour (laneBColour);
+    reverbTargetListA->setAccentColour (laneAColour);
+    reverbTargetListB->setAccentColour (laneBColour);
+
+    for (auto* button : { &enableAButton, &bipolarAButton })
+        button->setColour (juce::ToggleButton::tickColourId, laneAColour);
+    for (auto* button : { &enableBButton, &bipolarBButton })
+        button->setColour (juce::ToggleButton::tickColourId, laneBColour);
+    for (auto* slider : { &attackASlider, &releaseASlider })
+        slider->setColour (juce::Slider::rotarySliderFillColourId, laneAColour);
+    for (auto* slider : { &attackBSlider, &releaseBSlider })
+        slider->setColour (juce::Slider::rotarySliderFillColourId, laneBColour);
+
+    colourASlider.setColour (juce::Slider::rotarySliderFillColourId,
+                             laneAColour);
+    colourBSlider.setColour (juce::Slider::rotarySliderFillColourId,
+                             laneBColour);
+    colourALabel.setColour (juce::Label::textColourId, laneAColour);
+    colourBLabel.setColour (juce::Label::textColourId, laneBColour);
+    repaint();
+}
+
+void SeqwencerAudioProcessorEditor::applyWaveformPreset (int bank)
+{
+    auto& box = bank == 0 ? waveformABox : waveformBBox;
+    const auto index = box.getSelectedItemIndex();
+    if (index < 0)
+        return;
+
+    const auto preset = static_cast<seqwencer::WaveformPreset> (index);
+    if (bank == 0)
+        gridA->applyWaveform (preset);
+    else
+        gridB->applyWaveform (preset);
+    box.setSelectedId (0, juce::dontSendNotification);
 }
 
 void SeqwencerAudioProcessorEditor::updateLaneVisuals()
@@ -2206,7 +2636,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     };
 
     auto* selectedFxEnabledParameter = processor.getParameterState().getParameter (
-        selectedFx == SelectedFx::gate ? "gate_enabled" : "phi_bridge_enabled");
+        selectedFx == SelectedFx::gate ? "gate_enabled"
+            : selectedFx == SelectedFx::delay ? "delay_enabled"
+            : selectedFx == SelectedFx::reverb ? "reverb_enabled"
+                                               : "phi_bridge_enabled");
     auto* noiseGateEnabledParameter =
         processor.getParameterState().getParameter ("noise_gate_enabled");
     const auto serial = readActual (modeParameter) >= 0.5f;
@@ -2229,16 +2662,30 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     const auto noiseControlsAlpha = gateControlsAlpha
         * (readActual (noiseGateEnabledParameter) >= 0.5f ? 1.0f : 0.30f);
     noiseGateButton.setAlpha (gateControlsAlpha);
-    noiseThresholdLabel.setAlpha (noiseControlsAlpha);
+    noiseThresholdParameterLabel->setAlpha (noiseControlsAlpha);
     noiseThresholdSlider.setAlpha (noiseControlsAlpha);
-    noiseAttackLabel.setAlpha (noiseControlsAlpha);
+    noiseAttackParameterLabel->setAlpha (noiseControlsAlpha);
     noiseAttackSlider.setAlpha (noiseControlsAlpha);
-    noiseHoldLabel.setAlpha (noiseControlsAlpha);
+    noiseHoldParameterLabel->setAlpha (noiseControlsAlpha);
     noiseHoldSlider.setAlpha (noiseControlsAlpha);
-    noiseReleaseLabel.setAlpha (noiseControlsAlpha);
+    noiseReleaseParameterLabel->setAlpha (noiseControlsAlpha);
     noiseReleaseSlider.setAlpha (noiseControlsAlpha);
-    noiseRangeLabel.setAlpha (noiseControlsAlpha);
+    noiseRangeParameterLabel->setAlpha (noiseControlsAlpha);
     noiseRangeSlider.setAlpha (noiseControlsAlpha);
+    delayTimeParameterLabel->setAlpha (gateControlsAlpha);
+    delayTimeSlider.setAlpha (gateControlsAlpha);
+    delayFeedbackParameterLabel->setAlpha (gateControlsAlpha);
+    delayFeedbackSlider.setAlpha (gateControlsAlpha);
+    delayMixParameterLabel->setAlpha (gateControlsAlpha);
+    delayMixSlider.setAlpha (gateControlsAlpha);
+    reverbSizeParameterLabel->setAlpha (gateControlsAlpha);
+    reverbSizeSlider.setAlpha (gateControlsAlpha);
+    reverbDampingParameterLabel->setAlpha (gateControlsAlpha);
+    reverbDampingSlider.setAlpha (gateControlsAlpha);
+    reverbWidthParameterLabel->setAlpha (gateControlsAlpha);
+    reverbWidthSlider.setAlpha (gateControlsAlpha);
+    reverbMixParameterLabel->setAlpha (gateControlsAlpha);
+    reverbMixSlider.setAlpha (gateControlsAlpha);
 
     enableAButton.setEnabled (true);
     enableBButton.setEnabled (true);
@@ -2267,6 +2714,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         gridB->setAlpha (1.0f);
         targetListA->setAlpha (1.0f);
         targetListB->setAlpha (1.0f);
+        delayTargetListA->setAlpha (1.0f);
+        delayTargetListB->setAlpha (1.0f);
+        reverbTargetListA->setAlpha (1.0f);
+        reverbTargetListB->setAlpha (1.0f);
         setControlAlpha (profileB ? 0.30f : 1.0f,
                          attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
@@ -2286,6 +2737,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         gridB->setAlpha (alphaB);
         targetListA->setAlpha (alphaA);
         targetListB->setAlpha (alphaB);
+        delayTargetListA->setAlpha (alphaA);
+        delayTargetListB->setAlpha (alphaB);
+        reverbTargetListA->setAlpha (alphaA);
+        reverbTargetListB->setAlpha (alphaB);
         setControlAlpha (alphaA, attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
         setControlAlpha (alphaB, attackBSlider, attackBLabel,
@@ -2327,12 +2782,12 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.2.2",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.5.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
     const auto topPanel = juce::Rectangle<float> (
-        10.0f, 62.0f, static_cast<float> (designWidth - 20), 48.0f);
+        10.0f, 62.0f, static_cast<float> (designWidth - 20), 78.0f);
     graphics.setColour (juce::Colour (panel));
     graphics.fillRoundedRectangle (topPanel, 8.0f);
     graphics.setColour (juce::Colour (panelOutline));
@@ -2348,12 +2803,15 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
 
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.0f, juce::Font::bold });
-    graphics.drawText (selectedFx == SelectedFx::gate
-                           ? "GATE CONTROLS" : "PHI CONTROLS",
+    graphics.drawText (selectedFx == SelectedFx::gate ? "GATE CONTROLS"
+                           : selectedFx == SelectedFx::delay
+                               ? "DELAY CONTROLS"
+                           : selectedFx == SelectedFx::reverb
+                               ? "REVERB CONTROLS" : "PHI CONTROLS",
                        20, static_cast<int> (bottomPanelY) + 8,
                        92, 15, juce::Justification::centredLeft, false);
 
-    constexpr auto laneTop = 120.0f;
+    constexpr auto laneTop = 150.0f;
     constexpr auto laneGap = 10.0f;
     const auto laneAreaBottom = bottomPanelY - laneGap;
     const auto laneHeight = (laneAreaBottom - laneTop - laneGap) * 0.5f;
@@ -2384,7 +2842,9 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                           : enableBButton.getToggleState());
         const auto outlineAlpha = laneIsActive ? 0.65f : 0.18f;
         const auto moduleAccent = juce::Colour (
-            selectedFx == SelectedFx::gate ? gateAccent : phiAccent);
+            selectedFx == SelectedFx::gate ? gateAccent
+                : selectedFx == SelectedFx::delay ? delayAccent
+                : selectedFx == SelectedFx::reverb ? reverbAccent : phiAccent);
         graphics.setColour (moduleAccent.withAlpha (outlineAlpha));
         graphics.drawRoundedRectangle (bounds, 8.0f, 1.2f);
     }
@@ -2405,12 +2865,20 @@ void SeqwencerAudioProcessorEditor::resized()
     content.setTransform (
         juce::AffineTransform::scale (scale).translated (offsetX, offsetY));
 
-    syncButton.setBounds (22, 70, 104, 31);
-    presetsButton.setBounds (138, 70, 104, 31);
+    syncButton.setBounds (22, 85, 104, 31);
+    presetsButton.setBounds (138, 85, 104, 31);
+    colourALabel.setBounds (250, 66, 64, 14);
+    colourASlider.setBounds (250, 77, 64, 59);
+    colourBLabel.setBounds (322, 66, 64, 14);
+    colourBSlider.setBounds (322, 77, 64, 59);
+    waveformABox.setBounds (404, 85, 166, 31);
+    waveformBBox.setBounds (582, 85, 166, 31);
 
     const auto bottomPanelY = designHeight - 88;
     gateFxButton->setBounds (20, 182, 64, 31);
-    phiFxButton->setBounds (20, 221, 64, 31);
+    delayFxButton->setBounds (20, 221, 64, 31);
+    reverbFxButton->setBounds (20, 260, 64, 31);
+    phiFxButton->setBounds (20, 299, 64, 31);
     modeBox.setBounds (20, bottomPanelY + 28, 92, 28);
     rateLabel.setBounds (122, bottomPanelY + 4, 64, 14);
     rateSlider.setBounds (122, bottomPanelY + 15, 64, 59);
@@ -2432,18 +2900,34 @@ void SeqwencerAudioProcessorEditor::resized()
     longLengthSlider.setBounds (718, bottomPanelY + 15, 64, 59);
 
     noiseGateButton.setBounds (798, bottomPanelY + 27, 90, 31);
-    noiseThresholdLabel.setBounds (892, bottomPanelY + 4, 80, 14);
+    noiseThresholdParameterLabel->setBounds (896, bottomPanelY + 4, 72, 14);
     noiseThresholdSlider.setBounds (900, bottomPanelY + 15, 64, 59);
-    noiseAttackLabel.setBounds (972, bottomPanelY + 4, 64, 14);
+    noiseAttackParameterLabel->setBounds (968, bottomPanelY + 4, 72, 14);
     noiseAttackSlider.setBounds (972, bottomPanelY + 15, 64, 59);
-    noiseHoldLabel.setBounds (1044, bottomPanelY + 4, 64, 14);
+    noiseHoldParameterLabel->setBounds (1040, bottomPanelY + 4, 72, 14);
     noiseHoldSlider.setBounds (1044, bottomPanelY + 15, 64, 59);
-    noiseReleaseLabel.setBounds (1116, bottomPanelY + 4, 64, 14);
+    noiseReleaseParameterLabel->setBounds (1112, bottomPanelY + 4, 72, 14);
     noiseReleaseSlider.setBounds (1116, bottomPanelY + 15, 64, 59);
-    noiseRangeLabel.setBounds (1188, bottomPanelY + 4, 64, 14);
+    noiseRangeParameterLabel->setBounds (1184, bottomPanelY + 4, 72, 14);
     noiseRangeSlider.setBounds (1188, bottomPanelY + 15, 64, 59);
 
-    constexpr int laneTop = 120;
+    delayTimeParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
+    delayTimeSlider.setBounds (448, bottomPanelY + 15, 64, 59);
+    delayFeedbackParameterLabel->setBounds (520, bottomPanelY + 4, 104, 14);
+    delayFeedbackSlider.setBounds (540, bottomPanelY + 15, 64, 59);
+    delayMixParameterLabel->setBounds (616, bottomPanelY + 4, 88, 14);
+    delayMixSlider.setBounds (628, bottomPanelY + 15, 64, 59);
+
+    reverbSizeParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
+    reverbSizeSlider.setBounds (448, bottomPanelY + 15, 64, 59);
+    reverbDampingParameterLabel->setBounds (526, bottomPanelY + 4, 88, 14);
+    reverbDampingSlider.setBounds (538, bottomPanelY + 15, 64, 59);
+    reverbWidthParameterLabel->setBounds (616, bottomPanelY + 4, 88, 14);
+    reverbWidthSlider.setBounds (628, bottomPanelY + 15, 64, 59);
+    reverbMixParameterLabel->setBounds (706, bottomPanelY + 4, 88, 14);
+    reverbMixSlider.setBounds (718, bottomPanelY + 15, 64, 59);
+
+    constexpr int laneTop = 150;
     constexpr int laneGap = 10;
     const auto laneAreaBottom = bottomPanelY - laneGap;
     const auto totalLaneHeight = laneAreaBottom - laneTop - laneGap;
@@ -2477,14 +2961,28 @@ void SeqwencerAudioProcessorEditor::resized()
         release.setBounds (laneX + 78, y + 72, 60,
                            juce::jmax (35, juce::jmin (70, laneHeight - 84)));
 
-        auto& targetList = lane == 0 ? *targetListA : *targetListB;
         const auto gateSelected = selectedFx == SelectedFx::gate;
-        const auto targetX = gateSelected
+        const auto delaySelected = selectedFx == SelectedFx::delay;
+        const auto reverbSelected = selectedFx == SelectedFx::reverb;
+        const auto hasInternalTargets = gateSelected || delaySelected
+                                     || reverbSelected;
+        const auto targetX = hasInternalTargets
             ? designWidth - 10 - innerMargin - targetWidth
             : designWidth - 10 - innerMargin;
-        targetList.setBounds (targetX, y + innerMargin,
-                              gateSelected ? targetWidth : 0,
-                              laneHeight - 2 * innerMargin);
+        auto& gateTargetList = lane == 0 ? *targetListA : *targetListB;
+        auto& selectedDelayTargetList = lane == 0
+            ? *delayTargetListA : *delayTargetListB;
+        auto& selectedReverbTargetList = lane == 0
+            ? *reverbTargetListA : *reverbTargetListB;
+        gateTargetList.setBounds (targetX, y + innerMargin,
+                                  gateSelected ? targetWidth : 0,
+                                  laneHeight - 2 * innerMargin);
+        selectedDelayTargetList.setBounds (targetX, y + innerMargin,
+                                           delaySelected ? targetWidth : 0,
+                                           laneHeight - 2 * innerMargin);
+        selectedReverbTargetList.setBounds (targetX, y + innerMargin,
+                                            reverbSelected ? targetWidth : 0,
+                                            laneHeight - 2 * innerMargin);
         const auto gridX = laneX + controlsWidth + innerMargin;
         grid.setBounds (gridX, y + innerMargin,
                         juce::jmax (128, targetX - componentGap - gridX),
@@ -2506,8 +3004,24 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     depthParameterLabel->repaint();
     shortParameterLabel->repaint();
     longParameterLabel->repaint();
+    noiseThresholdParameterLabel->repaint();
+    noiseAttackParameterLabel->repaint();
+    noiseHoldParameterLabel->repaint();
+    noiseReleaseParameterLabel->repaint();
+    noiseRangeParameterLabel->repaint();
+    delayTimeParameterLabel->repaint();
+    delayFeedbackParameterLabel->repaint();
+    delayMixParameterLabel->repaint();
+    reverbSizeParameterLabel->repaint();
+    reverbDampingParameterLabel->repaint();
+    reverbWidthParameterLabel->repaint();
+    reverbMixParameterLabel->repaint();
     targetListA->refresh();
     targetListB->refresh();
+    delayTargetListA->refresh();
+    delayTargetListB->refresh();
+    reverbTargetListA->refresh();
+    reverbTargetListB->refresh();
     gridA->repaint();
     gridB->repaint();
 }

@@ -143,6 +143,27 @@ int main (int argumentCount, char* arguments[])
         "PHI Sequencer B Enabled");
     auto* phiStepA1 = findParameterByName ("PHI Sequencer A Step 1");
     auto* phiStepA2 = findParameterByName ("PHI Sequencer A Step 2");
+    auto* delayEnabled = findParameterByName ("Delay Enabled");
+    auto* delayTime = findParameterByName ("Delay Time");
+    auto* delayFeedback = findParameterByName ("Delay Feedback");
+    auto* delayMix = findParameterByName ("Delay Mix");
+    auto* delayRate = findParameterByName ("Delay Rate");
+    auto* delayStartStep = findParameterByName ("Delay Start Step");
+    auto* delayEndStep = findParameterByName ("Delay End Step");
+    auto* delaySequenceMode = findParameterByName ("Delay Direction");
+    auto* delayStepA1 = findParameterByName ("Delay Sequencer A Step 1");
+    auto* delayStepA2 = findParameterByName ("Delay Sequencer A Step 2");
+    auto* reverbEnabled = findParameterByName ("Reverb Enabled");
+    auto* reverbSize = findParameterByName ("Reverb Size");
+    auto* reverbDamping = findParameterByName ("Reverb Damping");
+    auto* reverbWidth = findParameterByName ("Reverb Width");
+    auto* reverbMix = findParameterByName ("Reverb Mix");
+    auto* reverbRate = findParameterByName ("Reverb Rate");
+    auto* reverbStartStep = findParameterByName ("Reverb Start Step");
+    auto* reverbEndStep = findParameterByName ("Reverb End Step");
+    auto* reverbSequenceMode = findParameterByName ("Reverb Direction");
+    auto* reverbStepA1 = findParameterByName ("Reverb Sequencer A Step 1");
+    auto* reverbStepA2 = findParameterByName ("Reverb Sequencer A Step 2");
     if (startStep == nullptr || endStep == nullptr || serialProfile == nullptr
         || bipolarA == nullptr || bipolarB == nullptr || rate == nullptr
         || hostSync == nullptr || phiBridge == nullptr
@@ -157,9 +178,19 @@ int main (int argumentCount, char* arguments[])
         || phiSequenceMode == nullptr || phiAttackA == nullptr
         || phiReleaseA == nullptr || phiSequencerAEnabled == nullptr
         || phiSequencerBEnabled == nullptr || phiStepA1 == nullptr
-        || phiStepA2 == nullptr)
+        || phiStepA2 == nullptr || delayEnabled == nullptr
+        || delayTime == nullptr || delayFeedback == nullptr
+        || delayMix == nullptr || delayRate == nullptr
+        || delayStartStep == nullptr || delayEndStep == nullptr
+        || delaySequenceMode == nullptr || delayStepA1 == nullptr
+        || delayStepA2 == nullptr || reverbEnabled == nullptr
+        || reverbSize == nullptr || reverbDamping == nullptr
+        || reverbWidth == nullptr || reverbMix == nullptr
+        || reverbRate == nullptr || reverbStartStep == nullptr
+        || reverbEndStep == nullptr || reverbSequenceMode == nullptr
+        || reverbStepA1 == nullptr || reverbStepA2 == nullptr)
     {
-        std::cout << "FAIL: a range, profile, timing, Gate-length, Direction or Noise Gate parameter was not found\n";
+        std::cout << "FAIL: a Gate, PHI, Delay or Reverb engine parameter was not found\n";
         return 1;
     }
     if (findParameterByName ("Mix") != nullptr)
@@ -215,11 +246,29 @@ int main (int argumentCount, char* arguments[])
         std::cout << "FAIL: the noise gate did not restore its safe defaults\n";
         return 1;
     }
-    std::cout << "PASS: range, timing, Gate lengths, Direction and noise gate controls are exposed" << std::endl;
+    if (delayEnabled->getValue() >= 0.5f
+        || delayRate->getNumSteps() != seqwencer::rateChoiceCount
+        || delaySequenceMode->getNumSteps() != 4)
+    {
+        std::cout << "FAIL: Delay did not restore its safe state or complete timing controls\n";
+        return 1;
+    }
+    if (reverbEnabled->getValue() >= 0.5f
+        || reverbRate->getNumSteps() != seqwencer::rateChoiceCount
+        || reverbSequenceMode->getNumSteps() != 4)
+    {
+        std::cout << "FAIL: Reverb did not restore its safe state or complete timing controls\n";
+        return 1;
+    }
+    std::cout << "PASS: Gate, PHI, Delay and Reverb engine controls are exposed" << std::endl;
 
     rate->setValueNotifyingHost (5.0f / 13.0f);
     phiRate->setValueNotifyingHost (9.0f / 13.0f);
+    delayRate->setValueNotifyingHost (11.0f / 13.0f);
+    reverbRate->setValueNotifyingHost (3.0f / 13.0f);
     phiStepA1->setValueNotifyingHost (0.80f);
+    delayStepA1->setValueNotifyingHost (0.65f);
+    reverbStepA1->setValueNotifyingHost (0.35f);
     auto* gateStepA1ForIndependence = findParameterByName (
         "Sequencer A Step 1");
     if (gateStepA1ForIndependence == nullptr)
@@ -230,22 +279,35 @@ int main (int argumentCount, char* arguments[])
     gateStepA1ForIndependence->setValueNotifyingHost (0.20f);
     if (rate->getCurrentValueAsText() != "1/16T"
         || phiRate->getCurrentValueAsText() != "1/4T"
+        || delayRate->getCurrentValueAsText() != "1/2T"
+        || reverbRate->getCurrentValueAsText() != "1/32T"
         || std::abs (gateStepA1ForIndependence->getValue() - 0.20f) > 0.001f
-        || std::abs (phiStepA1->getValue() - 0.80f) > 0.001f)
+        || std::abs (phiStepA1->getValue() - 0.80f) > 0.001f
+        || std::abs (delayStepA1->getValue() - 0.65f) > 0.001f
+        || std::abs (reverbStepA1->getValue() - 0.35f) > 0.001f)
     {
-        std::cout << "FAIL: Gate and PHI timing or step data were coupled\n";
+        std::cout << "FAIL: Gate, PHI, Delay or Reverb timing or step data were coupled\n";
         return 1;
     }
     rate->setValueNotifyingHost (6.0f / 13.0f);
     phiRate->setValueNotifyingHost (6.0f / 13.0f);
+    delayRate->setValueNotifyingHost (6.0f / 13.0f);
+    reverbRate->setValueNotifyingHost (6.0f / 13.0f);
     gateStepA1ForIndependence->setValueNotifyingHost (1.0f);
     phiStepA1->setValueNotifyingHost (1.0f);
-    std::cout << "PASS: Gate and PHI sequencer engines are independent" << std::endl;
+    delayStepA1->setValueNotifyingHost (1.0f);
+    reverbStepA1->setValueNotifyingHost (1.0f);
+    std::cout << "PASS: Gate, PHI, Delay and Reverb sequencer engines are independent" << std::endl;
 
     for (const auto* name : {
              "Sequencer A DEPTH Target", "Sequencer A SHORT STEP Target",
-             "Sequencer A LONG STEP Target", "Sequencer B DEPTH Target",
-             "Sequencer B SHORT STEP Target", "Sequencer B LONG STEP Target" })
+             "Sequencer A LONG STEP Target", "Sequencer A THRESHOLD Target",
+             "Sequencer A NOISE ATTACK Target", "Sequencer A HOLD Target",
+             "Sequencer A NOISE RELEASE Target", "Sequencer A RANGE Target",
+             "Sequencer B DEPTH Target", "Sequencer B SHORT STEP Target",
+             "Sequencer B LONG STEP Target", "Sequencer B THRESHOLD Target",
+             "Sequencer B NOISE ATTACK Target", "Sequencer B HOLD Target",
+             "Sequencer B NOISE RELEASE Target", "Sequencer B RANGE Target" })
     {
         if (findParameterByName (name) == nullptr)
         {
@@ -254,7 +316,64 @@ int main (int argumentCount, char* arguments[])
             return 1;
         }
     }
-    std::cout << "PASS: all four Gate controls expose independent A/B targets" << std::endl;
+    std::cout << "PASS: Gate and Noise Gate controls expose independent A/B targets" << std::endl;
+
+    for (const auto* name : {
+             "Delay Sequencer A TIME Target",
+             "Delay Sequencer A FEEDBACK Target",
+             "Delay Sequencer A MIX Target",
+             "Delay Sequencer B TIME Target",
+             "Delay Sequencer B FEEDBACK Target",
+             "Delay Sequencer B MIX Target" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Delay target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    std::cout << "PASS: Time, Feedback and Mix expose independent Delay targets" << std::endl;
+
+    for (const auto* name : {
+             "Reverb Sequencer A SIZE Target",
+             "Reverb Sequencer A SIZE Target Enabled",
+             "Reverb Sequencer A DAMPING Target",
+             "Reverb Sequencer A DAMPING Target Enabled",
+             "Reverb Sequencer A WIDTH Target",
+             "Reverb Sequencer A WIDTH Target Enabled",
+             "Reverb Sequencer A MIX Target",
+             "Reverb Sequencer A MIX Target Enabled",
+             "Reverb Sequencer B SIZE Target",
+             "Reverb Sequencer B SIZE Target Enabled",
+             "Reverb Sequencer B DAMPING Target",
+             "Reverb Sequencer B DAMPING Target Enabled",
+             "Reverb Sequencer B WIDTH Target",
+             "Reverb Sequencer B WIDTH Target Enabled",
+             "Reverb Sequencer B MIX Target",
+             "Reverb Sequencer B MIX Target Enabled" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Reverb target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    auto* reverbSizeTargetA = findParameterByName (
+        "Reverb Sequencer A SIZE Target");
+    auto* reverbSizeTargetB = findParameterByName (
+        "Reverb Sequencer B SIZE Target");
+    reverbSizeTargetA->setValueNotifyingHost (1.0f);
+    reverbSizeTargetB->setValueNotifyingHost (0.0f);
+    if (reverbSizeTargetA->getValue() < 0.5f
+        || reverbSizeTargetB->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: assigning Reverb Size to A also changed B\n";
+        return 1;
+    }
+    reverbSizeTargetA->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: Size, Damping, Width and Mix expose independent Reverb targets" << std::endl;
 
     auto* gateEnabled = findParameterByName ("Gate Enabled");
     auto* gateVolume = findParameterByName ("Gate Volume");
@@ -443,6 +562,81 @@ int main (int argumentCount, char* arguments[])
                 "Sequencer A Step " + juce::String (step)))
             stepParameter->setValueNotifyingHost (1.0f);
     std::cout << "PASS: noise gate responds to post-sequencer Volume and disables cleanly" << std::endl;
+
+    gateEnabled->setValueNotifyingHost (0.0f);
+    noiseGateEnabled->setValueNotifyingHost (0.0f);
+    delayEnabled->setValueNotifyingHost (1.0f);
+    delayTime->setValueNotifyingHost (0.0f);
+    delayFeedback->setValueNotifyingHost (0.0f);
+    delayMix->setValueNotifyingHost (1.0f);
+    constexpr int delayTestSampleCount = 2048;
+    juce::AudioBuffer<float> delayAudio (2, delayTestSampleCount);
+    delayAudio.clear();
+    delayAudio.setSample (0, 0, 1.0f);
+    delayAudio.setSample (1, 0, 1.0f);
+    instance->prepareToPlay (48000.0, delayTestSampleCount);
+    instance->processBlock (delayAudio, midi);
+    instance->releaseResources();
+
+    auto delayedPeak = 0.0f;
+    for (int sample = 476; sample <= 484; ++sample)
+        delayedPeak = std::max (delayedPeak,
+                                std::abs (delayAudio.getSample (0, sample)));
+    if (std::abs (delayAudio.getSample (0, 0)) > 0.001f
+        || delayedPeak < 0.80f)
+    {
+        std::cout << "FAIL: the tape Delay did not move a fully wet impulse to 10 ms\n";
+        return 1;
+    }
+    delayEnabled->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: tape Delay produces a smooth interpolated delayed signal" << std::endl;
+
+    reverbEnabled->setValueNotifyingHost (1.0f);
+    reverbSize->setValueNotifyingHost (0.75f);
+    reverbDamping->setValueNotifyingHost (0.20f);
+    reverbWidth->setValueNotifyingHost (1.0f);
+    reverbMix->setValueNotifyingHost (1.0f);
+    constexpr int reverbTestSampleCount = 16384;
+    juce::AudioBuffer<float> reverbAudio (2, reverbTestSampleCount);
+    reverbAudio.clear();
+    reverbAudio.setSample (0, 0, 1.0f);
+    reverbAudio.setSample (1, 0, 1.0f);
+    instance->prepareToPlay (48000.0, reverbTestSampleCount);
+    instance->processBlock (reverbAudio, midi);
+    instance->releaseResources();
+
+    auto reverbTailPeak = 0.0f;
+    for (int channel = 0; channel < reverbAudio.getNumChannels(); ++channel)
+        for (int sample = 1024; sample < reverbTestSampleCount; ++sample)
+            reverbTailPeak = std::max (
+                reverbTailPeak, std::abs (reverbAudio.getSample (channel, sample)));
+    if (std::abs (reverbAudio.getSample (0, 0)) > 0.001f
+        || reverbTailPeak < 0.0001f)
+    {
+        std::cout << "FAIL: the fully wet Reverb did not produce an audio tail\n";
+        return 1;
+    }
+
+    reverbEnabled->setValueNotifyingHost (0.0f);
+    juce::AudioBuffer<float> bypassedReverbAudio (2, offTestSampleCount);
+    for (int channel = 0; channel < bypassedReverbAudio.getNumChannels(); ++channel)
+        std::fill_n (bypassedReverbAudio.getWritePointer (channel),
+                     offTestSampleCount, 0.5f);
+    instance->prepareToPlay (48000.0, offTestSampleCount);
+    instance->processBlock (bypassedReverbAudio, midi);
+    instance->releaseResources();
+    auto reverbBypassError = 0.0f;
+    for (int channel = 0; channel < bypassedReverbAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+            reverbBypassError = std::max (
+                reverbBypassError,
+                std::abs (bypassedReverbAudio.getSample (channel, sample) - 0.5f));
+    if (reverbBypassError > 0.00001f)
+    {
+        std::cout << "FAIL: disabled Reverb still altered the audio\n";
+        return 1;
+    }
+    std::cout << "PASS: Reverb produces a wet tail and disables cleanly" << std::endl;
 
     auto* stepA2 = findParameterByName ("Sequencer A Step 2");
     auto* gateModeA2 = findParameterByName ("Sequencer A Gate Mode 2");

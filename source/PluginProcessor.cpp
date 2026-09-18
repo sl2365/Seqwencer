@@ -82,6 +82,43 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
     phiSeqBBipolar = parameters.getRawParameterValue ("phi_seq_b_bipolar");
     phiSeqBAttack = parameters.getRawParameterValue ("phi_seq_b_attack");
     phiSeqBRelease = parameters.getRawParameterValue ("phi_seq_b_release");
+    delayEnabled = parameters.getRawParameterValue ("delay_enabled");
+    delayTime = parameters.getRawParameterValue ("delay_time");
+    delayFeedback = parameters.getRawParameterValue ("delay_feedback");
+    delayMix = parameters.getRawParameterValue ("delay_mix");
+    delayPlaybackMode = parameters.getRawParameterValue ("delay_playback_mode");
+    delaySerialProfile = parameters.getRawParameterValue ("delay_serial_profile");
+    delayStartStep = parameters.getRawParameterValue ("delay_start_step");
+    delayEndStep = parameters.getRawParameterValue ("delay_end_step");
+    delayRate = parameters.getRawParameterValue ("delay_rate");
+    delaySequenceMode = parameters.getRawParameterValue ("delay_sequence_mode");
+    delaySeqAEnabled = parameters.getRawParameterValue ("delay_seq_a_enabled");
+    delaySeqABipolar = parameters.getRawParameterValue ("delay_seq_a_bipolar");
+    delaySeqAAttack = parameters.getRawParameterValue ("delay_seq_a_attack");
+    delaySeqARelease = parameters.getRawParameterValue ("delay_seq_a_release");
+    delaySeqBEnabled = parameters.getRawParameterValue ("delay_seq_b_enabled");
+    delaySeqBBipolar = parameters.getRawParameterValue ("delay_seq_b_bipolar");
+    delaySeqBAttack = parameters.getRawParameterValue ("delay_seq_b_attack");
+    delaySeqBRelease = parameters.getRawParameterValue ("delay_seq_b_release");
+    reverbEnabled = parameters.getRawParameterValue ("reverb_enabled");
+    reverbSize = parameters.getRawParameterValue ("reverb_size");
+    reverbDamping = parameters.getRawParameterValue ("reverb_damping");
+    reverbWidth = parameters.getRawParameterValue ("reverb_width");
+    reverbMix = parameters.getRawParameterValue ("reverb_mix");
+    reverbPlaybackMode = parameters.getRawParameterValue ("reverb_playback_mode");
+    reverbSerialProfile = parameters.getRawParameterValue ("reverb_serial_profile");
+    reverbStartStep = parameters.getRawParameterValue ("reverb_start_step");
+    reverbEndStep = parameters.getRawParameterValue ("reverb_end_step");
+    reverbRate = parameters.getRawParameterValue ("reverb_rate");
+    reverbSequenceMode = parameters.getRawParameterValue ("reverb_sequence_mode");
+    reverbSeqAEnabled = parameters.getRawParameterValue ("reverb_seq_a_enabled");
+    reverbSeqABipolar = parameters.getRawParameterValue ("reverb_seq_a_bipolar");
+    reverbSeqAAttack = parameters.getRawParameterValue ("reverb_seq_a_attack");
+    reverbSeqARelease = parameters.getRawParameterValue ("reverb_seq_a_release");
+    reverbSeqBEnabled = parameters.getRawParameterValue ("reverb_seq_b_enabled");
+    reverbSeqBBipolar = parameters.getRawParameterValue ("reverb_seq_b_bipolar");
+    reverbSeqBAttack = parameters.getRawParameterValue ("reverb_seq_b_attack");
+    reverbSeqBRelease = parameters.getRawParameterValue ("reverb_seq_b_release");
     seqAEnabled = parameters.getRawParameterValue ("seq_a_enabled");
     seqATarget = parameters.getRawParameterValue ("seq_a_target");
     seqATargetEnabled = parameters.getRawParameterValue ("seq_a_target_enabled");
@@ -95,7 +132,7 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
     seqBAttack = parameters.getRawParameterValue ("seq_b_attack");
     seqBRelease = parameters.getRawParameterValue ("seq_b_release");
 
-    for (int index = 0; index < seqwencer::gateModulationTargetCount; ++index)
+    for (int index = 0; index < seqwencer::modulationTargetCount; ++index)
     {
         const auto target = static_cast<seqwencer::ModulationTarget> (index + 1);
         targetsAssignedA[static_cast<std::size_t> (index)] =
@@ -118,6 +155,14 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
             parameters.getRawParameterValue (phiStepParameterID (0, step));
         phiStepsB[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (phiStepParameterID (1, step));
+        delayStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (delayStepParameterID (0, step));
+        delayStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (delayStepParameterID (1, step));
+        reverbStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (reverbStepParameterID (0, step));
+        reverbStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (reverbStepParameterID (1, step));
         gateModesA[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (gateModeParameterID (0, step));
         gateModesB[static_cast<std::size_t> (step)] =
@@ -143,6 +188,20 @@ juce::String SeqwencerAudioProcessor::phiStepParameterID (int bank, int step)
                .paddedLeft ('0', 2);
 }
 
+juce::String SeqwencerAudioProcessor::delayStepParameterID (int bank, int step)
+{
+    return "delay_seq_" + juce::String (bank == 0 ? "a" : "b") + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::reverbStepParameterID (int bank, int step)
+{
+    return "reverb_seq_" + juce::String (bank == 0 ? "a" : "b") + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
 juce::String SeqwencerAudioProcessor::gateModeParameterID (int bank, int step)
 {
     return "seq_" + juce::String (bank == 0 ? "a" : "b") + "_gate_mode_"
@@ -164,6 +223,37 @@ juce::String SeqwencerAudioProcessor::targetAssignedParameterID (
             return juce::String (prefix) + "short_target";
         case seqwencer::ModulationTarget::longGateLength:
             return juce::String (prefix) + "long_target";
+        case seqwencer::ModulationTarget::noiseGateThreshold:
+            return juce::String (prefix) + "noise_threshold_target";
+        case seqwencer::ModulationTarget::noiseGateAttack:
+            return juce::String (prefix) + "noise_attack_target";
+        case seqwencer::ModulationTarget::noiseGateHold:
+            return juce::String (prefix) + "noise_hold_target";
+        case seqwencer::ModulationTarget::noiseGateRelease:
+            return juce::String (prefix) + "noise_release_target";
+        case seqwencer::ModulationTarget::noiseGateRange:
+            return juce::String (prefix) + "noise_range_target";
+        case seqwencer::ModulationTarget::delayTime:
+            return juce::String (bank == 0 ? "delay_seq_a_time_target"
+                                           : "delay_seq_b_time_target");
+        case seqwencer::ModulationTarget::delayFeedback:
+            return juce::String (bank == 0 ? "delay_seq_a_feedback_target"
+                                           : "delay_seq_b_feedback_target");
+        case seqwencer::ModulationTarget::delayMix:
+            return juce::String (bank == 0 ? "delay_seq_a_mix_target"
+                                           : "delay_seq_b_mix_target");
+        case seqwencer::ModulationTarget::reverbSize:
+            return juce::String (bank == 0 ? "reverb_seq_a_size_target"
+                                           : "reverb_seq_b_size_target");
+        case seqwencer::ModulationTarget::reverbDamping:
+            return juce::String (bank == 0 ? "reverb_seq_a_damping_target"
+                                           : "reverb_seq_b_damping_target");
+        case seqwencer::ModulationTarget::reverbWidth:
+            return juce::String (bank == 0 ? "reverb_seq_a_width_target"
+                                           : "reverb_seq_b_width_target");
+        case seqwencer::ModulationTarget::reverbMix:
+            return juce::String (bank == 0 ? "reverb_seq_a_mix_target"
+                                           : "reverb_seq_b_mix_target");
         case seqwencer::ModulationTarget::none:
             break;
     }
@@ -184,6 +274,37 @@ juce::String SeqwencerAudioProcessor::targetEnabledParameterID (
             return juce::String (prefix) + "short_target_enabled";
         case seqwencer::ModulationTarget::longGateLength:
             return juce::String (prefix) + "long_target_enabled";
+        case seqwencer::ModulationTarget::noiseGateThreshold:
+            return juce::String (prefix) + "noise_threshold_target_enabled";
+        case seqwencer::ModulationTarget::noiseGateAttack:
+            return juce::String (prefix) + "noise_attack_target_enabled";
+        case seqwencer::ModulationTarget::noiseGateHold:
+            return juce::String (prefix) + "noise_hold_target_enabled";
+        case seqwencer::ModulationTarget::noiseGateRelease:
+            return juce::String (prefix) + "noise_release_target_enabled";
+        case seqwencer::ModulationTarget::noiseGateRange:
+            return juce::String (prefix) + "noise_range_target_enabled";
+        case seqwencer::ModulationTarget::delayTime:
+            return juce::String (bank == 0 ? "delay_seq_a_time_target_enabled"
+                                           : "delay_seq_b_time_target_enabled");
+        case seqwencer::ModulationTarget::delayFeedback:
+            return juce::String (bank == 0 ? "delay_seq_a_feedback_target_enabled"
+                                           : "delay_seq_b_feedback_target_enabled");
+        case seqwencer::ModulationTarget::delayMix:
+            return juce::String (bank == 0 ? "delay_seq_a_mix_target_enabled"
+                                           : "delay_seq_b_mix_target_enabled");
+        case seqwencer::ModulationTarget::reverbSize:
+            return juce::String (bank == 0 ? "reverb_seq_a_size_target_enabled"
+                                           : "reverb_seq_b_size_target_enabled");
+        case seqwencer::ModulationTarget::reverbDamping:
+            return juce::String (bank == 0 ? "reverb_seq_a_damping_target_enabled"
+                                           : "reverb_seq_b_damping_target_enabled");
+        case seqwencer::ModulationTarget::reverbWidth:
+            return juce::String (bank == 0 ? "reverb_seq_a_width_target_enabled"
+                                           : "reverb_seq_b_width_target_enabled");
+        case seqwencer::ModulationTarget::reverbMix:
+            return juce::String (bank == 0 ? "reverb_seq_a_mix_target_enabled"
+                                           : "reverb_seq_b_mix_target_enabled");
         case seqwencer::ModulationTarget::none:
             break;
     }
@@ -199,6 +320,18 @@ juce::String SeqwencerAudioProcessor::targetDisplayName (
         case seqwencer::ModulationTarget::gateDepth:       return "DEPTH";
         case seqwencer::ModulationTarget::shortGateLength: return "SHORT STEP";
         case seqwencer::ModulationTarget::longGateLength:  return "LONG STEP";
+        case seqwencer::ModulationTarget::noiseGateThreshold: return "THRESHOLD";
+        case seqwencer::ModulationTarget::noiseGateAttack: return "NOISE ATTACK";
+        case seqwencer::ModulationTarget::noiseGateHold: return "HOLD";
+        case seqwencer::ModulationTarget::noiseGateRelease: return "NOISE RELEASE";
+        case seqwencer::ModulationTarget::noiseGateRange: return "RANGE";
+        case seqwencer::ModulationTarget::delayTime: return "TIME";
+        case seqwencer::ModulationTarget::delayFeedback: return "FEEDBACK";
+        case seqwencer::ModulationTarget::delayMix: return "MIX";
+        case seqwencer::ModulationTarget::reverbSize: return "SIZE";
+        case seqwencer::ModulationTarget::reverbDamping: return "DAMPING";
+        case seqwencer::ModulationTarget::reverbWidth: return "WIDTH";
+        case seqwencer::ModulationTarget::reverbMix: return "MIX";
         case seqwencer::ModulationTarget::none:            break;
     }
     return {};
@@ -254,6 +387,8 @@ bool SeqwencerAudioProcessor::savePortablePreset (
     juce::String globalParameterLines;
     juce::String gateParameterLines;
     juce::String phiParameterLines;
+    juce::String delayParameterLines;
+    juce::String reverbParameterLines;
     auto parameterCount = 0;
     for (auto* baseParameter : getParameters())
     {
@@ -264,6 +399,10 @@ bool SeqwencerAudioProcessor::savePortablePreset (
             auto* destination = &gateParameterLines;
             if (parameterID.startsWith ("phi_"))
                 destination = &phiParameterLines;
+            else if (parameterID.startsWith ("delay_"))
+                destination = &delayParameterLines;
+            else if (parameterID.startsWith ("reverb_"))
+                destination = &reverbParameterLines;
             else if (parameterID == "bypass" || parameterID == "sync_to_host")
                 destination = &globalParameterLines;
 
@@ -278,7 +417,9 @@ bool SeqwencerAudioProcessor::savePortablePreset (
              << "\r\nParameterCount=" << parameterCount
              << "\r\n\r\n[Global]\r\n" << globalParameterLines
              << "\r\n[Gate]\r\n" << gateParameterLines
-             << "\r\n[PHI]\r\n" << phiParameterLines;
+             << "\r\n[PHI]\r\n" << phiParameterLines
+             << "\r\n[Delay]\r\n" << delayParameterLines
+             << "\r\n[Reverb]\r\n" << reverbParameterLines;
     if (! file.replaceWithText (contents))
     {
         errorMessage = "Seqwencer could not write:\n" + file.getFullPathName();
@@ -315,7 +456,8 @@ bool SeqwencerAudioProcessor::loadPortablePreset (
             continue;
         }
         if (line == "[Parameters]" || line == "[Global]"
-            || line == "[Gate]" || line == "[PHI]")
+            || line == "[Gate]" || line == "[PHI]" || line == "[Delay]"
+            || line == "[Reverb]")
         {
             inParameters = true;
             continue;
@@ -577,6 +719,180 @@ SeqwencerAudioProcessor::createParameterLayout()
         ID { "phi_sequence_mode", 1 }, "PHI Direction",
         juce::StringArray { "Loop", "Bounce", "Reverse", "Played" }, 0));
 
+    // Delay owns a third complete sequencer engine and three internal targets.
+    layout.add (std::make_unique<Bool> (
+        ID { "delay_enabled", 1 }, "Delay Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "delay_time", 1 }, "Delay Time",
+        juce::NormalisableRange<float> { 10.0f, 2000.0f, 0.1f, 0.35f },
+        375.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "delay_feedback", 1 }, "Delay Feedback",
+        juce::NormalisableRange<float> { 0.0f, 0.95f, 0.001f }, 0.35f));
+    layout.add (std::make_unique<Float> (
+        ID { "delay_mix", 1 }, "Delay Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 0.25f));
+    layout.add (std::make_unique<Choice> (
+        ID { "delay_playback_mode", 1 }, "Delay Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "delay_rate", 1 }, "Delay Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "delay_seq_a_enabled", 1 }, "Delay Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "delay_seq_a_attack", 1 }, "Delay Sequencer A Attack",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "delay_seq_a_release", 1 }, "Delay Sequencer A Release",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "delay_seq_b_enabled", 1 }, "Delay Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "delay_seq_b_attack", 1 }, "Delay Sequencer B Attack",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "delay_seq_b_release", 1 }, "Delay Sequencer B Release",
+        0.0f, 1.0f, 0.0f));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto bankName = bank == 0 ? "A" : "B";
+            layout.add (std::make_unique<Float> (
+                ID { delayStepParameterID (bank, step), 1 },
+                "Delay Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+
+    layout.add (std::make_unique<Choice> (
+        ID { "delay_serial_profile", 1 }, "Delay Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "delay_start_step", 1 }, "Delay Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "delay_end_step", 1 }, "Delay End Step", 2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "delay_seq_a_bipolar", 1 }, "Delay Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "delay_seq_b_bipolar", 1 }, "Delay Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "delay_sequence_mode", 1 }, "Delay Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played" }, 0));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Delay Sequencer A " : "Delay Sequencer B ";
+        for (int index = static_cast<int> (seqwencer::ModulationTarget::delayTime);
+             index <= static_cast<int> (seqwencer::ModulationTarget::delayMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
+    // Reverb owns a fourth complete sequencer engine and four internal targets.
+    layout.add (std::make_unique<Bool> (
+        ID { "reverb_enabled", 1 }, "Reverb Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "reverb_size", 1 }, "Reverb Size",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 0.50f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverb_damping", 1 }, "Reverb Damping",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 0.50f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverb_width", 1 }, "Reverb Width",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverb_mix", 1 }, "Reverb Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 0.25f));
+    layout.add (std::make_unique<Choice> (
+        ID { "reverb_playback_mode", 1 }, "Reverb Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "reverb_rate", 1 }, "Reverb Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverb_seq_a_enabled", 1 }, "Reverb Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "reverb_seq_a_attack", 1 }, "Reverb Sequencer A Attack",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverb_seq_a_release", 1 }, "Reverb Sequencer A Release",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverb_seq_b_enabled", 1 }, "Reverb Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "reverb_seq_b_attack", 1 }, "Reverb Sequencer B Attack",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverb_seq_b_release", 1 }, "Reverb Sequencer B Release",
+        0.0f, 1.0f, 0.0f));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto bankName = bank == 0 ? "A" : "B";
+            layout.add (std::make_unique<Float> (
+                ID { reverbStepParameterID (bank, step), 1 },
+                "Reverb Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+
+    layout.add (std::make_unique<Choice> (
+        ID { "reverb_serial_profile", 1 }, "Reverb Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "reverb_start_step", 1 }, "Reverb Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "reverb_end_step", 1 }, "Reverb End Step", 2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverb_seq_a_bipolar", 1 }, "Reverb Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverb_seq_b_bipolar", 1 }, "Reverb Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "reverb_sequence_mode", 1 }, "Reverb Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played" }, 0));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Reverb Sequencer A " : "Reverb Sequencer B ";
+        for (int index = static_cast<int> (seqwencer::ModulationTarget::reverbSize);
+             index <= static_cast<int> (seqwencer::ModulationTarget::reverbMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
     return layout;
 }
 
@@ -585,6 +901,8 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int)
     currentSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
     gateFreeRunningPhase = 0.0;
     phiFreeRunningPhase = 0.0;
+    delayFreeRunningPhase = 0.0;
+    reverbFreeRunningPhase = 0.0;
     previousHostPpq = 0.0;
     previousHostTimeInSamples = 0;
     previousHostPpqValid = false;
@@ -598,11 +916,33 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int)
     gateActiveStepB.store (-1);
     phiActiveStepA.store (0);
     phiActiveStepB.store (-1);
+    delayActiveStepA.store (0);
+    delayActiveStepB.store (-1);
+    reverbActiveStepA.store (0);
+    reverbActiveStepB.store (-1);
+    const auto delayBufferLength = static_cast<int> (
+        std::ceil (currentSampleRate * 2.05)) + 4;
+    delayBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
+                         delayBufferLength, false, true, false);
+    delayBuffer.clear();
+    delayWritePosition = 0;
+    delayWasActive = false;
+    smoothedDelaySamples.reset (currentSampleRate, 0.025);
+    smoothedDelaySamples.setCurrentAndTargetValue (
+        static_cast<float> (0.375 * currentSampleRate));
+    reverbProcessor.setSampleRate (currentSampleRate);
+    reverbProcessor.reset();
+    reverbWasActive = false;
 }
 
 void SeqwencerAudioProcessor::releaseResources()
 {
     notePhraseTracker.reset();
+    delayBuffer.clear();
+    delayWritePosition = 0;
+    delayWasActive = false;
+    reverbProcessor.reset();
+    reverbWasActive = false;
 }
 
 bool SeqwencerAudioProcessor::isBusesLayoutSupported (
@@ -635,6 +975,36 @@ seqwencer::Pattern SeqwencerAudioProcessor::readPhiPattern (
 {
     seqwencer::Pattern result {};
     const auto& source = bank == 0 ? phiStepsA : phiStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readDelayPattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? delayStepsA : delayStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readReverbPattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? reverbStepsA : reverbStepsB;
 
     for (std::size_t i = 0; i < result.size(); ++i)
     {
@@ -726,6 +1096,16 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         0, seqwencer::ModulationTarget::gateLevel);
     const auto gatePatternB = readPattern (
         1, seqwencer::ModulationTarget::gateLevel);
+    const auto gateCanonicalPatternA = readPattern (
+        0, seqwencer::ModulationTarget::noiseGateThreshold);
+    const auto gateCanonicalPatternB = readPattern (
+        1, seqwencer::ModulationTarget::noiseGateThreshold);
+    const auto gateBipolarA = seqABipolar != nullptr
+                           && seqABipolar->load() >= 0.5f;
+    const auto gateBipolarB = seqBBipolar != nullptr
+                           && seqBBipolar->load() >= 0.5f;
+    const auto gateSerialBipolar = gateUsesProfileB
+        ? gateBipolarB : gateBipolarA;
     const auto gateModesForA = readGateModes (0);
     const auto gateModesForB = readGateModes (1);
     const auto gateRateIndex = juce::jlimit (
@@ -772,6 +1152,86 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         phiSequenceMode != nullptr ? phiSequenceMode->load() : 0.0f);
     const auto phiRetriggersFromPlayedNotes =
         phiTraversalMode == seqwencer::SequenceMode::played;
+
+    const auto delayAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        delaySeqAAttack != nullptr ? delaySeqAAttack->load() : 0.0f);
+    const auto delayReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        delaySeqARelease != nullptr ? delaySeqARelease->load() : 0.0f);
+    const auto delayAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        delaySeqBAttack != nullptr ? delaySeqBAttack->load() : 0.0f);
+    const auto delayReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        delaySeqBRelease != nullptr ? delaySeqBRelease->load() : 0.0f);
+    const auto delayLinked = delayPlaybackMode != nullptr
+                          && delayPlaybackMode->load() >= 0.5f;
+    const auto delayUsesProfileB = delaySerialProfile != nullptr
+                                && delaySerialProfile->load() >= 0.5f;
+    const auto delaySerialAttack = delayUsesProfileB
+        ? delayAttackBValue : delayAttackAValue;
+    const auto delaySerialRelease = delayUsesProfileB
+        ? delayReleaseBValue : delayReleaseAValue;
+    const auto delayBipolarAValue = delaySeqABipolar != nullptr
+                                 && delaySeqABipolar->load() >= 0.5f;
+    const auto delayBipolarBValue = delaySeqBBipolar != nullptr
+                                 && delaySeqBBipolar->load() >= 0.5f;
+    const auto delaySerialBipolar = delayUsesProfileB
+        ? delayBipolarBValue : delayBipolarAValue;
+    const auto delayUnipolarPatternA = readDelayPattern (0, false);
+    const auto delayUnipolarPatternB = readDelayPattern (1, false);
+    const auto delayCanonicalPatternA = readDelayPattern (0, true);
+    const auto delayCanonicalPatternB = readDelayPattern (1, true);
+    const auto delayRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            delayRate != nullptr ? delayRate->load() : 6.0f)));
+    const auto delayStepBeats = seqwencer::beatsForRate (delayRateIndex);
+    const auto delayTraversalMode = seqwencer::sequenceModeFromChoice (
+        delaySequenceMode != nullptr ? delaySequenceMode->load() : 0.0f);
+    const auto delayRetriggersFromPlayedNotes =
+        delayTraversalMode == seqwencer::SequenceMode::played;
+
+    const auto reverbAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        reverbSeqAAttack != nullptr ? reverbSeqAAttack->load() : 0.0f);
+    const auto reverbReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        reverbSeqARelease != nullptr ? reverbSeqARelease->load() : 0.0f);
+    const auto reverbAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        reverbSeqBAttack != nullptr ? reverbSeqBAttack->load() : 0.0f);
+    const auto reverbReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        reverbSeqBRelease != nullptr ? reverbSeqBRelease->load() : 0.0f);
+    const auto reverbLinked = reverbPlaybackMode != nullptr
+                           && reverbPlaybackMode->load() >= 0.5f;
+    const auto reverbUsesProfileB = reverbSerialProfile != nullptr
+                                 && reverbSerialProfile->load() >= 0.5f;
+    const auto reverbSerialAttack = reverbUsesProfileB
+        ? reverbAttackBValue : reverbAttackAValue;
+    const auto reverbSerialRelease = reverbUsesProfileB
+        ? reverbReleaseBValue : reverbReleaseAValue;
+    const auto reverbBipolarAValue = reverbSeqABipolar != nullptr
+                                  && reverbSeqABipolar->load() >= 0.5f;
+    const auto reverbBipolarBValue = reverbSeqBBipolar != nullptr
+                                  && reverbSeqBBipolar->load() >= 0.5f;
+    const auto reverbSerialBipolar = reverbUsesProfileB
+        ? reverbBipolarBValue : reverbBipolarAValue;
+    const auto reverbUnipolarPatternA = readReverbPattern (0, false);
+    const auto reverbUnipolarPatternB = readReverbPattern (1, false);
+    const auto reverbCanonicalPatternA = readReverbPattern (0, true);
+    const auto reverbCanonicalPatternB = readReverbPattern (1, true);
+    const auto reverbRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            reverbRate != nullptr ? reverbRate->load() : 6.0f)));
+    const auto reverbStepBeats = seqwencer::beatsForRate (reverbRateIndex);
+    const auto reverbTraversalMode = seqwencer::sequenceModeFromChoice (
+        reverbSequenceMode != nullptr ? reverbSequenceMode->load() : 0.0f);
+    const auto reverbRetriggersFromPlayedNotes =
+        reverbTraversalMode == seqwencer::SequenceMode::played;
     auto hostBpm = 120.0;
     auto hostPpq = 0.0;
     auto hostPositionAvailable = false;
@@ -856,6 +1316,14 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                  && hostPositionAvailable
                                  && ! phiTimelineNeedsFreeRun
                                  && ! phiRetriggersFromPlayedNotes;
+    const auto delayUseHostPosition = hostSyncEnabled
+                                   && hostPositionAvailable
+                                   && ! phiTimelineNeedsFreeRun
+                                   && ! delayRetriggersFromPlayedNotes;
+    const auto reverbUseHostPosition = hostSyncEnabled
+                                    && hostPositionAvailable
+                                    && ! phiTimelineNeedsFreeRun
+                                    && ! reverbRetriggersFromPlayedNotes;
     const auto gateRange = seqwencer::makeStepRange (
         static_cast<int> (std::lround (startStep != nullptr ? startStep->load() : 1.0f)),
         static_cast<int> (std::lround (endStep != nullptr ? endStep->load() : 64.0f)),
@@ -866,14 +1334,34 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         static_cast<int> (std::lround (
             phiEndStep != nullptr ? phiEndStep->load() : 64.0f)),
         phiLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
+    const auto delayRange = seqwencer::makeStepRange (
+        static_cast<int> (std::lround (
+            delayStartStep != nullptr ? delayStartStep->load() : 1.0f)),
+        static_cast<int> (std::lround (
+            delayEndStep != nullptr ? delayEndStep->load() : 64.0f)),
+        delayLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
+    const auto reverbRange = seqwencer::makeStepRange (
+        static_cast<int> (std::lround (
+            reverbStartStep != nullptr ? reverbStartStep->load() : 1.0f)),
+        static_cast<int> (std::lround (
+            reverbEndStep != nullptr ? reverbEndStep->load() : 64.0f)),
+        reverbLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
     const auto gateCycleLength = seqwencer::sequenceCycleLength (
         gateRange.length(), gateTraversalMode);
     const auto phiCycleLength = seqwencer::sequenceCycleLength (
         phiRange.length(), phiTraversalMode);
+    const auto delayCycleLength = seqwencer::sequenceCycleLength (
+        delayRange.length(), delayTraversalMode);
+    const auto reverbCycleLength = seqwencer::sequenceCycleLength (
+        reverbRange.length(), reverbTraversalMode);
     const auto gatePhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * gateStepBeats * currentSampleRate / hostBpm);
     const auto phiPhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * phiStepBeats * currentSampleRate / hostBpm);
+    const auto delayPhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * delayStepBeats * currentSampleRate / hostBpm);
+    const auto reverbPhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * reverbStepBeats * currentSampleRate / hostBpm);
     const auto shouldBypass = bypass != nullptr && bypass->load() >= 0.5f;
     const auto shouldGate = gateEnabled != nullptr && gateEnabled->load() >= 0.5f;
     const auto base = juce::jlimit (
@@ -890,27 +1378,40 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                   : seqwencer::longGateOpenFraction);
     const auto shouldNoiseGate = noiseGateEnabled != nullptr
                               && noiseGateEnabled->load() >= 0.5f;
-    const auto noiseThresholdDb = juce::jlimit (
+    const auto baseNoiseThresholdDb = juce::jlimit (
         -80.0f, 0.0f,
         noiseGateThreshold != nullptr ? noiseGateThreshold->load() : -60.0f);
-    const auto noiseThresholdGain =
-        juce::Decibels::decibelsToGain (noiseThresholdDb);
-    const auto noiseCloseThresholdGain = noiseThresholdGain
-                                       * juce::Decibels::decibelsToGain (-3.0f);
-    const auto noiseAttackSeconds = 0.001 * juce::jlimit (
+    const auto baseNoiseAttackMs = juce::jlimit (
         0.1f, 100.0f,
         noiseGateAttack != nullptr ? noiseGateAttack->load() : 5.0f);
-    const auto noiseHoldSamples = static_cast<int> (std::lround (
-        0.001 * juce::jlimit (
-            0.0f, 500.0f,
-            noiseGateHold != nullptr ? noiseGateHold->load() : 50.0f)
-        * currentSampleRate));
-    const auto noiseReleaseSeconds = 0.001 * juce::jlimit (
+    const auto baseNoiseHoldMs = juce::jlimit (
+        0.0f, 500.0f,
+        noiseGateHold != nullptr ? noiseGateHold->load() : 50.0f);
+    const auto baseNoiseReleaseMs = juce::jlimit (
         5.0f, 1000.0f,
         noiseGateRelease != nullptr ? noiseGateRelease->load() : 100.0f);
-    const auto noiseClosedGain = 1.0f - juce::jlimit (
+    const auto baseNoiseRange = juce::jlimit (
         0.0f, 1.0f,
         noiseGateRange != nullptr ? noiseGateRange->load() : 1.0f);
+    const auto shouldDelay = delayEnabled != nullptr
+                          && delayEnabled->load() >= 0.5f;
+    const auto baseDelayTimeMs = juce::jlimit (
+        10.0f, 2000.0f, delayTime != nullptr ? delayTime->load() : 375.0f);
+    const auto baseDelayFeedback = juce::jlimit (
+        0.0f, 0.95f,
+        delayFeedback != nullptr ? delayFeedback->load() : 0.35f);
+    const auto baseDelayMix = juce::jlimit (
+        0.0f, 1.0f, delayMix != nullptr ? delayMix->load() : 0.25f);
+    const auto shouldReverb = reverbEnabled != nullptr
+                           && reverbEnabled->load() >= 0.5f;
+    const auto baseReverbSize = juce::jlimit (
+        0.0f, 1.0f, reverbSize != nullptr ? reverbSize->load() : 0.50f);
+    const auto baseReverbDamping = juce::jlimit (
+        0.0f, 1.0f, reverbDamping != nullptr ? reverbDamping->load() : 0.50f);
+    const auto baseReverbWidth = juce::jlimit (
+        0.0f, 1.0f, reverbWidth != nullptr ? reverbWidth->load() : 1.0f);
+    const auto baseReverbMix = juce::jlimit (
+        0.0f, 1.0f, reverbMix != nullptr ? reverbMix->load() : 0.25f);
     const auto gateAIsEnabled = seqAEnabled == nullptr
                              || seqAEnabled->load() >= 0.5f;
     const auto gateBIsEnabled = seqBEnabled != nullptr
@@ -919,11 +1420,19 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                             || phiSeqAEnabled->load() >= 0.5f;
     const auto phiBIsEnabled = phiSeqBEnabled != nullptr
                             && phiSeqBEnabled->load() >= 0.5f;
+    const auto delayAIsEnabled = delaySeqAEnabled == nullptr
+                              || delaySeqAEnabled->load() >= 0.5f;
+    const auto delayBIsEnabled = delaySeqBEnabled != nullptr
+                              && delaySeqBEnabled->load() >= 0.5f;
+    const auto reverbAIsEnabled = reverbSeqAEnabled == nullptr
+                               || reverbSeqAEnabled->load() >= 0.5f;
+    const auto reverbBIsEnabled = reverbSeqBEnabled != nullptr
+                               && reverbSeqBEnabled->load() >= 0.5f;
     const auto targetIsActive = [this] (
         int bank, seqwencer::ModulationTarget target)
     {
         const auto index = static_cast<int> (target) - 1;
-        if (index < 0 || index >= seqwencer::gateModulationTargetCount)
+        if (index < 0 || index >= seqwencer::modulationTargetCount)
             return false;
 
         const auto arrayIndex = static_cast<std::size_t> (index);
@@ -955,12 +1464,27 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // Attack or Release is set to zero without masking their musical shape.
     const auto safetyCoefficient = static_cast<float> (
         1.0 - std::exp (-1.0 / juce::jmax (1.0, 0.0005 * currentSampleRate)));
-    const auto noiseAttackCoefficient = static_cast<float> (
-        1.0 - std::exp (-1.0 / juce::jmax (
-            1.0, noiseAttackSeconds * currentSampleRate)));
-    const auto noiseReleaseCoefficient = static_cast<float> (
-        1.0 - std::exp (-1.0 / juce::jmax (
-            1.0, noiseReleaseSeconds * currentSampleRate)));
+    const auto delayIsProcessing = shouldDelay && ! shouldBypass
+                                && delayBuffer.getNumSamples() > 3;
+    if (delayIsProcessing && ! delayWasActive)
+    {
+        delayBuffer.clear();
+        delayWritePosition = 0;
+        smoothedDelaySamples.setCurrentAndTargetValue (
+            static_cast<float> (baseDelayTimeMs * 0.001 * currentSampleRate));
+    }
+    else if (! delayIsProcessing && delayWasActive)
+    {
+        delayBuffer.clear();
+        delayWritePosition = 0;
+    }
+    delayWasActive = delayIsProcessing;
+    const auto reverbIsProcessing = shouldReverb && ! shouldBypass;
+    if (reverbIsProcessing && ! reverbWasActive)
+        reverbProcessor.reset();
+    else if (! reverbIsProcessing && reverbWasActive)
+        reverbProcessor.reset();
+    reverbWasActive = reverbIsProcessing;
     std::size_t nextPhraseStart = 0;
 
     for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
@@ -972,6 +1496,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 gateFreeRunningPhase = 0.0;
             if (phiRetriggersFromPlayedNotes)
                 phiFreeRunningPhase = 0.0;
+            if (delayRetriggersFromPlayedNotes)
+                delayFreeRunningPhase = 0.0;
+            if (reverbRetriggersFromPlayedNotes)
+                reverbFreeRunningPhase = 0.0;
             ++nextPhraseStart;
         }
 
@@ -997,29 +1525,122 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 ppq, phiStepBeats, phiCycleLength);
         }
 
+        auto delayPhase = delayFreeRunningPhase;
+        if (delayUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            delayPhase = seqwencer::phaseFromQuarterNotes (
+                ppq, delayStepBeats, delayCycleLength);
+        }
+
+        auto reverbPhase = reverbFreeRunningPhase;
+        if (reverbUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            reverbPhase = seqwencer::phaseFromQuarterNotes (
+                ppq, reverbStepBeats, reverbCycleLength);
+        }
+
+        auto gateUnipolarA = 1.0f;
+        auto gateUnipolarB = 1.0f;
+        auto gateCanonicalA = 1.0f;
+        auto gateCanonicalB = 1.0f;
+        auto gateSerialUnipolar = 1.0f;
+        auto gateSerialCanonical = 1.0f;
+
         if (gateLinked)
         {
-            auto activeBank = 0;
-            auto activeStep = 0;
-            const auto serialValue = seqwencer::evaluateLinkedRange (
+            gateSerialUnipolar = seqwencer::evaluateLinkedRange (
                 gatePatternA, gatePatternB, gatePhase, gateRange,
                 gateSerialAttack, gateSerialRelease,
                 gateSerialAttack, gateSerialRelease,
                 nullptr, nullptr, gateTraversalMode);
-            const auto depth = targetIsActive (
-                                   0, seqwencer::ModulationTarget::gateDepth)
-                ? seqwencer::modulatedCeiling (baseDepth, serialValue)
-                : baseDepth;
-            const auto shortLength = targetIsActive (
-                    0, seqwencer::ModulationTarget::shortGateLength)
-                ? seqwencer::modulatedRangeFromMinimum (
-                    0.10f, baseShortLength, serialValue)
-                : baseShortLength;
-            const auto longLength = targetIsActive (
-                    0, seqwencer::ModulationTarget::longGateLength)
-                ? seqwencer::modulatedRangeFromMinimum (
-                    0.65f, baseLongLength, serialValue)
-                : baseLongLength;
+            gateSerialCanonical = seqwencer::evaluateLinkedRange (
+                gateCanonicalPatternA, gateCanonicalPatternB,
+                gatePhase, gateRange,
+                gateSerialAttack, gateSerialRelease,
+                gateSerialAttack, gateSerialRelease,
+                nullptr, nullptr, gateTraversalMode);
+        }
+        else
+        {
+            gateUnipolarA = seqwencer::evaluateBankRange (
+                gatePatternA, gatePhase, gateRange,
+                gateAttackA, gateReleaseA, nullptr, gateTraversalMode);
+            gateUnipolarB = seqwencer::evaluateBankRange (
+                gatePatternB, gatePhase, gateRange,
+                gateAttackB, gateReleaseB, nullptr, gateTraversalMode);
+            gateCanonicalA = seqwencer::evaluateBankRange (
+                gateCanonicalPatternA, gatePhase, gateRange,
+                gateAttackA, gateReleaseA, nullptr, gateTraversalMode);
+            gateCanonicalB = seqwencer::evaluateBankRange (
+                gateCanonicalPatternB, gatePhase, gateRange,
+                gateAttackB, gateReleaseB, nullptr, gateTraversalMode);
+        }
+
+        const auto gateTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (gateLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return gateSerialBipolar
+                           && seqwencer::targetSupportsBipolar (target)
+                    ? 2.0f * gateSerialCanonical - 1.0f
+                    : gateSerialUnipolar - 1.0f;
+            }
+
+            const auto useBipolarA = gateBipolarA
+                                  && seqwencer::targetSupportsBipolar (target);
+            const auto useBipolarB = gateBipolarB
+                                  && seqwencer::targetSupportsBipolar (target);
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                useBipolarA ? gateCanonicalA : gateUnipolarA,
+                gateAIsEnabled && targetIsActive (0, target), target,
+                useBipolarA,
+                useBipolarB ? gateCanonicalB : gateUnipolarB,
+                gateBIsEnabled && targetIsActive (1, target), target,
+                useBipolarB, assigned);
+        };
+
+        bool depthIsAssigned = false;
+        bool shortIsAssigned = false;
+        bool longIsAssigned = false;
+        const auto depthDeviation = gateTargetDeviation (
+            seqwencer::ModulationTarget::gateDepth, &depthIsAssigned);
+        const auto shortDeviation = gateTargetDeviation (
+            seqwencer::ModulationTarget::shortGateLength, &shortIsAssigned);
+        const auto longDeviation = gateTargetDeviation (
+            seqwencer::ModulationTarget::longGateLength, &longIsAssigned);
+        const auto depth = depthIsAssigned
+            ? seqwencer::applyModulationDepth (baseDepth, depthDeviation, 1.0f)
+            : baseDepth;
+        const auto shortBaseNormalised = (baseShortLength - 0.10f) / 0.50f;
+        const auto shortLength = shortIsAssigned
+            ? 0.10f + 0.50f * seqwencer::applyModulationDepth (
+                shortBaseNormalised, shortDeviation, 1.0f)
+            : baseShortLength;
+        const auto longBaseNormalised = (baseLongLength - 0.65f) / 0.30f;
+        const auto longLength = longIsAssigned
+            ? 0.65f + 0.30f * seqwencer::applyModulationDepth (
+                longBaseNormalised, longDeviation, 1.0f)
+            : baseLongLength;
+
+        if (gateLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
             const auto value = seqwencer::evaluateGateLinkedRange (
                 gateLevelPatternA, gateLevelPatternB,
                 gateModesForA, gateModesForB,
@@ -1028,12 +1649,11 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 gateSerialAttack, gateSerialRelease,
                 &activeBank, &activeStep, shortLength, longLength,
                 gateTraversalMode);
-            const auto gateDeviation = value - 1.0f;
             gateActiveStepA.store (activeBank == 0 ? activeStep : -1);
             gateActiveStepB.store (activeBank == 1 ? activeStep : -1);
-
             const auto targetGain = shouldGate && ! shouldBypass
-                ? seqwencer::applyModulationDepth (base, gateDeviation, depth)
+                ? seqwencer::applyModulationDepth (
+                    base, value - 1.0f, depth)
                 : 1.0f;
             smoothedGain += safetyCoefficient * (targetGain - smoothedGain);
         }
@@ -1041,51 +1661,6 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         {
             auto stepA = 0;
             auto stepB = 0;
-            const auto sequenceValueA = seqwencer::evaluateBankRange (
-                gatePatternA, gatePhase, gateRange,
-                gateAttackA, gateReleaseA, nullptr, gateTraversalMode);
-            const auto sequenceValueB = seqwencer::evaluateBankRange (
-                gatePatternB, gatePhase, gateRange,
-                gateAttackB, gateReleaseB, nullptr, gateTraversalMode);
-            const auto combinedTargetValue = [&] (
-                seqwencer::ModulationTarget target, bool* assigned = nullptr)
-            {
-                auto result = 1.0f;
-                auto found = false;
-                if (gateAIsEnabled && targetIsActive (0, target))
-                {
-                    result *= sequenceValueA;
-                    found = true;
-                }
-                if (gateBIsEnabled && targetIsActive (1, target))
-                {
-                    result *= sequenceValueB;
-                    found = true;
-                }
-                if (assigned != nullptr)
-                    *assigned = found;
-                return result;
-            };
-            bool depthIsAssigned = false;
-            bool shortIsAssigned = false;
-            bool longIsAssigned = false;
-            const auto depthValue = combinedTargetValue (
-                seqwencer::ModulationTarget::gateDepth, &depthIsAssigned);
-            const auto shortValue = combinedTargetValue (
-                seqwencer::ModulationTarget::shortGateLength, &shortIsAssigned);
-            const auto longValue = combinedTargetValue (
-                seqwencer::ModulationTarget::longGateLength, &longIsAssigned);
-            const auto depth = depthIsAssigned
-                ? seqwencer::modulatedCeiling (baseDepth, depthValue)
-                : baseDepth;
-            const auto shortLength = shortIsAssigned
-                ? seqwencer::modulatedRangeFromMinimum (
-                    0.10f, baseShortLength, shortValue)
-                : baseShortLength;
-            const auto longLength = longIsAssigned
-                ? seqwencer::modulatedRangeFromMinimum (
-                    0.65f, baseLongLength, longValue)
-                : baseLongLength;
             const auto valueA = seqwencer::evaluateGateBankRange (
                 gateLevelPatternA, gateModesForA, gatePhase, gateRange,
                 gateAttackA, gateReleaseA, &stepA, shortLength, longLength,
@@ -1102,10 +1677,9 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 combinedGate *= valueA;
             if (gateBIsEnabled)
                 combinedGate *= valueB;
-            const auto gateDeviation = combinedGate - 1.0f;
-
             const auto targetGain = shouldGate && ! shouldBypass
-                ? seqwencer::applyModulationDepth (base, gateDeviation, depth)
+                ? seqwencer::applyModulationDepth (
+                    base, combinedGate - 1.0f, depth)
                 : 1.0f;
             smoothedGain += safetyCoefficient * (targetGain - smoothedGain);
         }
@@ -1138,8 +1712,198 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             phiActiveStepB.store (phiBIsEnabled ? stepB : -1);
         }
 
+        auto delayUnipolarA = 1.0f;
+        auto delayUnipolarB = 1.0f;
+        auto delayCanonicalA = 1.0f;
+        auto delayCanonicalB = 1.0f;
+        auto delaySerialUnipolar = 1.0f;
+        auto delaySerialCanonical = 1.0f;
+        if (delayLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            delaySerialUnipolar = seqwencer::evaluateLinkedRange (
+                delayUnipolarPatternA, delayUnipolarPatternB,
+                delayPhase, delayRange,
+                delaySerialAttack, delaySerialRelease,
+                delaySerialAttack, delaySerialRelease,
+                &activeBank, &activeStep, delayTraversalMode);
+            delaySerialCanonical = seqwencer::evaluateLinkedRange (
+                delayCanonicalPatternA, delayCanonicalPatternB,
+                delayPhase, delayRange,
+                delaySerialAttack, delaySerialRelease,
+                delaySerialAttack, delaySerialRelease,
+                nullptr, nullptr, delayTraversalMode);
+            delayActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            delayActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            delayUnipolarA = seqwencer::evaluateBankRange (
+                delayUnipolarPatternA, delayPhase, delayRange,
+                delayAttackAValue, delayReleaseAValue,
+                &stepA, delayTraversalMode);
+            delayUnipolarB = seqwencer::evaluateBankRange (
+                delayUnipolarPatternB, delayPhase, delayRange,
+                delayAttackBValue, delayReleaseBValue,
+                &stepB, delayTraversalMode);
+            delayCanonicalA = seqwencer::evaluateBankRange (
+                delayCanonicalPatternA, delayPhase, delayRange,
+                delayAttackAValue, delayReleaseAValue,
+                nullptr, delayTraversalMode);
+            delayCanonicalB = seqwencer::evaluateBankRange (
+                delayCanonicalPatternB, delayPhase, delayRange,
+                delayAttackBValue, delayReleaseBValue,
+                nullptr, delayTraversalMode);
+            delayActiveStepA.store (delayAIsEnabled ? stepA : -1);
+            delayActiveStepB.store (delayBIsEnabled ? stepB : -1);
+        }
+
+        const auto delayTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (delayLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return delaySerialBipolar
+                    ? 2.0f * delaySerialCanonical - 1.0f
+                    : delaySerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                delayBipolarAValue ? delayCanonicalA : delayUnipolarA,
+                delayAIsEnabled && targetIsActive (0, target), target,
+                delayBipolarAValue,
+                delayBipolarBValue ? delayCanonicalB : delayUnipolarB,
+                delayBIsEnabled && targetIsActive (1, target), target,
+                delayBipolarBValue, assigned);
+        };
+
+        auto reverbUnipolarA = 1.0f;
+        auto reverbUnipolarB = 1.0f;
+        auto reverbCanonicalA = 1.0f;
+        auto reverbCanonicalB = 1.0f;
+        auto reverbSerialUnipolar = 1.0f;
+        auto reverbSerialCanonical = 1.0f;
+        if (reverbLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            reverbSerialUnipolar = seqwencer::evaluateLinkedRange (
+                reverbUnipolarPatternA, reverbUnipolarPatternB,
+                reverbPhase, reverbRange,
+                reverbSerialAttack, reverbSerialRelease,
+                reverbSerialAttack, reverbSerialRelease,
+                &activeBank, &activeStep, reverbTraversalMode);
+            reverbSerialCanonical = seqwencer::evaluateLinkedRange (
+                reverbCanonicalPatternA, reverbCanonicalPatternB,
+                reverbPhase, reverbRange,
+                reverbSerialAttack, reverbSerialRelease,
+                reverbSerialAttack, reverbSerialRelease,
+                nullptr, nullptr, reverbTraversalMode);
+            reverbActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            reverbActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            reverbUnipolarA = seqwencer::evaluateBankRange (
+                reverbUnipolarPatternA, reverbPhase, reverbRange,
+                reverbAttackAValue, reverbReleaseAValue,
+                &stepA, reverbTraversalMode);
+            reverbUnipolarB = seqwencer::evaluateBankRange (
+                reverbUnipolarPatternB, reverbPhase, reverbRange,
+                reverbAttackBValue, reverbReleaseBValue,
+                &stepB, reverbTraversalMode);
+            reverbCanonicalA = seqwencer::evaluateBankRange (
+                reverbCanonicalPatternA, reverbPhase, reverbRange,
+                reverbAttackAValue, reverbReleaseAValue,
+                nullptr, reverbTraversalMode);
+            reverbCanonicalB = seqwencer::evaluateBankRange (
+                reverbCanonicalPatternB, reverbPhase, reverbRange,
+                reverbAttackBValue, reverbReleaseBValue,
+                nullptr, reverbTraversalMode);
+            reverbActiveStepA.store (reverbAIsEnabled ? stepA : -1);
+            reverbActiveStepB.store (reverbBIsEnabled ? stepB : -1);
+        }
+
+        const auto reverbTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (reverbLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return reverbSerialBipolar
+                    ? 2.0f * reverbSerialCanonical - 1.0f
+                    : reverbSerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                reverbBipolarAValue ? reverbCanonicalA : reverbUnipolarA,
+                reverbAIsEnabled && targetIsActive (0, target), target,
+                reverbBipolarAValue,
+                reverbBipolarBValue ? reverbCanonicalB : reverbUnipolarB,
+                reverbBIsEnabled && targetIsActive (1, target), target,
+                reverbBipolarBValue, assigned);
+        };
+
         if (shouldGate && shouldNoiseGate && ! shouldBypass)
         {
+            const auto modulatedActual = [&] (
+                float baseValue, float minimumValue, float maximumValue,
+                seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = gateTargetDeviation (target, &assigned);
+                if (! assigned)
+                    return baseValue;
+                const auto normalised = (baseValue - minimumValue)
+                                      / (maximumValue - minimumValue);
+                return minimumValue + (maximumValue - minimumValue)
+                    * seqwencer::applyModulationDepth (
+                        normalised, deviation, 1.0f);
+            };
+            const auto noiseThresholdDb = modulatedActual (
+                baseNoiseThresholdDb, -80.0f, 0.0f,
+                seqwencer::ModulationTarget::noiseGateThreshold);
+            const auto noiseAttackMs = modulatedActual (
+                baseNoiseAttackMs, 0.1f, 100.0f,
+                seqwencer::ModulationTarget::noiseGateAttack);
+            const auto noiseHoldMs = modulatedActual (
+                baseNoiseHoldMs, 0.0f, 500.0f,
+                seqwencer::ModulationTarget::noiseGateHold);
+            const auto noiseReleaseMs = modulatedActual (
+                baseNoiseReleaseMs, 5.0f, 1000.0f,
+                seqwencer::ModulationTarget::noiseGateRelease);
+            const auto noiseRangeValue = modulatedActual (
+                baseNoiseRange, 0.0f, 1.0f,
+                seqwencer::ModulationTarget::noiseGateRange);
+            const auto noiseThresholdGain =
+                juce::Decibels::decibelsToGain (noiseThresholdDb);
+            const auto noiseCloseThresholdGain = noiseThresholdGain
+                * juce::Decibels::decibelsToGain (-3.0f);
+            const auto noiseHoldSamples = static_cast<int> (std::lround (
+                0.001 * noiseHoldMs * currentSampleRate));
+            const auto noiseClosedGain = 1.0f - noiseRangeValue;
+            const auto noiseAttackCoefficient = static_cast<float> (
+                1.0 - std::exp (-1.0 / juce::jmax (
+                    1.0, noiseAttackMs * 0.001 * currentSampleRate)));
+            const auto noiseReleaseCoefficient = static_cast<float> (
+                1.0 - std::exp (-1.0 / juce::jmax (
+                    1.0, noiseReleaseMs * 0.001 * currentSampleRate)));
             auto detectorPeak = 0.0f;
             for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
             {
@@ -1187,6 +1951,115 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             buffer.setSample (channel, sample,
                               buffer.getSample (channel, sample) * outputGain);
 
+        if (delayIsProcessing)
+        {
+            const auto modulatedDelayActual = [&] (
+                float baseValue, float minimumValue, float maximumValue,
+                seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = delayTargetDeviation (target, &assigned);
+                if (! assigned)
+                    return baseValue;
+                const auto normalised = (baseValue - minimumValue)
+                                      / (maximumValue - minimumValue);
+                return minimumValue + (maximumValue - minimumValue)
+                    * seqwencer::applyModulationDepth (
+                        normalised, deviation, 1.0f);
+            };
+            const auto delayTimeMs = modulatedDelayActual (
+                baseDelayTimeMs, 10.0f, 2000.0f,
+                seqwencer::ModulationTarget::delayTime);
+            const auto feedbackValue = modulatedDelayActual (
+                baseDelayFeedback, 0.0f, 0.95f,
+                seqwencer::ModulationTarget::delayFeedback);
+            const auto mixValue = modulatedDelayActual (
+                baseDelayMix, 0.0f, 1.0f,
+                seqwencer::ModulationTarget::delayMix);
+            smoothedDelaySamples.setTargetValue (static_cast<float> (
+                delayTimeMs * 0.001 * currentSampleRate));
+            const auto delaySamples = juce::jlimit (
+                1.0f,
+                static_cast<float> (delayBuffer.getNumSamples() - 2),
+                smoothedDelaySamples.getNextValue());
+            auto readPosition = static_cast<float> (delayWritePosition)
+                              - delaySamples;
+            while (readPosition < 0.0f)
+                readPosition += static_cast<float> (delayBuffer.getNumSamples());
+            const auto readIndex0 = static_cast<int> (std::floor (readPosition))
+                                  % delayBuffer.getNumSamples();
+            const auto readIndex1 = (readIndex0 + 1) % delayBuffer.getNumSamples();
+            const auto fraction = readPosition - std::floor (readPosition);
+            const auto channels = juce::jmin (buffer.getNumChannels(),
+                                              delayBuffer.getNumChannels());
+            for (int channel = 0; channel < channels; ++channel)
+            {
+                const auto delayed0 = delayBuffer.getSample (channel, readIndex0);
+                const auto delayed1 = delayBuffer.getSample (channel, readIndex1);
+                const auto delayedSample = delayed0
+                    + fraction * (delayed1 - delayed0);
+                const auto drySample = buffer.getSample (channel, sample);
+                delayBuffer.setSample (
+                    channel, delayWritePosition,
+                    drySample + delayedSample * feedbackValue);
+                buffer.setSample (
+                    channel, sample,
+                    drySample + mixValue * (delayedSample - drySample));
+            }
+            delayWritePosition = (delayWritePosition + 1)
+                               % delayBuffer.getNumSamples();
+        }
+
+        if (reverbIsProcessing)
+        {
+            const auto modulatedReverbActual = [&] (
+                float baseValue, seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = reverbTargetDeviation (target, &assigned);
+                return assigned
+                    ? seqwencer::applyModulationDepth (
+                        baseValue, deviation, 1.0f)
+                    : baseValue;
+            };
+
+            juce::Reverb::Parameters reverbParameters;
+            reverbParameters.roomSize = modulatedReverbActual (
+                baseReverbSize, seqwencer::ModulationTarget::reverbSize);
+            reverbParameters.damping = modulatedReverbActual (
+                baseReverbDamping, seqwencer::ModulationTarget::reverbDamping);
+            reverbParameters.width = modulatedReverbActual (
+                baseReverbWidth, seqwencer::ModulationTarget::reverbWidth);
+            reverbParameters.wetLevel = 1.0f / 3.0f;
+            reverbParameters.dryLevel = 0.0f;
+            reverbParameters.freezeMode = 0.0f;
+            reverbProcessor.setParameters (reverbParameters);
+
+            const auto mixValue = modulatedReverbActual (
+                baseReverbMix, seqwencer::ModulationTarget::reverbMix);
+            if (buffer.getNumChannels() >= 2)
+            {
+                const auto dryLeft = buffer.getSample (0, sample);
+                const auto dryRight = buffer.getSample (1, sample);
+                auto wetLeft = dryLeft;
+                auto wetRight = dryRight;
+                reverbProcessor.processStereo (&wetLeft, &wetRight, 1);
+                buffer.setSample (0, sample,
+                                  dryLeft + mixValue * (wetLeft - dryLeft));
+                buffer.setSample (1, sample,
+                                  dryRight + mixValue * (wetRight - dryRight));
+            }
+            else if (buffer.getNumChannels() == 1)
+            {
+                const auto drySample = buffer.getSample (0, sample);
+                auto wetSample = drySample;
+                reverbProcessor.processMono (&wetSample, 1);
+                buffer.setSample (
+                    0, sample,
+                    drySample + mixValue * (wetSample - drySample));
+            }
+        }
+
         const auto mayAdvance = ! hostSyncEnabled || hostTimelineAdvancing;
         if (! gateUseHostPosition
             && (mayAdvance || gateRetriggersFromPlayedNotes))
@@ -1199,6 +2072,19 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         {
             phiFreeRunningPhase = seqwencer::wrapPhase (
                 phiFreeRunningPhase + phiPhaseIncrement, phiCycleLength);
+        }
+        if (! delayUseHostPosition
+            && (mayAdvance || delayRetriggersFromPlayedNotes))
+        {
+            delayFreeRunningPhase = seqwencer::wrapPhase (
+                delayFreeRunningPhase + delayPhaseIncrement, delayCycleLength);
+        }
+        if (! reverbUseHostPosition
+            && (mayAdvance || reverbRetriggersFromPlayedNotes))
+        {
+            reverbFreeRunningPhase = seqwencer::wrapPhase (
+                reverbFreeRunningPhase + reverbPhaseIncrement,
+                reverbCycleLength);
         }
     }
 
@@ -1213,6 +2099,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         phiFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
             hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
             phiStepBeats, phiCycleLength);
+    }
+    if (delayUseHostPosition && hostTimelineAdvancing)
+    {
+        delayFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            delayStepBeats, delayCycleLength);
+    }
+    if (reverbUseHostPosition && hostTimelineAdvancing)
+    {
+        reverbFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            reverbStepBeats, reverbCycleLength);
     }
 
     if (shouldSendPhiBridge && buffer.getNumSamples() > 0)
