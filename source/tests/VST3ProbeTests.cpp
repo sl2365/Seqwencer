@@ -172,6 +172,26 @@ int main (int argumentCount, char* arguments[])
     auto* panSequenceMode = findParameterByName ("Pan Direction");
     auto* panStepA1 = findParameterByName ("Pan Sequencer A Step 1");
     auto* panStepA2 = findParameterByName ("Pan Sequencer A Step 2");
+    auto* filterEnabled = findParameterByName ("Filter Enabled");
+    auto* filterType = findParameterByName ("Filter Type");
+    auto* filterCutoff = findParameterByName ("Filter Cutoff");
+    auto* filterResonance = findParameterByName ("Filter Resonance");
+    auto* filterMix = findParameterByName ("Filter Mix");
+    auto* filterRate = findParameterByName ("Filter Rate");
+    auto* filterStartStep = findParameterByName ("Filter Start Step");
+    auto* filterEndStep = findParameterByName ("Filter End Step");
+    auto* filterSequenceMode = findParameterByName ("Filter Direction");
+    auto* filterStepA1 = findParameterByName ("Filter Sequencer A Step 1");
+    auto* filterStepA2 = findParameterByName ("Filter Sequencer A Step 2");
+    auto* pitchEnabled = findParameterByName ("Pitch Enabled");
+    auto* pitchShift = findParameterByName ("Pitch Shift");
+    auto* pitchMix = findParameterByName ("Pitch Mix");
+    auto* pitchRate = findParameterByName ("Pitch Rate");
+    auto* pitchStartStep = findParameterByName ("Pitch Start Step");
+    auto* pitchEndStep = findParameterByName ("Pitch End Step");
+    auto* pitchSequenceMode = findParameterByName ("Pitch Direction");
+    auto* pitchStepA1 = findParameterByName ("Pitch Sequencer A Step 1");
+    auto* pitchStepA2 = findParameterByName ("Pitch Sequencer A Step 2");
     if (startStep == nullptr || endStep == nullptr || serialProfile == nullptr
         || bipolarA == nullptr || bipolarB == nullptr || rate == nullptr
         || hostSync == nullptr || phiBridge == nullptr
@@ -200,9 +220,19 @@ int main (int argumentCount, char* arguments[])
         || panEnabled == nullptr || panPosition == nullptr
         || panRate == nullptr || panStartStep == nullptr
         || panEndStep == nullptr || panSequenceMode == nullptr
-        || panStepA1 == nullptr || panStepA2 == nullptr)
+        || panStepA1 == nullptr || panStepA2 == nullptr
+        || filterEnabled == nullptr || filterType == nullptr
+        || filterCutoff == nullptr || filterResonance == nullptr
+        || filterMix == nullptr || filterRate == nullptr
+        || filterStartStep == nullptr || filterEndStep == nullptr
+        || filterSequenceMode == nullptr || filterStepA1 == nullptr
+        || filterStepA2 == nullptr || pitchEnabled == nullptr
+        || pitchShift == nullptr || pitchMix == nullptr
+        || pitchRate == nullptr || pitchStartStep == nullptr
+        || pitchEndStep == nullptr || pitchSequenceMode == nullptr
+        || pitchStepA1 == nullptr || pitchStepA2 == nullptr)
     {
-        std::cout << "FAIL: a Gate, PHI, Delay, Reverb or Pan engine parameter was not found\n";
+        std::cout << "FAIL: a Gate, PHI, Delay, Reverb, Pan or Filter engine parameter was not found\n";
         return 1;
     }
     if (findParameterByName ("Mix") != nullptr)
@@ -272,15 +302,51 @@ int main (int argumentCount, char* arguments[])
         std::cout << "FAIL: Reverb did not restore its safe state or complete timing controls\n";
         return 1;
     }
-    std::cout << "PASS: Gate, PHI, Delay and Reverb engine controls are exposed" << std::endl;
+    if (filterEnabled->getValue() >= 0.5f
+        || filterType->getNumSteps() != 5
+        || filterType->getCurrentValueAsText() != "Low Pass"
+        || filterRate->getNumSteps() != seqwencer::rateChoiceCount
+        || filterSequenceMode->getNumSteps() != 4)
+    {
+        std::cout << "FAIL: Filter did not restore its safe state or complete controls\n";
+        return 1;
+    }
+    int filterTypeIndex = 0;
+    for (const auto* expectedName : {
+             "Low Pass", "High Pass", "Band Pass", "Band Reject", "Peaking" })
+    {
+        filterType->setValueNotifyingHost (
+            static_cast<float> (filterTypeIndex++) / 4.0f);
+        if (filterType->getCurrentValueAsText() != expectedName)
+        {
+            std::cout << "FAIL: Filter Type did not expose the expected response: "
+                      << expectedName << "\n";
+            return 1;
+        }
+    }
+    filterType->setValueNotifyingHost (0.0f);
+    if (pitchEnabled->getValue() >= 0.5f
+        || pitchRate->getNumSteps() != seqwencer::rateChoiceCount
+        || pitchSequenceMode->getNumSteps() != 4
+        || std::abs (pitchShift->getValue() - 0.5f) > 0.001f
+        || std::abs (pitchMix->getValue() - 1.0f) > 0.001f)
+    {
+        std::cout << "FAIL: Pitch did not restore its safe state or complete controls\n";
+        return 1;
+    }
+    std::cout << "PASS: Gate, PHI, Delay, Reverb, Filter and Pitch engine controls are exposed" << std::endl;
 
     rate->setValueNotifyingHost (5.0f / 13.0f);
     phiRate->setValueNotifyingHost (9.0f / 13.0f);
     delayRate->setValueNotifyingHost (11.0f / 13.0f);
     reverbRate->setValueNotifyingHost (3.0f / 13.0f);
+    filterRate->setValueNotifyingHost (8.0f / 13.0f);
+    pitchRate->setValueNotifyingHost (1.0f / 13.0f);
     phiStepA1->setValueNotifyingHost (0.80f);
     delayStepA1->setValueNotifyingHost (0.65f);
     reverbStepA1->setValueNotifyingHost (0.35f);
+    filterStepA1->setValueNotifyingHost (0.90f);
+    pitchStepA1->setValueNotifyingHost (0.55f);
     auto* gateStepA1ForIndependence = findParameterByName (
         "Sequencer A Step 1");
     if (gateStepA1ForIndependence == nullptr)
@@ -293,23 +359,31 @@ int main (int argumentCount, char* arguments[])
         || phiRate->getCurrentValueAsText() != "1/4T"
         || delayRate->getCurrentValueAsText() != "1/2T"
         || reverbRate->getCurrentValueAsText() != "1/32T"
+        || filterRate->getCurrentValueAsText() != "1/8"
+        || pitchRate->getCurrentValueAsText() != "1/64T"
         || std::abs (gateStepA1ForIndependence->getValue() - 0.20f) > 0.001f
         || std::abs (phiStepA1->getValue() - 0.80f) > 0.001f
         || std::abs (delayStepA1->getValue() - 0.65f) > 0.001f
-        || std::abs (reverbStepA1->getValue() - 0.35f) > 0.001f)
+        || std::abs (reverbStepA1->getValue() - 0.35f) > 0.001f
+        || std::abs (filterStepA1->getValue() - 0.90f) > 0.001f
+        || std::abs (pitchStepA1->getValue() - 0.55f) > 0.001f)
     {
-        std::cout << "FAIL: Gate, PHI, Delay or Reverb timing or step data were coupled\n";
+        std::cout << "FAIL: Gate, PHI, Delay, Reverb, Filter or Pitch timing or step data were coupled\n";
         return 1;
     }
     rate->setValueNotifyingHost (6.0f / 13.0f);
     phiRate->setValueNotifyingHost (6.0f / 13.0f);
     delayRate->setValueNotifyingHost (6.0f / 13.0f);
     reverbRate->setValueNotifyingHost (6.0f / 13.0f);
+    filterRate->setValueNotifyingHost (6.0f / 13.0f);
+    pitchRate->setValueNotifyingHost (6.0f / 13.0f);
     gateStepA1ForIndependence->setValueNotifyingHost (1.0f);
     phiStepA1->setValueNotifyingHost (1.0f);
     delayStepA1->setValueNotifyingHost (1.0f);
     reverbStepA1->setValueNotifyingHost (1.0f);
-    std::cout << "PASS: Gate, PHI, Delay and Reverb sequencer engines are independent" << std::endl;
+    filterStepA1->setValueNotifyingHost (1.0f);
+    pitchStepA1->setValueNotifyingHost (1.0f);
+    std::cout << "PASS: Gate, PHI, Delay, Reverb, Filter and Pitch sequencer engines are independent" << std::endl;
 
     for (const auto* name : {
              "Sequencer A DEPTH Target", "Sequencer A SHORT STEP Target",
@@ -401,6 +475,48 @@ int main (int argumentCount, char* arguments[])
         }
     }
     std::cout << "PASS: Pan exposes independent A/B targets" << std::endl;
+
+    for (const auto* name : {
+             "Filter Sequencer A CUTOFF Target",
+             "Filter Sequencer A CUTOFF Target Enabled",
+             "Filter Sequencer A RESONANCE Target",
+             "Filter Sequencer A RESONANCE Target Enabled",
+             "Filter Sequencer A MIX Target",
+             "Filter Sequencer A MIX Target Enabled",
+             "Filter Sequencer B CUTOFF Target",
+             "Filter Sequencer B CUTOFF Target Enabled",
+             "Filter Sequencer B RESONANCE Target",
+             "Filter Sequencer B RESONANCE Target Enabled",
+             "Filter Sequencer B MIX Target",
+             "Filter Sequencer B MIX Target Enabled" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Filter target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    std::cout << "PASS: Cutoff, Resonance and Mix expose independent Filter targets" << std::endl;
+
+    for (const auto* name : {
+             "Pitch Sequencer A SHIFT Target",
+             "Pitch Sequencer A SHIFT Target Enabled",
+             "Pitch Sequencer A MIX Target",
+             "Pitch Sequencer A MIX Target Enabled",
+             "Pitch Sequencer B SHIFT Target",
+             "Pitch Sequencer B SHIFT Target Enabled",
+             "Pitch Sequencer B MIX Target",
+             "Pitch Sequencer B MIX Target Enabled" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Pitch target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    std::cout << "PASS: Shift and Mix expose independent Pitch targets" << std::endl;
 
     auto* gateEnabled = findParameterByName ("Gate Enabled");
     auto* gateVolume = findParameterByName ("Gate Volume");
@@ -700,6 +816,170 @@ int main (int argumentCount, char* arguments[])
         return 1;
     }
     std::cout << "PASS: Pan balances stereo audio and disables cleanly" << std::endl;
+
+    filterType->setValueNotifyingHost (0.0f);
+    filterCutoff->setValueNotifyingHost (0.0f);
+    filterResonance->setValueNotifyingHost (0.0f);
+    filterMix->setValueNotifyingHost (1.0f);
+    filterEnabled->setValueNotifyingHost (1.0f);
+    constexpr int filterTestSampleCount = 4096;
+    juce::AudioBuffer<float> filterAudio (2, filterTestSampleCount);
+    for (int channel = 0; channel < filterAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < filterTestSampleCount; ++sample)
+            filterAudio.setSample (
+                channel, sample, (sample & 1) == 0 ? 0.5f : -0.5f);
+    instance->prepareToPlay (48000.0, filterTestSampleCount);
+    instance->processBlock (filterAudio, midi);
+    instance->releaseResources();
+
+    auto filteredPeak = 0.0f;
+    for (int channel = 0; channel < filterAudio.getNumChannels(); ++channel)
+        for (int sample = filterTestSampleCount / 2;
+             sample < filterTestSampleCount; ++sample)
+            filteredPeak = std::max (
+                filteredPeak,
+                std::abs (filterAudio.getSample (channel, sample)));
+    if (filteredPeak > 0.05f)
+    {
+        std::cout << "FAIL: low Filter Cutoff did not attenuate high-frequency audio\n";
+        return 1;
+    }
+
+    const auto measureFilterRms = [&] (float typeValue, bool useDcInput)
+    {
+        filterType->setValueNotifyingHost (typeValue);
+        filterCutoff->setValueNotifyingHost (1.0f);
+        filterResonance->setValueNotifyingHost (
+            filterResonance->getDefaultValue());
+        juce::AudioBuffer<float> typeAudio (2, filterTestSampleCount);
+        for (int channel = 0; channel < typeAudio.getNumChannels(); ++channel)
+            for (int sample = 0; sample < filterTestSampleCount; ++sample)
+                typeAudio.setSample (
+                    channel, sample,
+                    useDcInput ? 0.5f : static_cast<float> (
+                        0.5 * std::sin (
+                            juce::MathConstants<double>::twoPi * 20000.0
+                            * static_cast<double> (sample) / 48000.0)));
+        instance->prepareToPlay (48000.0, filterTestSampleCount);
+        instance->processBlock (typeAudio, midi);
+        instance->releaseResources();
+        auto squaredTotal = 0.0;
+        auto measuredSamples = 0;
+        for (int channel = 0; channel < typeAudio.getNumChannels(); ++channel)
+            for (int sample = filterTestSampleCount / 2;
+                 sample < filterTestSampleCount; ++sample)
+            {
+                const auto value = static_cast<double> (
+                    typeAudio.getSample (channel, sample));
+                squaredTotal += value * value;
+                ++measuredSamples;
+            }
+        return static_cast<float> (std::sqrt (
+            squaredTotal / static_cast<double> (measuredSamples)));
+    };
+
+    const auto highPassDcRms = measureFilterRms (0.25f, true);
+    const auto bandPassRms = measureFilterRms (0.50f, false);
+    const auto bandRejectRms = measureFilterRms (0.75f, false);
+    const auto peakingRms = measureFilterRms (1.0f, false);
+    if (highPassDcRms > 0.01f || bandPassRms < 0.10f
+        || bandRejectRms > 0.05f || peakingRms < 0.30f)
+    {
+        std::cout << "FAIL: one or more Filter Type responses were incorrect\n";
+        return 1;
+    }
+
+    filterEnabled->setValueNotifyingHost (0.0f);
+    juce::AudioBuffer<float> bypassedFilterAudio (2, offTestSampleCount);
+    for (int channel = 0; channel < bypassedFilterAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+            bypassedFilterAudio.setSample (
+                channel, sample, (sample & 1) == 0 ? 0.5f : -0.5f);
+    instance->prepareToPlay (48000.0, offTestSampleCount);
+    instance->processBlock (bypassedFilterAudio, midi);
+    instance->releaseResources();
+
+    auto filterBypassError = 0.0f;
+    for (int channel = 0; channel < bypassedFilterAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+        {
+            const auto expected = (sample & 1) == 0 ? 0.5f : -0.5f;
+            filterBypassError = std::max (
+                filterBypassError,
+                std::abs (bypassedFilterAudio.getSample (channel, sample)
+                          - expected));
+        }
+    if (filterBypassError > 0.00001f)
+    {
+        std::cout << "FAIL: disabled Filter still altered the audio\n";
+        return 1;
+    }
+    std::cout << "PASS: all five Filter Types process correctly and disable cleanly" << std::endl;
+
+    gateEnabled->setValueNotifyingHost (0.0f);
+    delayEnabled->setValueNotifyingHost (0.0f);
+    reverbEnabled->setValueNotifyingHost (0.0f);
+    panEnabled->setValueNotifyingHost (0.0f);
+    filterEnabled->setValueNotifyingHost (0.0f);
+    pitchMix->setValueNotifyingHost (1.0f);
+    pitchShift->setValueNotifyingHost (0.75f); // +12 semitones.
+    pitchEnabled->setValueNotifyingHost (1.0f);
+    constexpr int pitchTestSampleCount = 48000;
+    juce::AudioBuffer<float> pitchAudio (2, pitchTestSampleCount);
+    for (int channel = 0; channel < pitchAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < pitchTestSampleCount; ++sample)
+            pitchAudio.setSample (
+                channel, sample, static_cast<float> (
+                    0.25 * std::sin (
+                        juce::MathConstants<double>::twoPi * 440.0
+                        * static_cast<double> (sample) / 48000.0)));
+    instance->prepareToPlay (48000.0, 480);
+    instance->processBlock (pitchAudio, midi);
+    instance->releaseResources();
+
+    auto upwardZeroCrossings = 0;
+    auto previousPitchSample = pitchAudio.getSample (
+        0, pitchTestSampleCount / 2);
+    for (int sample = pitchTestSampleCount / 2 + 1;
+         sample < pitchTestSampleCount; ++sample)
+    {
+        const auto currentPitchSample = pitchAudio.getSample (0, sample);
+        if (previousPitchSample <= 0.0f && currentPitchSample > 0.0f)
+            ++upwardZeroCrossings;
+        previousPitchSample = currentPitchSample;
+    }
+    if (upwardZeroCrossings < 360 || upwardZeroCrossings > 520)
+    {
+        std::cout << "FAIL: +12 semitone Pitch did not approximately double frequency ("
+                  << upwardZeroCrossings << " positive crossings)\n";
+        return 1;
+    }
+
+    pitchEnabled->setValueNotifyingHost (0.0f);
+    juce::AudioBuffer<float> bypassedPitchAudio (2, offTestSampleCount);
+    for (int channel = 0; channel < bypassedPitchAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+            bypassedPitchAudio.setSample (
+                channel, sample, (sample & 1) == 0 ? 0.25f : -0.25f);
+    instance->prepareToPlay (48000.0, offTestSampleCount);
+    instance->processBlock (bypassedPitchAudio, midi);
+    instance->releaseResources();
+    auto pitchBypassError = 0.0f;
+    for (int channel = 0; channel < bypassedPitchAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+        {
+            const auto expected = (sample & 1) == 0 ? 0.25f : -0.25f;
+            pitchBypassError = std::max (
+                pitchBypassError,
+                std::abs (bypassedPitchAudio.getSample (channel, sample)
+                          - expected));
+        }
+    if (pitchBypassError > 0.00001f)
+    {
+        std::cout << "FAIL: disabled Pitch still altered the audio\n";
+        return 1;
+    }
+    std::cout << "PASS: Pitch shifts by an octave and disables cleanly" << std::endl;
 
     auto* stepA2 = findParameterByName ("Sequencer A Step 2");
     auto* gateModeA2 = findParameterByName ("Sequencer A Gate Mode 2");

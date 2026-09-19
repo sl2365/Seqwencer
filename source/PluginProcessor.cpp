@@ -135,6 +135,42 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
     panSeqBBipolar = parameters.getRawParameterValue ("pan_seq_b_bipolar");
     panSeqBAttack = parameters.getRawParameterValue ("pan_seq_b_attack");
     panSeqBRelease = parameters.getRawParameterValue ("pan_seq_b_release");
+    filterEnabled = parameters.getRawParameterValue ("filter_enabled");
+    filterType = parameters.getRawParameterValue ("filter_type");
+    filterCutoff = parameters.getRawParameterValue ("filter_cutoff");
+    filterResonance = parameters.getRawParameterValue ("filter_resonance");
+    filterMix = parameters.getRawParameterValue ("filter_mix");
+    filterPlaybackMode = parameters.getRawParameterValue ("filter_playback_mode");
+    filterSerialProfile = parameters.getRawParameterValue ("filter_serial_profile");
+    filterStartStep = parameters.getRawParameterValue ("filter_start_step");
+    filterEndStep = parameters.getRawParameterValue ("filter_end_step");
+    filterRate = parameters.getRawParameterValue ("filter_rate");
+    filterSequenceMode = parameters.getRawParameterValue ("filter_sequence_mode");
+    filterSeqAEnabled = parameters.getRawParameterValue ("filter_seq_a_enabled");
+    filterSeqABipolar = parameters.getRawParameterValue ("filter_seq_a_bipolar");
+    filterSeqAAttack = parameters.getRawParameterValue ("filter_seq_a_attack");
+    filterSeqARelease = parameters.getRawParameterValue ("filter_seq_a_release");
+    filterSeqBEnabled = parameters.getRawParameterValue ("filter_seq_b_enabled");
+    filterSeqBBipolar = parameters.getRawParameterValue ("filter_seq_b_bipolar");
+    filterSeqBAttack = parameters.getRawParameterValue ("filter_seq_b_attack");
+    filterSeqBRelease = parameters.getRawParameterValue ("filter_seq_b_release");
+    pitchEnabled = parameters.getRawParameterValue ("pitch_enabled");
+    pitchShift = parameters.getRawParameterValue ("pitch_shift");
+    pitchMix = parameters.getRawParameterValue ("pitch_mix");
+    pitchPlaybackMode = parameters.getRawParameterValue ("pitch_playback_mode");
+    pitchSerialProfile = parameters.getRawParameterValue ("pitch_serial_profile");
+    pitchStartStep = parameters.getRawParameterValue ("pitch_start_step");
+    pitchEndStep = parameters.getRawParameterValue ("pitch_end_step");
+    pitchRate = parameters.getRawParameterValue ("pitch_rate");
+    pitchSequenceMode = parameters.getRawParameterValue ("pitch_sequence_mode");
+    pitchSeqAEnabled = parameters.getRawParameterValue ("pitch_seq_a_enabled");
+    pitchSeqABipolar = parameters.getRawParameterValue ("pitch_seq_a_bipolar");
+    pitchSeqAAttack = parameters.getRawParameterValue ("pitch_seq_a_attack");
+    pitchSeqARelease = parameters.getRawParameterValue ("pitch_seq_a_release");
+    pitchSeqBEnabled = parameters.getRawParameterValue ("pitch_seq_b_enabled");
+    pitchSeqBBipolar = parameters.getRawParameterValue ("pitch_seq_b_bipolar");
+    pitchSeqBAttack = parameters.getRawParameterValue ("pitch_seq_b_attack");
+    pitchSeqBRelease = parameters.getRawParameterValue ("pitch_seq_b_release");
     seqAEnabled = parameters.getRawParameterValue ("seq_a_enabled");
     seqATarget = parameters.getRawParameterValue ("seq_a_target");
     seqATargetEnabled = parameters.getRawParameterValue ("seq_a_target_enabled");
@@ -183,6 +219,14 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
             parameters.getRawParameterValue (panStepParameterID (0, step));
         panStepsB[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (panStepParameterID (1, step));
+        filterStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (filterStepParameterID (0, step));
+        filterStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (filterStepParameterID (1, step));
+        pitchStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (pitchStepParameterID (0, step));
+        pitchStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (pitchStepParameterID (1, step));
         gateModesA[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (gateModeParameterID (0, step));
         gateModesB[static_cast<std::size_t> (step)] =
@@ -225,6 +269,20 @@ juce::String SeqwencerAudioProcessor::reverbStepParameterID (int bank, int step)
 juce::String SeqwencerAudioProcessor::panStepParameterID (int bank, int step)
 {
     return "pan_seq_" + juce::String (bank == 0 ? "a" : "b") + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::filterStepParameterID (int bank, int step)
+{
+    return "filter_seq_" + juce::String (bank == 0 ? "a" : "b") + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::pitchStepParameterID (int bank, int step)
+{
+    return "pitch_seq_" + juce::String (bank == 0 ? "a" : "b") + "_step_"
          + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
                .paddedLeft ('0', 2);
 }
@@ -284,6 +342,21 @@ juce::String SeqwencerAudioProcessor::targetAssignedParameterID (
         case seqwencer::ModulationTarget::panPosition:
             return juce::String (bank == 0 ? "pan_seq_a_position_target"
                                            : "pan_seq_b_position_target");
+        case seqwencer::ModulationTarget::filterCutoff:
+            return juce::String (bank == 0 ? "filter_seq_a_cutoff_target"
+                                           : "filter_seq_b_cutoff_target");
+        case seqwencer::ModulationTarget::filterResonance:
+            return juce::String (bank == 0 ? "filter_seq_a_resonance_target"
+                                           : "filter_seq_b_resonance_target");
+        case seqwencer::ModulationTarget::filterMix:
+            return juce::String (bank == 0 ? "filter_seq_a_mix_target"
+                                           : "filter_seq_b_mix_target");
+        case seqwencer::ModulationTarget::pitchShift:
+            return juce::String (bank == 0 ? "pitch_seq_a_shift_target"
+                                           : "pitch_seq_b_shift_target");
+        case seqwencer::ModulationTarget::pitchMix:
+            return juce::String (bank == 0 ? "pitch_seq_a_mix_target"
+                                           : "pitch_seq_b_mix_target");
         case seqwencer::ModulationTarget::none:
             break;
     }
@@ -338,6 +411,21 @@ juce::String SeqwencerAudioProcessor::targetEnabledParameterID (
         case seqwencer::ModulationTarget::panPosition:
             return juce::String (bank == 0 ? "pan_seq_a_position_target_enabled"
                                            : "pan_seq_b_position_target_enabled");
+        case seqwencer::ModulationTarget::filterCutoff:
+            return juce::String (bank == 0 ? "filter_seq_a_cutoff_target_enabled"
+                                           : "filter_seq_b_cutoff_target_enabled");
+        case seqwencer::ModulationTarget::filterResonance:
+            return juce::String (bank == 0 ? "filter_seq_a_resonance_target_enabled"
+                                           : "filter_seq_b_resonance_target_enabled");
+        case seqwencer::ModulationTarget::filterMix:
+            return juce::String (bank == 0 ? "filter_seq_a_mix_target_enabled"
+                                           : "filter_seq_b_mix_target_enabled");
+        case seqwencer::ModulationTarget::pitchShift:
+            return juce::String (bank == 0 ? "pitch_seq_a_shift_target_enabled"
+                                           : "pitch_seq_b_shift_target_enabled");
+        case seqwencer::ModulationTarget::pitchMix:
+            return juce::String (bank == 0 ? "pitch_seq_a_mix_target_enabled"
+                                           : "pitch_seq_b_mix_target_enabled");
         case seqwencer::ModulationTarget::none:
             break;
     }
@@ -366,6 +454,11 @@ juce::String SeqwencerAudioProcessor::targetDisplayName (
         case seqwencer::ModulationTarget::reverbWidth: return "WIDTH";
         case seqwencer::ModulationTarget::reverbMix: return "MIX";
         case seqwencer::ModulationTarget::panPosition: return "PAN";
+        case seqwencer::ModulationTarget::filterCutoff: return "CUTOFF";
+        case seqwencer::ModulationTarget::filterResonance: return "RESONANCE";
+        case seqwencer::ModulationTarget::filterMix: return "MIX";
+        case seqwencer::ModulationTarget::pitchShift: return "SHIFT";
+        case seqwencer::ModulationTarget::pitchMix: return "MIX";
         case seqwencer::ModulationTarget::none:            break;
     }
     return {};
@@ -424,6 +517,8 @@ bool SeqwencerAudioProcessor::savePortablePreset (
     juce::String delayParameterLines;
     juce::String reverbParameterLines;
     juce::String panParameterLines;
+    juce::String filterParameterLines;
+    juce::String pitchParameterLines;
     auto parameterCount = 0;
     for (auto* baseParameter : getParameters())
     {
@@ -440,6 +535,10 @@ bool SeqwencerAudioProcessor::savePortablePreset (
                 destination = &reverbParameterLines;
             else if (parameterID.startsWith ("pan_"))
                 destination = &panParameterLines;
+            else if (parameterID.startsWith ("filter_"))
+                destination = &filterParameterLines;
+            else if (parameterID.startsWith ("pitch_"))
+                destination = &pitchParameterLines;
             else if (parameterID == "bypass" || parameterID == "sync_to_host")
                 destination = &globalParameterLines;
 
@@ -457,7 +556,9 @@ bool SeqwencerAudioProcessor::savePortablePreset (
              << "\r\n[PHI]\r\n" << phiParameterLines
              << "\r\n[Delay]\r\n" << delayParameterLines
              << "\r\n[Reverb]\r\n" << reverbParameterLines
-             << "\r\n[Pan]\r\n" << panParameterLines;
+             << "\r\n[Pan]\r\n" << panParameterLines
+             << "\r\n[Filter]\r\n" << filterParameterLines
+             << "\r\n[Pitch]\r\n" << pitchParameterLines;
     if (! file.replaceWithText (contents))
     {
         errorMessage = "Seqwencer could not write:\n" + file.getFullPathName();
@@ -495,7 +596,8 @@ bool SeqwencerAudioProcessor::loadPortablePreset (
         }
         if (line == "[Parameters]" || line == "[Global]"
             || line == "[Gate]" || line == "[PHI]" || line == "[Delay]"
-            || line == "[Reverb]" || line == "[Pan]")
+            || line == "[Reverb]" || line == "[Pan]" || line == "[Filter]"
+            || line == "[Pitch]")
         {
             inParameters = true;
             continue;
@@ -1004,10 +1106,185 @@ SeqwencerAudioProcessor::createParameterLayout()
             laneName + "PAN Target Enabled", true));
     }
 
+    // Filter owns a sixth complete sequencer engine and three internal targets.
+    layout.add (std::make_unique<Bool> (
+        ID { "filter_enabled", 1 }, "Filter Enabled", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "filter_type", 1 }, "Filter Type",
+        juce::StringArray { "Low Pass", "High Pass", "Band Pass",
+                            "Band Reject", "Peaking" }, 0));
+    layout.add (std::make_unique<Float> (
+        ID { "filter_cutoff", 1 }, "Filter Cutoff",
+        juce::NormalisableRange<float> { 20.0f, 20000.0f, 0.1f, 0.25f },
+        20000.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "filter_resonance", 1 }, "Filter Resonance",
+        juce::NormalisableRange<float> { 0.10f, 10.0f, 0.001f, 0.40f },
+        0.707f));
+    layout.add (std::make_unique<Float> (
+        ID { "filter_mix", 1 }, "Filter Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Choice> (
+        ID { "filter_playback_mode", 1 }, "Filter Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "filter_rate", 1 }, "Filter Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "filter_seq_a_enabled", 1 }, "Filter Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "filter_seq_a_attack", 1 }, "Filter Sequencer A Attack",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "filter_seq_a_release", 1 }, "Filter Sequencer A Release",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "filter_seq_b_enabled", 1 }, "Filter Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "filter_seq_b_attack", 1 }, "Filter Sequencer B Attack",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "filter_seq_b_release", 1 }, "Filter Sequencer B Release",
+        0.0f, 1.0f, 0.0f));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto bankName = bank == 0 ? "A" : "B";
+            layout.add (std::make_unique<Float> (
+                ID { filterStepParameterID (bank, step), 1 },
+                "Filter Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+
+    layout.add (std::make_unique<Choice> (
+        ID { "filter_serial_profile", 1 }, "Filter Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "filter_start_step", 1 }, "Filter Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "filter_end_step", 1 }, "Filter End Step", 2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "filter_seq_a_bipolar", 1 }, "Filter Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "filter_seq_b_bipolar", 1 }, "Filter Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "filter_sequence_mode", 1 }, "Filter Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played" }, 0));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Filter Sequencer A " : "Filter Sequencer B ";
+        for (int index = static_cast<int> (
+                 seqwencer::ModulationTarget::filterCutoff);
+             index <= static_cast<int> (seqwencer::ModulationTarget::filterMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
+    // Pitch owns a seventh complete sequencer engine and two internal targets.
+    layout.add (std::make_unique<Bool> (
+        ID { "pitch_enabled", 1 }, "Pitch Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "pitch_shift", 1 }, "Pitch Shift",
+        juce::NormalisableRange<float> { -24.0f, 24.0f, 0.01f }, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "pitch_mix", 1 }, "Pitch Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Choice> (
+        ID { "pitch_playback_mode", 1 }, "Pitch Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "pitch_rate", 1 }, "Pitch Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "pitch_seq_a_enabled", 1 }, "Pitch Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "pitch_seq_a_attack", 1 }, "Pitch Sequencer A Attack",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "pitch_seq_a_release", 1 }, "Pitch Sequencer A Release",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "pitch_seq_b_enabled", 1 }, "Pitch Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "pitch_seq_b_attack", 1 }, "Pitch Sequencer B Attack",
+        0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "pitch_seq_b_release", 1 }, "Pitch Sequencer B Release",
+        0.0f, 1.0f, 0.0f));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto bankName = bank == 0 ? "A" : "B";
+            layout.add (std::make_unique<Float> (
+                ID { pitchStepParameterID (bank, step), 1 },
+                "Pitch Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+
+    layout.add (std::make_unique<Choice> (
+        ID { "pitch_serial_profile", 1 }, "Pitch Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "pitch_start_step", 1 }, "Pitch Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "pitch_end_step", 1 }, "Pitch End Step", 2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "pitch_seq_a_bipolar", 1 }, "Pitch Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "pitch_seq_b_bipolar", 1 }, "Pitch Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "pitch_sequence_mode", 1 }, "Pitch Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played" }, 0));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Pitch Sequencer A " : "Pitch Sequencer B ";
+        for (int index = static_cast<int> (
+                 seqwencer::ModulationTarget::pitchShift);
+             index <= static_cast<int> (seqwencer::ModulationTarget::pitchMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
     return layout;
 }
 
-void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int)
+void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
     gateFreeRunningPhase = 0.0;
@@ -1015,6 +1292,8 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int)
     delayFreeRunningPhase = 0.0;
     reverbFreeRunningPhase = 0.0;
     panFreeRunningPhase = 0.0;
+    filterFreeRunningPhase = 0.0;
+    pitchFreeRunningPhase = 0.0;
     previousHostPpq = 0.0;
     previousHostTimeInSamples = 0;
     previousHostPpqValid = false;
@@ -1034,6 +1313,10 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int)
     reverbActiveStepB.store (-1);
     panActiveStepA.store (0);
     panActiveStepB.store (-1);
+    filterActiveStepA.store (0);
+    filterActiveStepB.store (-1);
+    pitchActiveStepA.store (0);
+    pitchActiveStepB.store (-1);
     const auto delayBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 2.05)) + 4;
     delayBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
@@ -1047,6 +1330,17 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int)
     reverbProcessor.setSampleRate (currentSampleRate);
     reverbProcessor.reset();
     reverbWasActive = false;
+    juce::ignoreUnused (samplesPerBlock);
+    resetFilterProcessor();
+    filterWasActive = false;
+    const auto pitchBufferLength = static_cast<int> (
+        std::ceil (currentSampleRate * 0.10)) + 8;
+    pitchBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
+                         pitchBufferLength, false, true, false);
+    pitchBuffer.clear();
+    pitchWritePosition = 0;
+    pitchReadPhase = 0.0;
+    pitchWasActive = false;
 }
 
 void SeqwencerAudioProcessor::releaseResources()
@@ -1057,6 +1351,56 @@ void SeqwencerAudioProcessor::releaseResources()
     delayWasActive = false;
     reverbProcessor.reset();
     reverbWasActive = false;
+    resetFilterProcessor();
+    filterWasActive = false;
+    pitchBuffer.clear();
+    pitchWritePosition = 0;
+    pitchReadPhase = 0.0;
+    pitchWasActive = false;
+}
+
+void SeqwencerAudioProcessor::resetFilterProcessor() noexcept
+{
+    for (auto& state : filterStates)
+        state = {};
+}
+
+float SeqwencerAudioProcessor::processFilterSample (
+    int channel, float input, float cutoffHz, float resonance,
+    int type) noexcept
+{
+    auto& state = filterStates[static_cast<std::size_t> (
+        juce::jlimit (0, static_cast<int> (filterStates.size()) - 1,
+                      channel))];
+    const auto safeSampleRate = juce::jmax (1.0, currentSampleRate);
+    const auto maximumCutoff = juce::jmax (
+        20.0, juce::jmin (20000.0, safeSampleRate * 0.45));
+    const auto safeCutoff = juce::jlimit (
+        20.0, maximumCutoff, static_cast<double> (cutoffHz));
+    const auto g = std::tan (
+        juce::MathConstants<double>::pi * safeCutoff / safeSampleRate);
+    const auto k = 1.0 / juce::jlimit (
+        0.10, 10.0, static_cast<double> (resonance));
+    const auto a1 = 1.0 / (1.0 + g * (g + k));
+    const auto a2 = g * a1;
+    const auto a3 = g * a2;
+    const auto v3 = static_cast<double> (input) - state.integrator2;
+    const auto bandPass = a1 * state.integrator1 + a2 * v3;
+    const auto lowPass = state.integrator2
+                       + a2 * state.integrator1 + a3 * v3;
+    state.integrator1 = 2.0 * bandPass - state.integrator1;
+    state.integrator2 = 2.0 * lowPass - state.integrator2;
+    const auto highPass = static_cast<double> (input)
+                        - k * bandPass - lowPass;
+
+    switch (juce::jlimit (0, 4, type))
+    {
+        case 1:  return static_cast<float> (highPass);
+        case 2:  return static_cast<float> (bandPass);
+        case 3:  return static_cast<float> (lowPass + highPass);
+        case 4:  return static_cast<float> (lowPass - highPass);
+        default: return static_cast<float> (lowPass);
+    }
 }
 
 bool SeqwencerAudioProcessor::isBusesLayoutSupported (
@@ -1139,6 +1483,36 @@ seqwencer::Pattern SeqwencerAudioProcessor::readPanPattern (
     {
         const auto canonical = juce::jlimit (
             0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 0.5f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readFilterPattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? filterStepsA : filterStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readPitchPattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? pitchStepsA : pitchStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
         result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
     }
     return result;
@@ -1397,6 +1771,86 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         panSequenceMode != nullptr ? panSequenceMode->load() : 0.0f);
     const auto panRetriggersFromPlayedNotes =
         panTraversalMode == seqwencer::SequenceMode::played;
+
+    const auto filterAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        filterSeqAAttack != nullptr ? filterSeqAAttack->load() : 0.0f);
+    const auto filterReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        filterSeqARelease != nullptr ? filterSeqARelease->load() : 0.0f);
+    const auto filterAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        filterSeqBAttack != nullptr ? filterSeqBAttack->load() : 0.0f);
+    const auto filterReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        filterSeqBRelease != nullptr ? filterSeqBRelease->load() : 0.0f);
+    const auto filterLinked = filterPlaybackMode != nullptr
+                           && filterPlaybackMode->load() >= 0.5f;
+    const auto filterUsesProfileB = filterSerialProfile != nullptr
+                                 && filterSerialProfile->load() >= 0.5f;
+    const auto filterSerialAttack = filterUsesProfileB
+        ? filterAttackBValue : filterAttackAValue;
+    const auto filterSerialRelease = filterUsesProfileB
+        ? filterReleaseBValue : filterReleaseAValue;
+    const auto filterBipolarAValue = filterSeqABipolar != nullptr
+                                  && filterSeqABipolar->load() >= 0.5f;
+    const auto filterBipolarBValue = filterSeqBBipolar != nullptr
+                                  && filterSeqBBipolar->load() >= 0.5f;
+    const auto filterSerialBipolar = filterUsesProfileB
+        ? filterBipolarBValue : filterBipolarAValue;
+    const auto filterUnipolarPatternA = readFilterPattern (0, false);
+    const auto filterUnipolarPatternB = readFilterPattern (1, false);
+    const auto filterCanonicalPatternA = readFilterPattern (0, true);
+    const auto filterCanonicalPatternB = readFilterPattern (1, true);
+    const auto filterRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            filterRate != nullptr ? filterRate->load() : 6.0f)));
+    const auto filterStepBeats = seqwencer::beatsForRate (filterRateIndex);
+    const auto filterTraversalMode = seqwencer::sequenceModeFromChoice (
+        filterSequenceMode != nullptr ? filterSequenceMode->load() : 0.0f);
+    const auto filterRetriggersFromPlayedNotes =
+        filterTraversalMode == seqwencer::SequenceMode::played;
+
+    const auto pitchAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        pitchSeqAAttack != nullptr ? pitchSeqAAttack->load() : 0.0f);
+    const auto pitchReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        pitchSeqARelease != nullptr ? pitchSeqARelease->load() : 0.0f);
+    const auto pitchAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        pitchSeqBAttack != nullptr ? pitchSeqBAttack->load() : 0.0f);
+    const auto pitchReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        pitchSeqBRelease != nullptr ? pitchSeqBRelease->load() : 0.0f);
+    const auto pitchLinked = pitchPlaybackMode != nullptr
+                          && pitchPlaybackMode->load() >= 0.5f;
+    const auto pitchUsesProfileB = pitchSerialProfile != nullptr
+                                && pitchSerialProfile->load() >= 0.5f;
+    const auto pitchSerialAttack = pitchUsesProfileB
+        ? pitchAttackBValue : pitchAttackAValue;
+    const auto pitchSerialRelease = pitchUsesProfileB
+        ? pitchReleaseBValue : pitchReleaseAValue;
+    const auto pitchBipolarAValue = pitchSeqABipolar != nullptr
+                                 && pitchSeqABipolar->load() >= 0.5f;
+    const auto pitchBipolarBValue = pitchSeqBBipolar != nullptr
+                                 && pitchSeqBBipolar->load() >= 0.5f;
+    const auto pitchSerialBipolar = pitchUsesProfileB
+        ? pitchBipolarBValue : pitchBipolarAValue;
+    const auto pitchUnipolarPatternA = readPitchPattern (0, false);
+    const auto pitchUnipolarPatternB = readPitchPattern (1, false);
+    const auto pitchCanonicalPatternA = readPitchPattern (0, true);
+    const auto pitchCanonicalPatternB = readPitchPattern (1, true);
+    const auto pitchRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            pitchRate != nullptr ? pitchRate->load() : 6.0f)));
+    const auto pitchStepBeats = seqwencer::beatsForRate (pitchRateIndex);
+    const auto pitchTraversalMode = seqwencer::sequenceModeFromChoice (
+        pitchSequenceMode != nullptr ? pitchSequenceMode->load() : 0.0f);
+    const auto pitchRetriggersFromPlayedNotes =
+        pitchTraversalMode == seqwencer::SequenceMode::played;
     auto hostBpm = 120.0;
     auto hostPpq = 0.0;
     auto hostPositionAvailable = false;
@@ -1493,6 +1947,14 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                  && hostPositionAvailable
                                  && ! phiTimelineNeedsFreeRun
                                  && ! panRetriggersFromPlayedNotes;
+    const auto filterUseHostPosition = hostSyncEnabled
+                                    && hostPositionAvailable
+                                    && ! phiTimelineNeedsFreeRun
+                                    && ! filterRetriggersFromPlayedNotes;
+    const auto pitchUseHostPosition = hostSyncEnabled
+                                   && hostPositionAvailable
+                                   && ! phiTimelineNeedsFreeRun
+                                   && ! pitchRetriggersFromPlayedNotes;
     const auto gateRange = seqwencer::makeStepRange (
         static_cast<int> (std::lround (startStep != nullptr ? startStep->load() : 1.0f)),
         static_cast<int> (std::lround (endStep != nullptr ? endStep->load() : 64.0f)),
@@ -1521,6 +1983,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         static_cast<int> (std::lround (
             panEndStep != nullptr ? panEndStep->load() : 64.0f)),
         panLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
+    const auto filterRange = seqwencer::makeStepRange (
+        static_cast<int> (std::lround (
+            filterStartStep != nullptr ? filterStartStep->load() : 1.0f)),
+        static_cast<int> (std::lround (
+            filterEndStep != nullptr ? filterEndStep->load() : 64.0f)),
+        filterLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
+    const auto pitchRange = seqwencer::makeStepRange (
+        static_cast<int> (std::lround (
+            pitchStartStep != nullptr ? pitchStartStep->load() : 1.0f)),
+        static_cast<int> (std::lround (
+            pitchEndStep != nullptr ? pitchEndStep->load() : 64.0f)),
+        pitchLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
     const auto gateCycleLength = seqwencer::sequenceCycleLength (
         gateRange.length(), gateTraversalMode);
     const auto phiCycleLength = seqwencer::sequenceCycleLength (
@@ -1531,6 +2005,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         reverbRange.length(), reverbTraversalMode);
     const auto panCycleLength = seqwencer::sequenceCycleLength (
         panRange.length(), panTraversalMode);
+    const auto filterCycleLength = seqwencer::sequenceCycleLength (
+        filterRange.length(), filterTraversalMode);
+    const auto pitchCycleLength = seqwencer::sequenceCycleLength (
+        pitchRange.length(), pitchTraversalMode);
     const auto gatePhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * gateStepBeats * currentSampleRate / hostBpm);
     const auto phiPhaseIncrement = 1.0 / juce::jmax (
@@ -1541,6 +2019,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         1.0, 60.0 * reverbStepBeats * currentSampleRate / hostBpm);
     const auto panPhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * panStepBeats * currentSampleRate / hostBpm);
+    const auto filterPhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * filterStepBeats * currentSampleRate / hostBpm);
+    const auto pitchPhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * pitchStepBeats * currentSampleRate / hostBpm);
     const auto shouldBypass = bypass != nullptr && bypass->load() >= 0.5f;
     const auto shouldGate = gateEnabled != nullptr && gateEnabled->load() >= 0.5f;
     const auto base = juce::jlimit (
@@ -1592,9 +2074,28 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const auto baseReverbMix = juce::jlimit (
         0.0f, 1.0f, reverbMix != nullptr ? reverbMix->load() : 0.25f);
     const auto shouldPan = panEnabled != nullptr && panEnabled->load() >= 0.5f;
+    const auto shouldFilter = filterEnabled != nullptr
+                           && filterEnabled->load() >= 0.5f;
     const auto basePanNormalised = juce::jlimit (
         0.0f, 1.0f,
         0.5f * ((panPosition != nullptr ? panPosition->load() : 0.0f) + 1.0f));
+    const auto baseFilterType = juce::jlimit (
+        0, 4, static_cast<int> (std::lround (
+            filterType != nullptr ? filterType->load() : 0.0f)));
+    const auto baseFilterCutoff = juce::jlimit (
+        20.0f, 20000.0f,
+        filterCutoff != nullptr ? filterCutoff->load() : 20000.0f);
+    const auto baseFilterResonance = juce::jlimit (
+        0.10f, 10.0f,
+        filterResonance != nullptr ? filterResonance->load() : 0.707f);
+    const auto baseFilterMix = juce::jlimit (
+        0.0f, 1.0f, filterMix != nullptr ? filterMix->load() : 1.0f);
+    const auto shouldPitch = pitchEnabled != nullptr
+                          && pitchEnabled->load() >= 0.5f;
+    const auto basePitchShift = juce::jlimit (
+        -24.0f, 24.0f, pitchShift != nullptr ? pitchShift->load() : 0.0f);
+    const auto basePitchMix = juce::jlimit (
+        0.0f, 1.0f, pitchMix != nullptr ? pitchMix->load() : 1.0f);
     const auto gateAIsEnabled = seqAEnabled == nullptr
                              || seqAEnabled->load() >= 0.5f;
     const auto gateBIsEnabled = seqBEnabled != nullptr
@@ -1615,6 +2116,14 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                             || panSeqAEnabled->load() >= 0.5f;
     const auto panBIsEnabled = panSeqBEnabled != nullptr
                             && panSeqBEnabled->load() >= 0.5f;
+    const auto filterAIsEnabled = filterSeqAEnabled == nullptr
+                               || filterSeqAEnabled->load() >= 0.5f;
+    const auto filterBIsEnabled = filterSeqBEnabled != nullptr
+                               && filterSeqBEnabled->load() >= 0.5f;
+    const auto pitchAIsEnabled = pitchSeqAEnabled == nullptr
+                              || pitchSeqAEnabled->load() >= 0.5f;
+    const auto pitchBIsEnabled = pitchSeqBEnabled != nullptr
+                              && pitchSeqBEnabled->load() >= 0.5f;
     const auto targetIsActive = [this] (
         int bank, seqwencer::ModulationTarget target)
     {
@@ -1675,6 +2184,21 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const auto gateIsProcessing = shouldGate && ! shouldBypass;
     const auto panIsProcessing = shouldPan && ! shouldBypass
                               && buffer.getNumChannels() >= 2;
+    const auto filterIsProcessing = shouldFilter && ! shouldBypass;
+    if (filterIsProcessing && ! filterWasActive)
+        resetFilterProcessor();
+    else if (! filterIsProcessing && filterWasActive)
+        resetFilterProcessor();
+    filterWasActive = filterIsProcessing;
+    const auto pitchIsProcessing = shouldPitch && ! shouldBypass
+                                 && pitchBuffer.getNumSamples() > 8;
+    if (pitchIsProcessing != pitchWasActive)
+    {
+        pitchBuffer.clear();
+        pitchWritePosition = 0;
+        pitchReadPhase = 0.0;
+    }
+    pitchWasActive = pitchIsProcessing;
     if (! gateIsProcessing)
     {
         gateActiveStepA.store (-1);
@@ -1695,6 +2219,16 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         panActiveStepA.store (-1);
         panActiveStepB.store (-1);
     }
+    if (! filterIsProcessing)
+    {
+        filterActiveStepA.store (-1);
+        filterActiveStepB.store (-1);
+    }
+    if (! pitchIsProcessing)
+    {
+        pitchActiveStepA.store (-1);
+        pitchActiveStepB.store (-1);
+    }
     std::size_t nextPhraseStart = 0;
 
     for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
@@ -1712,6 +2246,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 reverbFreeRunningPhase = 0.0;
             if (panRetriggersFromPlayedNotes)
                 panFreeRunningPhase = 0.0;
+            if (filterRetriggersFromPlayedNotes)
+                filterFreeRunningPhase = 0.0;
+            if (pitchRetriggersFromPlayedNotes)
+                pitchFreeRunningPhase = 0.0;
             ++nextPhraseStart;
         }
 
@@ -1768,6 +2306,28 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                        : 0.0);
             panPhase = seqwencer::phaseFromQuarterNotes (
                 ppq, panStepBeats, panCycleLength);
+        }
+
+        auto filterPhase = filterFreeRunningPhase;
+        if (filterUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            filterPhase = seqwencer::phaseFromQuarterNotes (
+                ppq, filterStepBeats, filterCycleLength);
+        }
+
+        auto pitchPhase = pitchFreeRunningPhase;
+        if (pitchUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            pitchPhase = seqwencer::phaseFromQuarterNotes (
+                ppq, pitchStepBeats, pitchCycleLength);
         }
 
         auto gateUnipolarA = 1.0f;
@@ -2161,6 +2721,154 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 panBipolarBValue, assigned);
         };
 
+        auto filterUnipolarA = 1.0f;
+        auto filterUnipolarB = 1.0f;
+        auto filterCanonicalA = 1.0f;
+        auto filterCanonicalB = 1.0f;
+        auto filterSerialUnipolar = 1.0f;
+        auto filterSerialCanonical = 1.0f;
+        if (filterIsProcessing && filterLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            filterSerialUnipolar = seqwencer::evaluateLinkedRange (
+                filterUnipolarPatternA, filterUnipolarPatternB,
+                filterPhase, filterRange,
+                filterSerialAttack, filterSerialRelease,
+                filterSerialAttack, filterSerialRelease,
+                &activeBank, &activeStep, filterTraversalMode);
+            filterSerialCanonical = seqwencer::evaluateLinkedRange (
+                filterCanonicalPatternA, filterCanonicalPatternB,
+                filterPhase, filterRange,
+                filterSerialAttack, filterSerialRelease,
+                filterSerialAttack, filterSerialRelease,
+                nullptr, nullptr, filterTraversalMode);
+            filterActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            filterActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else if (filterIsProcessing)
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            filterUnipolarA = seqwencer::evaluateBankRange (
+                filterUnipolarPatternA, filterPhase, filterRange,
+                filterAttackAValue, filterReleaseAValue,
+                &stepA, filterTraversalMode);
+            filterUnipolarB = seqwencer::evaluateBankRange (
+                filterUnipolarPatternB, filterPhase, filterRange,
+                filterAttackBValue, filterReleaseBValue,
+                &stepB, filterTraversalMode);
+            filterCanonicalA = seqwencer::evaluateBankRange (
+                filterCanonicalPatternA, filterPhase, filterRange,
+                filterAttackAValue, filterReleaseAValue,
+                nullptr, filterTraversalMode);
+            filterCanonicalB = seqwencer::evaluateBankRange (
+                filterCanonicalPatternB, filterPhase, filterRange,
+                filterAttackBValue, filterReleaseBValue,
+                nullptr, filterTraversalMode);
+            filterActiveStepA.store (filterAIsEnabled ? stepA : -1);
+            filterActiveStepB.store (filterBIsEnabled ? stepB : -1);
+        }
+
+        const auto filterTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (filterLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return filterSerialBipolar
+                    ? 2.0f * filterSerialCanonical - 1.0f
+                    : filterSerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                filterBipolarAValue ? filterCanonicalA : filterUnipolarA,
+                filterAIsEnabled && targetIsActive (0, target), target,
+                filterBipolarAValue,
+                filterBipolarBValue ? filterCanonicalB : filterUnipolarB,
+                filterBIsEnabled && targetIsActive (1, target), target,
+                filterBipolarBValue, assigned);
+        };
+
+        auto pitchUnipolarA = 1.0f;
+        auto pitchUnipolarB = 1.0f;
+        auto pitchCanonicalA = 1.0f;
+        auto pitchCanonicalB = 1.0f;
+        auto pitchSerialUnipolar = 1.0f;
+        auto pitchSerialCanonical = 1.0f;
+        if (pitchIsProcessing && pitchLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            pitchSerialUnipolar = seqwencer::evaluateLinkedRange (
+                pitchUnipolarPatternA, pitchUnipolarPatternB,
+                pitchPhase, pitchRange,
+                pitchSerialAttack, pitchSerialRelease,
+                pitchSerialAttack, pitchSerialRelease,
+                &activeBank, &activeStep, pitchTraversalMode);
+            pitchSerialCanonical = seqwencer::evaluateLinkedRange (
+                pitchCanonicalPatternA, pitchCanonicalPatternB,
+                pitchPhase, pitchRange,
+                pitchSerialAttack, pitchSerialRelease,
+                pitchSerialAttack, pitchSerialRelease,
+                nullptr, nullptr, pitchTraversalMode);
+            pitchActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            pitchActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else if (pitchIsProcessing)
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            pitchUnipolarA = seqwencer::evaluateBankRange (
+                pitchUnipolarPatternA, pitchPhase, pitchRange,
+                pitchAttackAValue, pitchReleaseAValue,
+                &stepA, pitchTraversalMode);
+            pitchUnipolarB = seqwencer::evaluateBankRange (
+                pitchUnipolarPatternB, pitchPhase, pitchRange,
+                pitchAttackBValue, pitchReleaseBValue,
+                &stepB, pitchTraversalMode);
+            pitchCanonicalA = seqwencer::evaluateBankRange (
+                pitchCanonicalPatternA, pitchPhase, pitchRange,
+                pitchAttackAValue, pitchReleaseAValue,
+                nullptr, pitchTraversalMode);
+            pitchCanonicalB = seqwencer::evaluateBankRange (
+                pitchCanonicalPatternB, pitchPhase, pitchRange,
+                pitchAttackBValue, pitchReleaseBValue,
+                nullptr, pitchTraversalMode);
+            pitchActiveStepA.store (pitchAIsEnabled ? stepA : -1);
+            pitchActiveStepB.store (pitchBIsEnabled ? stepB : -1);
+        }
+
+        const auto pitchTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (pitchLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return pitchSerialBipolar
+                    ? 2.0f * pitchSerialCanonical - 1.0f
+                    : pitchSerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                pitchBipolarAValue ? pitchCanonicalA : pitchUnipolarA,
+                pitchAIsEnabled && targetIsActive (0, target), target,
+                pitchBipolarAValue,
+                pitchBipolarBValue ? pitchCanonicalB : pitchUnipolarB,
+                pitchBIsEnabled && targetIsActive (1, target), target,
+                pitchBipolarBValue, assigned);
+        };
+
         if (shouldGate && shouldNoiseGate && ! shouldBypass)
         {
             const auto modulatedActual = [&] (
@@ -2381,6 +3089,129 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                               buffer.getSample (1, sample) * rightGain);
         }
 
+        if (filterIsProcessing)
+        {
+            const auto modulatedFilterNormalised = [&] (
+                float baseNormalised, seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = filterTargetDeviation (target, &assigned);
+                return assigned
+                    ? seqwencer::applyModulationDepth (
+                        baseNormalised, deviation, 1.0f)
+                    : baseNormalised;
+            };
+
+            constexpr auto cutoffMinimum = 20.0f;
+            constexpr auto cutoffMaximum = 20000.0f;
+            const auto cutoffRatio = cutoffMaximum / cutoffMinimum;
+            const auto baseCutoffNormalised = std::log (
+                baseFilterCutoff / cutoffMinimum) / std::log (cutoffRatio);
+            const auto cutoffNormalised = modulatedFilterNormalised (
+                baseCutoffNormalised,
+                seqwencer::ModulationTarget::filterCutoff);
+            const auto cutoffValue = juce::jlimit (
+                cutoffMinimum,
+                static_cast<float> (juce::jmax (
+                    static_cast<double> (cutoffMinimum),
+                    currentSampleRate * 0.45)),
+                cutoffMinimum * std::pow (cutoffRatio, cutoffNormalised));
+            const auto baseResonanceNormalised =
+                (baseFilterResonance - 0.10f) / 9.90f;
+            const auto resonanceValue = 0.10f + 9.90f
+                * modulatedFilterNormalised (
+                    baseResonanceNormalised,
+                    seqwencer::ModulationTarget::filterResonance);
+            const auto mixValue = modulatedFilterNormalised (
+                baseFilterMix, seqwencer::ModulationTarget::filterMix);
+            for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+            {
+                const auto drySample = buffer.getSample (channel, sample);
+                const auto wetSample = processFilterSample (
+                    channel, drySample, cutoffValue, resonanceValue,
+                    baseFilterType);
+                buffer.setSample (
+                    channel, sample,
+                    drySample + mixValue * (wetSample - drySample));
+            }
+        }
+
+        if (pitchIsProcessing)
+        {
+            const auto modulatedPitchNormalised = [&] (
+                float baseNormalised, seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = pitchTargetDeviation (target, &assigned);
+                return assigned
+                    ? seqwencer::applyModulationDepth (
+                        baseNormalised, deviation, 1.0f)
+                    : baseNormalised;
+            };
+
+            const auto shiftNormalised = modulatedPitchNormalised (
+                (basePitchShift + 24.0f) / 48.0f,
+                seqwencer::ModulationTarget::pitchShift);
+            const auto semitones = -24.0f + 48.0f * shiftNormalised;
+            const auto mixValue = modulatedPitchNormalised (
+                basePitchMix, seqwencer::ModulationTarget::pitchMix);
+            const auto ratio = std::pow (2.0, static_cast<double> (semitones)
+                                             / 12.0);
+            const auto windowSamples = juce::jlimit (
+                64,
+                pitchBuffer.getNumSamples() - 8,
+                static_cast<int> (std::lround (currentSampleRate * 0.060)));
+            const auto windowSpan = static_cast<double> (windowSamples - 1);
+            const auto channels = juce::jmin (buffer.getNumChannels(),
+                                              pitchBuffer.getNumChannels());
+            const auto phaseA = pitchReadPhase;
+            const auto phaseB = std::fmod (pitchReadPhase + 0.5, 1.0);
+            const auto weightA = 0.5 - 0.5 * std::cos (
+                juce::MathConstants<double>::twoPi * phaseA);
+            const auto weightB = 0.5 - 0.5 * std::cos (
+                juce::MathConstants<double>::twoPi * phaseB);
+            const auto weightTotal = juce::jmax (1.0e-9, weightA + weightB);
+
+            const auto readDelayedSample = [&] (int channel, double phase)
+            {
+                const auto delaySamples = 4.0 + phase * windowSpan;
+                auto readPosition = static_cast<double> (pitchWritePosition)
+                                  - delaySamples;
+                const auto bufferLength = pitchBuffer.getNumSamples();
+                while (readPosition < 0.0)
+                    readPosition += static_cast<double> (bufferLength);
+                while (readPosition >= static_cast<double> (bufferLength))
+                    readPosition -= static_cast<double> (bufferLength);
+                const auto index0 = static_cast<int> (std::floor (readPosition));
+                const auto index1 = (index0 + 1) % bufferLength;
+                const auto fraction = static_cast<float> (
+                    readPosition - std::floor (readPosition));
+                const auto sample0 = pitchBuffer.getSample (channel, index0);
+                const auto sample1 = pitchBuffer.getSample (channel, index1);
+                return sample0 + fraction * (sample1 - sample0);
+            };
+
+            for (int channel = 0; channel < channels; ++channel)
+            {
+                const auto drySample = buffer.getSample (channel, sample);
+                pitchBuffer.setSample (
+                    channel, pitchWritePosition, drySample);
+                const auto wetSample = std::abs (semitones) < 0.0001f
+                    ? drySample
+                    : static_cast<float> ((
+                        weightA * readDelayedSample (channel, phaseA)
+                        + weightB * readDelayedSample (channel, phaseB))
+                        / weightTotal);
+                buffer.setSample (
+                    channel, sample,
+                    drySample + mixValue * (wetSample - drySample));
+            }
+            pitchWritePosition = (pitchWritePosition + 1)
+                               % pitchBuffer.getNumSamples();
+            pitchReadPhase = std::fmod (
+                pitchReadPhase + (1.0 - ratio) / windowSpan + 1.0, 1.0);
+        }
+
         const auto mayAdvance = ! hostSyncEnabled || hostTimelineAdvancing;
         if (gateIsProcessing && ! gateUseHostPosition
             && (mayAdvance || gateRetriggersFromPlayedNotes))
@@ -2413,6 +3244,20 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             panFreeRunningPhase = seqwencer::wrapPhase (
                 panFreeRunningPhase + panPhaseIncrement, panCycleLength);
         }
+        if (filterIsProcessing && ! filterUseHostPosition
+            && (mayAdvance || filterRetriggersFromPlayedNotes))
+        {
+            filterFreeRunningPhase = seqwencer::wrapPhase (
+                filterFreeRunningPhase + filterPhaseIncrement,
+                filterCycleLength);
+        }
+        if (pitchIsProcessing && ! pitchUseHostPosition
+            && (mayAdvance || pitchRetriggersFromPlayedNotes))
+        {
+            pitchFreeRunningPhase = seqwencer::wrapPhase (
+                pitchFreeRunningPhase + pitchPhaseIncrement,
+                pitchCycleLength);
+        }
     }
 
     if (gateIsProcessing && gateUseHostPosition && hostTimelineAdvancing)
@@ -2444,6 +3289,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         panFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
             hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
             panStepBeats, panCycleLength);
+    }
+    if (filterIsProcessing && filterUseHostPosition && hostTimelineAdvancing)
+    {
+        filterFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            filterStepBeats, filterCycleLength);
+    }
+    if (pitchIsProcessing && pitchUseHostPosition && hostTimelineAdvancing)
+    {
+        pitchFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            pitchStepBeats, pitchCycleLength);
     }
 
     if (shouldSendPhiBridge && buffer.getNumSamples() > 0)

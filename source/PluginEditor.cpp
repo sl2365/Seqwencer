@@ -21,6 +21,8 @@ constexpr auto gateAccent = 0xff62cf8a;
 constexpr auto delayAccent = 0xffc58aff;
 constexpr auto reverbAccent = 0xffff6f91;
 constexpr auto panAccent = 0xffffc857;
+constexpr auto filterAccent = 0xff50d8a8;
+constexpr auto pitchAccent = 0xff66d9ff;
 constexpr auto phiAccent = 0xff68a8ff;
 constexpr auto targetDragPrefix = "seqwencer-target:";
 constexpr int designWidth = 1280;
@@ -64,6 +66,19 @@ constexpr std::array<seqwencer::ModulationTarget,
 constexpr std::array<seqwencer::ModulationTarget,
                      seqwencer::panModulationTargetCount> panTargets {
     seqwencer::ModulationTarget::panPosition
+};
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::filterModulationTargetCount> filterTargets {
+    seqwencer::ModulationTarget::filterCutoff,
+    seqwencer::ModulationTarget::filterResonance,
+    seqwencer::ModulationTarget::filterMix
+};
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::pitchModulationTargetCount> pitchTargets {
+    seqwencer::ModulationTarget::pitchShift,
+    seqwencer::ModulationTarget::pitchMix
 };
 
 juce::String targetDragID (seqwencer::ModulationTarget target)
@@ -392,6 +407,10 @@ public:
                 return "reverb_" + gateID;
             if (newEngine == seqwencer::SequencerEngine::pan)
                 return "pan_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::filter)
+                return "filter_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::pitch)
+                return "pitch_" + gateID;
             return gateID;
         };
 
@@ -411,6 +430,12 @@ public:
                         stepBank, stepIndex);
                 if (newEngine == seqwencer::SequencerEngine::pan)
                     return SeqwencerAudioProcessor::panStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::filter)
+                    return SeqwencerAudioProcessor::filterStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::pitch)
+                    return SeqwencerAudioProcessor::pitchStepParameterID (
                         stepBank, stepIndex);
                 return SeqwencerAudioProcessor::stepParameterID (
                     stepBank, stepIndex);
@@ -1825,6 +1850,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor, seqwencer::ModulationTarget::reverbMix);
     panPositionParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::panPosition);
+    filterCutoffParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::filterCutoff);
+    filterResonanceParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::filterResonance, "RESO");
+    filterMixParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::filterMix);
+    pitchShiftParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::pitchShift);
+    pitchMixParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::pitchMix);
     targetListA = std::make_unique<TargetList> (
         processor, 0, laneAColour,
         std::vector<seqwencer::ModulationTarget> (
@@ -1857,6 +1892,22 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor, 1, laneBColour,
         std::vector<seqwencer::ModulationTarget> (
             panTargets.begin(), panTargets.end()), "pan_playback_mode");
+    filterTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            filterTargets.begin(), filterTargets.end()), "filter_playback_mode");
+    filterTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            filterTargets.begin(), filterTargets.end()), "filter_playback_mode");
+    pitchTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            pitchTargets.begin(), pitchTargets.end()), "pitch_playback_mode");
+    pitchTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            pitchTargets.begin(), pitchTargets.end()), "pitch_playback_mode");
     gateFxButton = std::make_unique<FxSelectorButton> (
         "GATE", juce::Colour (gateAccent));
     delayFxButton = std::make_unique<FxSelectorButton> (
@@ -1865,6 +1916,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         "REVERB", juce::Colour (reverbAccent));
     panFxButton = std::make_unique<FxSelectorButton> (
         "PAN", juce::Colour (panAccent));
+    filterFxButton = std::make_unique<FxSelectorButton> (
+        "FILTER", juce::Colour (filterAccent));
+    pitchFxButton = std::make_unique<FxSelectorButton> (
+        "PITCH", juce::Colour (pitchAccent));
     phiFxButton = std::make_unique<FxSelectorButton> (
         "PHI", juce::Colour (phiAccent));
     content.addAndMakeVisible (*baseParameterLabel);
@@ -1884,6 +1939,11 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*reverbWidthParameterLabel);
     content.addAndMakeVisible (*reverbMixParameterLabel);
     content.addAndMakeVisible (*panPositionParameterLabel);
+    content.addAndMakeVisible (*filterCutoffParameterLabel);
+    content.addAndMakeVisible (*filterResonanceParameterLabel);
+    content.addAndMakeVisible (*filterMixParameterLabel);
+    content.addAndMakeVisible (*pitchShiftParameterLabel);
+    content.addAndMakeVisible (*pitchMixParameterLabel);
     content.addAndMakeVisible (*targetListA);
     content.addAndMakeVisible (*targetListB);
     content.addAndMakeVisible (*delayTargetListA);
@@ -1892,10 +1952,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*reverbTargetListB);
     content.addAndMakeVisible (*panTargetListA);
     content.addAndMakeVisible (*panTargetListB);
+    content.addAndMakeVisible (*filterTargetListA);
+    content.addAndMakeVisible (*filterTargetListB);
+    content.addAndMakeVisible (*pitchTargetListA);
+    content.addAndMakeVisible (*pitchTargetListB);
     content.addAndMakeVisible (*gateFxButton);
     content.addAndMakeVisible (*delayFxButton);
     content.addAndMakeVisible (*reverbFxButton);
     content.addAndMakeVisible (*panFxButton);
+    content.addAndMakeVisible (*filterFxButton);
+    content.addAndMakeVisible (*pitchFxButton);
     content.addAndMakeVisible (*phiFxButton);
     content.addAndMakeVisible (presetsButton);
     presetsButton.setTooltip ("Open the portable Seqwencer preset browser");
@@ -1911,6 +1977,13 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     sequenceModeBox.setTooltip (
         "Choose forward looping, end-to-end bouncing, reverse playback, or first-note phrase retriggering");
     content.addAndMakeVisible (sequenceModeBox);
+    filterTypeBox.addItem ("LOW PASS", 1);
+    filterTypeBox.addItem ("HIGH PASS", 2);
+    filterTypeBox.addItem ("BAND PASS", 3);
+    filterTypeBox.addItem ("BAND REJECT", 4);
+    filterTypeBox.addItem ("PEAKING", 5);
+    filterTypeBox.setTooltip ("Choose the Filter response");
+    content.addAndMakeVisible (filterTypeBox);
     const auto configureWaveformBox = [this] (juce::ComboBox& box,
                                               const juce::String& laneName)
     {
@@ -1965,6 +2038,14 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     panFxButton->getEnableButton().setTooltip (
         "Turn the built-in Pan effect and its sequencer on or off");
     panFxButton->onClick = [this] { selectFx (SelectedFx::pan); };
+    filterFxButton->setTooltip ("Show the Filter controls");
+    filterFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Filter effect and its sequencer on or off");
+    filterFxButton->onClick = [this] { selectFx (SelectedFx::filter); };
+    pitchFxButton->setTooltip ("Show the Pitch controls");
+    pitchFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Pitch effect and its sequencer on or off");
+    pitchFxButton->onClick = [this] { selectFx (SelectedFx::pitch); };
     phiFxButton->setTooltip ("Show the PHI integration controls");
     phiFxButton->getEnableButton().setTooltip (
         "Turn Seqwencer's PHI parameter output on or off");
@@ -2011,6 +2092,11 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureKnob (reverbWidthSlider);
     configureKnob (reverbMixSlider);
     configureKnob (panPositionSlider);
+    configureKnob (filterCutoffSlider);
+    configureKnob (filterResonanceSlider);
+    configureKnob (filterMixSlider);
+    configureKnob (pitchShiftSlider);
+    configureKnob (pitchMixSlider);
     panPositionSlider.setRange (-1.0, 1.0, 0.001);
     delayTimeSlider.setTextBoxStyle (
         juce::Slider::TextBoxBelow, false, 64, 15);
@@ -2022,6 +2108,9 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     noiseReleaseSlider.setRange (5.0, 1000.0, 1.0);
     delayTimeSlider.setRange (10.0, 2000.0, 0.1);
     delayFeedbackSlider.setRange (0.0, 0.95, 0.001);
+    filterCutoffSlider.setRange (20.0, 20000.0, 0.1);
+    filterResonanceSlider.setRange (0.10, 10.0, 0.001);
+    pitchShiftSlider.setRange (-24.0, 24.0, 0.01);
     shortLengthSlider.setTooltip (
         "Length of every Gate step set to Short (10-60% of one step)");
     longLengthSlider.setTooltip (
@@ -2045,6 +2134,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     reverbMixSlider.setTooltip ("Balance between dry input and reverberated signal");
     panPositionSlider.setTooltip (
         "Stereo position from full left through centre to full right");
+    filterCutoffSlider.setTooltip (
+        "Filter cutoff frequency from 20 Hz to 20 kHz");
+    filterResonanceSlider.setTooltip (
+        "Emphasis around the Filter cutoff frequency");
+    filterMixSlider.setTooltip (
+        "Balance between dry input and filtered signal");
+    pitchShiftSlider.setTooltip (
+        "Transpose the signal from two octaves down to two octaves up");
+    pitchMixSlider.setTooltip (
+        "Balance between dry input and pitch-shifted signal");
     configureKnob (attackASlider);
     configureKnob (releaseASlider);
     configureKnob (attackBSlider);
@@ -2099,6 +2198,17 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     }
     panPositionSlider.setColour (juce::Slider::rotarySliderFillColourId,
                                  juce::Colour (panAccent));
+    for (auto* slider : { &filterCutoffSlider, &filterResonanceSlider,
+                          &filterMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (filterAccent));
+    }
+    for (auto* slider : { &pitchShiftSlider, &pitchMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (pitchAccent));
+    }
     attackASlider.setColour (juce::Slider::rotarySliderFillColourId,
                              laneAColour);
     releaseASlider.setColour (juce::Slider::rotarySliderFillColourId,
@@ -2120,6 +2230,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureLabel (laneBTitle, "GATE B");
     configureLabel (colourALabel, "A COLOUR");
     configureLabel (colourBLabel, "B COLOUR");
+    configureLabel (filterTypeLabel, "TYPE");
     laneATitle.setColour (juce::Label::textColourId,
                           juce::Colour (gateAccent));
     laneBTitle.setColour (juce::Label::textColourId,
@@ -2141,10 +2252,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "reverb_enabled", reverbFxButton->getEnableButton());
     panAttachment = std::make_unique<ButtonAttachment> (
         state, "pan_enabled", panFxButton->getEnableButton());
+    filterAttachment = std::make_unique<ButtonAttachment> (
+        state, "filter_enabled", filterFxButton->getEnableButton());
+    pitchAttachment = std::make_unique<ButtonAttachment> (
+        state, "pitch_enabled", pitchFxButton->getEnableButton());
     phiBridgeAttachment = std::make_unique<ButtonAttachment> (
         state, "phi_bridge_enabled", phiFxButton->getEnableButton());
     noiseGateAttachment = std::make_unique<ButtonAttachment> (
         state, "noise_gate_enabled", noiseGateButton);
+    filterTypeAttachment = std::make_unique<ComboAttachment> (
+        state, "filter_type", filterTypeBox);
     baseAttachment = std::make_unique<SliderAttachment> (
         state, "gate_base", baseSlider);
     depthAttachment = std::make_unique<SliderAttachment> (
@@ -2179,12 +2296,39 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "reverb_mix", reverbMixSlider);
     panPositionAttachment = std::make_unique<SliderAttachment> (
         state, "pan_position", panPositionSlider);
+    filterCutoffAttachment = std::make_unique<SliderAttachment> (
+        state, "filter_cutoff", filterCutoffSlider);
+    filterResonanceAttachment = std::make_unique<SliderAttachment> (
+        state, "filter_resonance", filterResonanceSlider);
+    filterMixAttachment = std::make_unique<SliderAttachment> (
+        state, "filter_mix", filterMixSlider);
+    pitchShiftAttachment = std::make_unique<SliderAttachment> (
+        state, "pitch_shift", pitchShiftSlider);
+    pitchMixAttachment = std::make_unique<SliderAttachment> (
+        state, "pitch_mix", pitchMixSlider);
     panPositionSlider.textFromValueFunction = [] (double value)
     {
         if (std::abs (value) < 0.0005)
             return juce::String ("C");
         return juce::String (std::lround (std::abs (value) * 100.0))
              + (value < 0.0 ? " L" : " R");
+    };
+    filterCutoffSlider.textFromValueFunction = [] (double value)
+    {
+        return value >= 1000.0
+            ? juce::String (value / 1000.0, value < 10000.0 ? 2 : 1) + " kHz"
+            : juce::String (value, 0) + " Hz";
+    };
+    filterResonanceSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, 2);
+    };
+    pitchShiftSlider.textFromValueFunction = [] (double value)
+    {
+        if (std::abs (value) < 0.005)
+            return juce::String ("0.00 st");
+        return juce::String (value > 0.0 ? "+" : "")
+             + juce::String (value, 2) + " st";
     };
     const auto gateLengthText = [] (double value)
     {
@@ -2464,6 +2608,10 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
             return "reverb_" + gateID;
         if (selectedFx == SelectedFx::pan)
             return "pan_" + gateID;
+        if (selectedFx == SelectedFx::filter)
+            return "filter_" + gateID;
+        if (selectedFx == SelectedFx::pitch)
+            return "pitch_" + gateID;
         return gateID;
     };
 
@@ -2507,6 +2655,10 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
                 ? seqwencer::SequencerEngine::reverb
             : selectedFx == SelectedFx::pan
                 ? seqwencer::SequencerEngine::pan
+            : selectedFx == SelectedFx::filter
+                ? seqwencer::SequencerEngine::filter
+            : selectedFx == SelectedFx::pitch
+                ? seqwencer::SequencerEngine::pitch
                 : seqwencer::SequencerEngine::gate;
     gridA->setEngine (engine);
     gridB->setEngine (engine);
@@ -2530,11 +2682,15 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     const auto delaySelected = selectedFx == SelectedFx::delay;
     const auto reverbSelected = selectedFx == SelectedFx::reverb;
     const auto panSelected = selectedFx == SelectedFx::pan;
+    const auto filterSelected = selectedFx == SelectedFx::filter;
+    const auto pitchSelected = selectedFx == SelectedFx::pitch;
     const auto phiSelected = selectedFx == SelectedFx::phi;
     gateFxButton->setSelected (gateSelected);
     delayFxButton->setSelected (delaySelected);
     reverbFxButton->setSelected (reverbSelected);
     panFxButton->setSelected (panSelected);
+    filterFxButton->setSelected (filterSelected);
+    pitchFxButton->setSelected (pitchSelected);
     phiFxButton->setSelected (phiSelected);
     phiFxButton->setVisible (phiAvailable);
 
@@ -2581,16 +2737,36 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     panPositionSlider.setVisible (panSelected);
     panTargetListA->setVisible (panSelected);
     panTargetListB->setVisible (panSelected);
+    filterTypeLabel.setVisible (filterSelected);
+    filterTypeBox.setVisible (filterSelected);
+    filterCutoffParameterLabel->setVisible (filterSelected);
+    filterCutoffSlider.setVisible (filterSelected);
+    filterResonanceParameterLabel->setVisible (filterSelected);
+    filterResonanceSlider.setVisible (filterSelected);
+    filterMixParameterLabel->setVisible (filterSelected);
+    filterMixSlider.setVisible (filterSelected);
+    filterTargetListA->setVisible (filterSelected);
+    filterTargetListB->setVisible (filterSelected);
+    pitchShiftParameterLabel->setVisible (pitchSelected);
+    pitchShiftSlider.setVisible (pitchSelected);
+    pitchMixParameterLabel->setVisible (pitchSelected);
+    pitchMixSlider.setVisible (pitchSelected);
+    pitchTargetListA->setVisible (pitchSelected);
+    pitchTargetListB->setVisible (pitchSelected);
     phiTargetButton.setVisible (phiAvailable && phiSelected);
 
     const auto laneColour = juce::Colour (gateSelected ? gateAccent
         : delaySelected ? delayAccent
         : reverbSelected ? reverbAccent
-        : panSelected ? panAccent : phiAccent);
+        : panSelected ? panAccent
+        : filterSelected ? filterAccent
+        : pitchSelected ? pitchAccent : phiAccent);
     const juce::String fxName = gateSelected ? "GATE"
                               : delaySelected ? "DELAY"
                               : reverbSelected ? "REVERB"
-                              : panSelected ? "PAN" : "PHI";
+                              : panSelected ? "PAN"
+                              : filterSelected ? "FILTER"
+                              : pitchSelected ? "PITCH" : "PHI";
     laneATitle.setText (fxName + " A",
                         juce::dontSendNotification);
     laneBTitle.setText (fxName + " B",
@@ -2635,6 +2811,23 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
         panPositionSlider.setColour (
             juce::Slider::rotarySliderFillColourId, laneColour);
     }
+    else if (filterSelected)
+    {
+        for (auto* slider : { &filterCutoffSlider, &filterResonanceSlider,
+                              &filterMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
+    else if (pitchSelected)
+    {
+        for (auto* slider : { &pitchShiftSlider, &pitchMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
 
     if (lastPhiAvailability != phiAvailable)
     {
@@ -2660,6 +2853,10 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
     reverbTargetListB->setAccentColour (laneBColour);
     panTargetListA->setAccentColour (laneAColour);
     panTargetListB->setAccentColour (laneBColour);
+    filterTargetListA->setAccentColour (laneAColour);
+    filterTargetListB->setAccentColour (laneBColour);
+    pitchTargetListA->setAccentColour (laneAColour);
+    pitchTargetListB->setAccentColour (laneBColour);
 
     for (auto* button : { &enableAButton, &bipolarAButton })
         button->setColour (juce::ToggleButton::tickColourId, laneAColour);
@@ -2707,6 +2904,8 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
             : selectedFx == SelectedFx::delay ? "delay_enabled"
             : selectedFx == SelectedFx::reverb ? "reverb_enabled"
             : selectedFx == SelectedFx::pan ? "pan_enabled"
+            : selectedFx == SelectedFx::filter ? "filter_enabled"
+            : selectedFx == SelectedFx::pitch ? "pitch_enabled"
                                                : "phi_bridge_enabled");
     auto* noiseGateEnabledParameter =
         processor.getParameterState().getParameter ("noise_gate_enabled");
@@ -2757,6 +2956,18 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     reverbMixSlider.setAlpha (gateControlsAlpha);
     panPositionParameterLabel->setAlpha (gateControlsAlpha);
     panPositionSlider.setAlpha (gateControlsAlpha);
+    filterTypeLabel.setAlpha (gateControlsAlpha);
+    filterTypeBox.setAlpha (gateControlsAlpha);
+    filterCutoffParameterLabel->setAlpha (gateControlsAlpha);
+    filterCutoffSlider.setAlpha (gateControlsAlpha);
+    filterResonanceParameterLabel->setAlpha (gateControlsAlpha);
+    filterResonanceSlider.setAlpha (gateControlsAlpha);
+    filterMixParameterLabel->setAlpha (gateControlsAlpha);
+    filterMixSlider.setAlpha (gateControlsAlpha);
+    pitchShiftParameterLabel->setAlpha (gateControlsAlpha);
+    pitchShiftSlider.setAlpha (gateControlsAlpha);
+    pitchMixParameterLabel->setAlpha (gateControlsAlpha);
+    pitchMixSlider.setAlpha (gateControlsAlpha);
 
     enableAButton.setEnabled (true);
     enableBButton.setEnabled (true);
@@ -2791,6 +3002,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         reverbTargetListB->setAlpha (gateControlsAlpha);
         panTargetListA->setAlpha (gateControlsAlpha);
         panTargetListB->setAlpha (gateControlsAlpha);
+        filterTargetListA->setAlpha (gateControlsAlpha);
+        filterTargetListB->setAlpha (gateControlsAlpha);
+        pitchTargetListA->setAlpha (gateControlsAlpha);
+        pitchTargetListB->setAlpha (gateControlsAlpha);
         setControlAlpha (gateControlsAlpha * (profileB ? 0.30f : 1.0f),
                          attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
@@ -2822,6 +3037,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         reverbTargetListB->setAlpha (alphaB);
         panTargetListA->setAlpha (alphaA);
         panTargetListB->setAlpha (alphaB);
+        filterTargetListA->setAlpha (alphaA);
+        filterTargetListB->setAlpha (alphaB);
+        pitchTargetListA->setAlpha (alphaA);
+        pitchTargetListB->setAlpha (alphaB);
         setControlAlpha (alphaA, attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
         setControlAlpha (alphaB, attackBSlider, attackBLabel,
@@ -2863,7 +3082,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.6.1",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.8.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -2890,7 +3109,11 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                            : selectedFx == SelectedFx::reverb
                                ? "REVERB CONTROLS"
                            : selectedFx == SelectedFx::pan
-                               ? "PAN CONTROLS" : "PHI CONTROLS",
+                               ? "PAN CONTROLS"
+                           : selectedFx == SelectedFx::filter
+                               ? "FILTER CONTROLS"
+                           : selectedFx == SelectedFx::pitch
+                               ? "PITCH CONTROLS" : "PHI CONTROLS",
                        20, static_cast<int> (bottomPanelY) + 8,
                        92, 15, juce::Justification::centredLeft, false);
 
@@ -2928,7 +3151,9 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
             selectedFx == SelectedFx::gate ? gateAccent
                 : selectedFx == SelectedFx::delay ? delayAccent
                 : selectedFx == SelectedFx::reverb ? reverbAccent
-                : selectedFx == SelectedFx::pan ? panAccent : phiAccent);
+                : selectedFx == SelectedFx::pan ? panAccent
+                : selectedFx == SelectedFx::filter ? filterAccent
+                : selectedFx == SelectedFx::pitch ? pitchAccent : phiAccent);
         graphics.setColour (moduleAccent.withAlpha (outlineAlpha));
         graphics.drawRoundedRectangle (bounds, 8.0f, 1.2f);
     }
@@ -2963,7 +3188,9 @@ void SeqwencerAudioProcessorEditor::resized()
     delayFxButton->setBounds (20, 221, 74, 31);
     reverbFxButton->setBounds (20, 260, 74, 31);
     panFxButton->setBounds (20, 299, 74, 31);
-    phiFxButton->setBounds (20, 338, 74, 31);
+    filterFxButton->setBounds (20, 338, 74, 31);
+    pitchFxButton->setBounds (20, 377, 74, 31);
+    phiFxButton->setBounds (20, 416, 74, 31);
     modeBox.setBounds (20, bottomPanelY + 28, 92, 28);
     rateLabel.setBounds (122, bottomPanelY + 4, 64, 14);
     rateSlider.setBounds (122, bottomPanelY + 15, 64, 59);
@@ -3015,6 +3242,20 @@ void SeqwencerAudioProcessorEditor::resized()
     panPositionParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
     panPositionSlider.setBounds (448, bottomPanelY + 15, 64, 59);
 
+    filterTypeLabel.setBounds (436, bottomPanelY + 4, 122, 14);
+    filterTypeBox.setBounds (436, bottomPanelY + 28, 122, 28);
+    filterCutoffParameterLabel->setBounds (566, bottomPanelY + 4, 88, 14);
+    filterCutoffSlider.setBounds (578, bottomPanelY + 15, 64, 59);
+    filterResonanceParameterLabel->setBounds (654, bottomPanelY + 4, 92, 14);
+    filterResonanceSlider.setBounds (668, bottomPanelY + 15, 64, 59);
+    filterMixParameterLabel->setBounds (744, bottomPanelY + 4, 88, 14);
+    filterMixSlider.setBounds (756, bottomPanelY + 15, 64, 59);
+
+    pitchShiftParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
+    pitchShiftSlider.setBounds (448, bottomPanelY + 15, 64, 59);
+    pitchMixParameterLabel->setBounds (526, bottomPanelY + 4, 88, 14);
+    pitchMixSlider.setBounds (538, bottomPanelY + 15, 64, 59);
+
     constexpr int laneTop = 150;
     constexpr int laneGap = 10;
     const auto laneAreaBottom = bottomPanelY - laneGap;
@@ -3053,8 +3294,11 @@ void SeqwencerAudioProcessorEditor::resized()
         const auto delaySelected = selectedFx == SelectedFx::delay;
         const auto reverbSelected = selectedFx == SelectedFx::reverb;
         const auto panSelected = selectedFx == SelectedFx::pan;
+        const auto filterSelected = selectedFx == SelectedFx::filter;
+        const auto pitchSelected = selectedFx == SelectedFx::pitch;
         const auto hasInternalTargets = gateSelected || delaySelected
-                                     || reverbSelected || panSelected;
+                                     || reverbSelected || panSelected
+                                     || filterSelected || pitchSelected;
         const auto targetX = hasInternalTargets
             ? designWidth - 10 - innerMargin - targetWidth
             : designWidth - 10 - innerMargin;
@@ -3065,6 +3309,10 @@ void SeqwencerAudioProcessorEditor::resized()
             ? *reverbTargetListA : *reverbTargetListB;
         auto& selectedPanTargetList = lane == 0
             ? *panTargetListA : *panTargetListB;
+        auto& selectedFilterTargetList = lane == 0
+            ? *filterTargetListA : *filterTargetListB;
+        auto& selectedPitchTargetList = lane == 0
+            ? *pitchTargetListA : *pitchTargetListB;
         gateTargetList.setBounds (targetX, y + innerMargin,
                                   gateSelected ? targetWidth : 0,
                                   laneHeight - 2 * innerMargin);
@@ -3077,6 +3325,12 @@ void SeqwencerAudioProcessorEditor::resized()
         selectedPanTargetList.setBounds (targetX, y + innerMargin,
                                          panSelected ? targetWidth : 0,
                                          laneHeight - 2 * innerMargin);
+        selectedFilterTargetList.setBounds (targetX, y + innerMargin,
+                                            filterSelected ? targetWidth : 0,
+                                            laneHeight - 2 * innerMargin);
+        selectedPitchTargetList.setBounds (targetX, y + innerMargin,
+                                           pitchSelected ? targetWidth : 0,
+                                           laneHeight - 2 * innerMargin);
         const auto gridX = laneX + controlsWidth + innerMargin;
         grid.setBounds (gridX, y + innerMargin,
                         juce::jmax (128, targetX - componentGap - gridX),
@@ -3111,6 +3365,11 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     reverbWidthParameterLabel->repaint();
     reverbMixParameterLabel->repaint();
     panPositionParameterLabel->repaint();
+    filterCutoffParameterLabel->repaint();
+    filterResonanceParameterLabel->repaint();
+    filterMixParameterLabel->repaint();
+    pitchShiftParameterLabel->repaint();
+    pitchMixParameterLabel->repaint();
     targetListA->refresh();
     targetListB->refresh();
     delayTargetListA->refresh();
@@ -3119,6 +3378,10 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     reverbTargetListB->refresh();
     panTargetListA->refresh();
     panTargetListB->refresh();
+    filterTargetListA->refresh();
+    filterTargetListB->refresh();
+    pitchTargetListA->refresh();
+    pitchTargetListB->refresh();
     gridA->repaint();
     gridB->repaint();
 }

@@ -32,10 +32,12 @@ The current development build includes:
 - Delay
 - Reverb
 - Pan
+- Filter
+- Pitch
 
-Filter, Pitch, Distortion and GrainShifter are planned additions. Reverb is
-included because sequenced Mix can create useful rhythmic effects even when
-sequencing its tail parameters is less suitable.
+Distortion and GrainShifter are planned additions. Reverb is included
+because sequenced Mix can create useful rhythmic effects even when sequencing
+its tail parameters is less suitable.
 
 ## Sequencers
 
@@ -86,6 +88,21 @@ Pan uses a centre-preserving stereo balance. Centre leaves both input channels
 unchanged; moving left or right attenuates only the opposite channel and does
 not add gain. Pan lanes default to Bipolar so negative values move left,
 positive values move right and the centre line represents the Pan knob value.
+
+## Filter
+
+Filter Type offers Low Pass, High Pass, Band Pass, Band Reject and Peaking.
+Cutoff, Resonance and Mix can each be sequenced from A, B or both lanes. The
+Filter has its own patterns, timing, range, direction and envelopes, and its
+private sequencer pauses when the Filter is disabled.
+
+## Pitch
+
+Pitch Shift transposes the signal continuously from -24 to +24 semitones, and
+Mix blends the shifted signal with the dry input. Shift and Mix can each be
+sequenced from A, B or both lanes. Pitch has its own patterns, timing, range,
+direction and envelopes; disabling it bypasses the audio processor and pauses
+its private sequencer.
 
 ## PHI parameter control
 

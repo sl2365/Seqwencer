@@ -2,6 +2,39 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## Stage 3.8.0 features
+
+- Added a cyan Pitch FX selector with its own independent A/B sequencer page
+- Shift covers -24 to +24 semitones and Mix blends dry and shifted audio
+- Shift and Mix can each be dragged to A, B or both Pitch target lists
+- Pitch has independent Mode, Rate, Start, End, Direction, patterns,
+  Attack/Release, Bipolar state and SERIAL control profile
+- A dual-window time-domain shifter crossfades overlapping read heads to avoid
+  the hard discontinuities of a single moving delay tap
+- Zero semitones passes the wet signal without unnecessary delay or colouring
+- Pitch is disabled by default; disabling it bypasses audio processing, clears
+  its working buffer and pauses its private sequencer phase
+- Pitch state is stored in its own `[Pitch]` section in portable presets
+- The VST3 release probe verifies Pitch parameters and targets, independent
+  timing/pattern data, octave-up processing and clean disabled pass-through
+
+## Stage 3.7.0 features
+
+- Added a mint-green Filter FX selector with its own independent A/B
+  sequencer page
+- Filter Type offers Low Pass, High Pass, Band Pass, Band Reject and Peaking
+- Cutoff covers 20 Hz to 20 kHz; Resonance and Mix are available alongside it
+- Cutoff, Resonance and Mix can each be dragged to A, B or both Filter target
+  lists
+- Filter has independent Mode, Rate, Start, End, Direction, patterns,
+  Attack/Release, Bipolar state and SERIAL control profile
+- Filter is disabled by default; disabling it bypasses its audio processing and
+  pauses its private sequencer phase
+- Filter state is stored in its own `[Filter]` section in portable presets
+- The VST3 release probe verifies all five responses, all Filter targets,
+  independent timing/pattern data, audio processing and clean disabled
+  pass-through
+
 ## Stage 3.6.1 fixes
 
 - Corrected the independent VST3 Reverb probe so JUCE's intentional 10 ms
@@ -245,8 +278,8 @@ Every step has a separate Gate-mode cell above its volume bar. Click a cell to
 cycle `Long -> Link -> Off -> Short -> Long`. Off closes the Gate for the step,
 Short and Long close at their adjustable Gate-panel lengths, while Link remains open through
 the boundary and transitions directly to the following step value. Gate modes
-are ignored when Gate is disabled. They do not change future PHI-controlled
-Pitch, Pan, Filter or other modulation targets. Gate-mode timing remains active
+are ignored when Gate is disabled. They do not change PHI-controlled parameters
+or the Pitch, Pan, Filter and other internal modulation targets. Gate-mode timing remains active
 without a Volume target; assigning Volume additionally makes the drawn bar
 heights control the audio level.
 
@@ -254,8 +287,8 @@ Gate is a unipolar volume destination, so positive Bipolar steps retain their
 ordinary Gate percentages: +100%, +75%, +50% and +25% produce the same levels
 as 100%, 75%, 50% and 25% in Unipolar. Negative steps produce 0% for Gate
 because volume has no negative range. Their original signed values remain
-stored and will be available to future bipolar-capable destinations such as
-Pan or Pitch. Two Parallel lanes assigned to Gate continue to multiply, and
+stored and remain available to bipolar-capable destinations such as Pan or
+Pitch. Two Parallel lanes assigned to Gate continue to multiply, and
 the final Gate result always stays inside its valid range.
 
 ## Stage 3.6.0 test
@@ -437,7 +470,7 @@ the final Gate result always stays inside its valid range.
 
 ## Planned development
 
-The remaining planned internal effects are Filter, Pitch, Distortion and
-GrainShifter. They will be added one controlled stage at a time so each effect
+The remaining planned internal effects are Distortion and GrainShifter. They
+will be added one controlled stage at a time so each effect
 can receive the correct DSP, parameter ranges, bipolar/unipolar behaviour,
 target routing and regression tests without destabilising the existing engines.

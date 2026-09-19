@@ -651,6 +651,21 @@ int main()
     expectEqual ("Pan target choice restores",
                  static_cast<int> (seqwencer::targetFromChoice (17.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::panPosition));
+    expectEqual ("Filter Cutoff target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (18.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::filterCutoff));
+    expectEqual ("Filter Resonance target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (19.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::filterResonance));
+    expectEqual ("Filter Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (20.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::filterMix));
+    expectEqual ("Pitch Shift target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (21.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::pitchShift));
+    expectEqual ("Pitch Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (22.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::pitchMix));
     expectEqual ("Gate Volume remains a unipolar destination",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::gateLevel) ? 1 : 0,
@@ -670,6 +685,14 @@ int main()
     expectEqual ("Pan accepts bipolar movement",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::panPosition) ? 1 : 0,
+                 1);
+    expectEqual ("Filter targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::filterCutoff) ? 1 : 0,
+                 1);
+    expectEqual ("Pitch targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::pitchShift) ? 1 : 0,
                  1);
     expectNear ("Depth target scales from zero to its knob ceiling",
                 seqwencer::modulatedCeiling (0.8f, 0.25f), 0.2f);

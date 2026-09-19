@@ -33,7 +33,9 @@ enum class SequencerEngine
     phi,
     delay,
     reverb,
-    pan
+    pan,
+    filter,
+    pitch
 };
 
 enum class WaveformPreset
@@ -195,20 +197,27 @@ enum class ModulationTarget
     reverbDamping = 14,
     reverbWidth = 15,
     reverbMix = 16,
-    panPosition = 17
+    panPosition = 17,
+    filterCutoff = 18,
+    filterResonance = 19,
+    filterMix = 20,
+    pitchShift = 21,
+    pitchMix = 22
 };
 
 constexpr int gateModulationTargetCount = 9;
 constexpr int delayModulationTargetCount = 3;
 constexpr int reverbModulationTargetCount = 4;
 constexpr int panModulationTargetCount = 1;
-constexpr int modulationTargetCount = 17;
+constexpr int filterModulationTargetCount = 3;
+constexpr int pitchModulationTargetCount = 2;
+constexpr int modulationTargetCount = 22;
 
 inline ModulationTarget targetFromChoice (float choice) noexcept
 {
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
-            && target <= static_cast<int> (ModulationTarget::panPosition)
+            && target <= static_cast<int> (ModulationTarget::pitchMix)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -724,6 +733,11 @@ inline bool targetSupportsBipolar (ModulationTarget target) noexcept
         case ModulationTarget::reverbWidth:
         case ModulationTarget::reverbMix:
         case ModulationTarget::panPosition:
+        case ModulationTarget::filterCutoff:
+        case ModulationTarget::filterResonance:
+        case ModulationTarget::filterMix:
+        case ModulationTarget::pitchShift:
+        case ModulationTarget::pitchMix:
             return true;
         case ModulationTarget::none:
         case ModulationTarget::gateLevel:

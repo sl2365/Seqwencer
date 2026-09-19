@@ -56,6 +56,10 @@ public:
             return reverbActiveStepA.load();
         if (engine == seqwencer::SequencerEngine::pan)
             return panActiveStepA.load();
+        if (engine == seqwencer::SequencerEngine::filter)
+            return filterActiveStepA.load();
+        if (engine == seqwencer::SequencerEngine::pitch)
+            return pitchActiveStepA.load();
         return gateActiveStepA.load();
     }
     int getActiveStepB (
@@ -69,6 +73,10 @@ public:
             return reverbActiveStepB.load();
         if (engine == seqwencer::SequencerEngine::pan)
             return panActiveStepB.load();
+        if (engine == seqwencer::SequencerEngine::filter)
+            return filterActiveStepB.load();
+        if (engine == seqwencer::SequencerEngine::pitch)
+            return pitchActiveStepB.load();
         return gateActiveStepB.load();
     }
     bool isPhiHostPresent() const noexcept
@@ -85,6 +93,8 @@ public:
     static juce::String delayStepParameterID (int bank, int step);
     static juce::String reverbStepParameterID (int bank, int step);
     static juce::String panStepParameterID (int bank, int step);
+    static juce::String filterStepParameterID (int bank, int step);
+    static juce::String pitchStepParameterID (int bank, int step);
     static juce::String gateModeParameterID (int bank, int step);
     static juce::String targetAssignedParameterID (
         int bank, seqwencer::ModulationTarget target);
@@ -102,6 +112,12 @@ public:
     juce::String getCurrentPresetName() const;
 
 private:
+    struct FilterState
+    {
+        double integrator1 = 0.0;
+        double integrator2 = 0.0;
+    };
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     seqwencer::Pattern readPattern (
         int bank, seqwencer::ModulationTarget target) const noexcept;
@@ -113,8 +129,16 @@ private:
                                           bool bipolar) const noexcept;
     seqwencer::Pattern readPanPattern (int bank,
                                        bool bipolar) const noexcept;
+    seqwencer::Pattern readFilterPattern (int bank,
+                                          bool bipolar) const noexcept;
+    seqwencer::Pattern readPitchPattern (int bank,
+                                         bool bipolar) const noexcept;
     seqwencer::GateModePattern readGateModes (int bank) const noexcept;
     void migrateStepStorageIfNeeded();
+    void resetFilterProcessor() noexcept;
+    float processFilterSample (int channel, float input,
+                               float cutoffHz, float resonance,
+                               int type) noexcept;
 
     juce::AudioProcessorValueTreeState parameters;
 
@@ -206,6 +230,42 @@ private:
     std::atomic<float>* panSeqBBipolar = nullptr;
     std::atomic<float>* panSeqBAttack = nullptr;
     std::atomic<float>* panSeqBRelease = nullptr;
+    std::atomic<float>* filterEnabled = nullptr;
+    std::atomic<float>* filterType = nullptr;
+    std::atomic<float>* filterCutoff = nullptr;
+    std::atomic<float>* filterResonance = nullptr;
+    std::atomic<float>* filterMix = nullptr;
+    std::atomic<float>* filterPlaybackMode = nullptr;
+    std::atomic<float>* filterSerialProfile = nullptr;
+    std::atomic<float>* filterStartStep = nullptr;
+    std::atomic<float>* filterEndStep = nullptr;
+    std::atomic<float>* filterRate = nullptr;
+    std::atomic<float>* filterSequenceMode = nullptr;
+    std::atomic<float>* filterSeqAEnabled = nullptr;
+    std::atomic<float>* filterSeqABipolar = nullptr;
+    std::atomic<float>* filterSeqAAttack = nullptr;
+    std::atomic<float>* filterSeqARelease = nullptr;
+    std::atomic<float>* filterSeqBEnabled = nullptr;
+    std::atomic<float>* filterSeqBBipolar = nullptr;
+    std::atomic<float>* filterSeqBAttack = nullptr;
+    std::atomic<float>* filterSeqBRelease = nullptr;
+    std::atomic<float>* pitchEnabled = nullptr;
+    std::atomic<float>* pitchShift = nullptr;
+    std::atomic<float>* pitchMix = nullptr;
+    std::atomic<float>* pitchPlaybackMode = nullptr;
+    std::atomic<float>* pitchSerialProfile = nullptr;
+    std::atomic<float>* pitchStartStep = nullptr;
+    std::atomic<float>* pitchEndStep = nullptr;
+    std::atomic<float>* pitchRate = nullptr;
+    std::atomic<float>* pitchSequenceMode = nullptr;
+    std::atomic<float>* pitchSeqAEnabled = nullptr;
+    std::atomic<float>* pitchSeqABipolar = nullptr;
+    std::atomic<float>* pitchSeqAAttack = nullptr;
+    std::atomic<float>* pitchSeqARelease = nullptr;
+    std::atomic<float>* pitchSeqBEnabled = nullptr;
+    std::atomic<float>* pitchSeqBBipolar = nullptr;
+    std::atomic<float>* pitchSeqBAttack = nullptr;
+    std::atomic<float>* pitchSeqBRelease = nullptr;
     std::atomic<float>* seqAEnabled = nullptr;
     std::atomic<float>* seqATarget = nullptr;
     std::atomic<float>* seqATargetEnabled = nullptr;
@@ -236,6 +296,10 @@ private:
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> reverbStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> panStepsA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> panStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> filterStepsA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> filterStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> pitchStepsA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> pitchStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesB {};
 
@@ -245,6 +309,8 @@ private:
     double delayFreeRunningPhase = 0.0;
     double reverbFreeRunningPhase = 0.0;
     double panFreeRunningPhase = 0.0;
+    double filterFreeRunningPhase = 0.0;
+    double pitchFreeRunningPhase = 0.0;
     double previousHostPpq = 0.0;
     juce::int64 previousHostTimeInSamples = 0;
     bool previousHostPpqValid = false;
@@ -264,6 +330,10 @@ private:
     std::atomic<int> reverbActiveStepB { -1 };
     std::atomic<int> panActiveStepA { 0 };
     std::atomic<int> panActiveStepB { -1 };
+    std::atomic<int> filterActiveStepA { 0 };
+    std::atomic<int> filterActiveStepB { -1 };
+    std::atomic<int> pitchActiveStepA { 0 };
+    std::atomic<int> pitchActiveStepB { -1 };
     juce::AudioBuffer<float> delayBuffer;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>
         smoothedDelaySamples;
@@ -271,6 +341,12 @@ private:
     bool delayWasActive = false;
     juce::Reverb reverbProcessor;
     bool reverbWasActive = false;
+    std::array<FilterState, 2> filterStates {};
+    bool filterWasActive = false;
+    juce::AudioBuffer<float> pitchBuffer;
+    int pitchWritePosition = 0;
+    double pitchReadPhase = 0.0;
+    bool pitchWasActive = false;
     std::atomic<bool> phiHostPresent { false };
     std::atomic<bool> phiTargetBrowserRequestPending { false };
 

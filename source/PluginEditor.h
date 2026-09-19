@@ -31,6 +31,8 @@ private:
         delay,
         reverb,
         pan,
+        filter,
+        pitch,
         phi
     };
 
@@ -61,6 +63,8 @@ private:
     std::unique_ptr<FxSelectorButton> delayFxButton;
     std::unique_ptr<FxSelectorButton> reverbFxButton;
     std::unique_ptr<FxSelectorButton> panFxButton;
+    std::unique_ptr<FxSelectorButton> filterFxButton;
+    std::unique_ptr<FxSelectorButton> pitchFxButton;
     std::unique_ptr<FxSelectorButton> phiFxButton;
     std::unique_ptr<ModulationParameterLabel> baseParameterLabel;
     std::unique_ptr<ModulationParameterLabel> depthParameterLabel;
@@ -79,6 +83,11 @@ private:
     std::unique_ptr<ModulationParameterLabel> reverbWidthParameterLabel;
     std::unique_ptr<ModulationParameterLabel> reverbMixParameterLabel;
     std::unique_ptr<ModulationParameterLabel> panPositionParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> filterCutoffParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> filterResonanceParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> filterMixParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> pitchShiftParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> pitchMixParameterLabel;
     std::unique_ptr<TargetList> targetListA;
     std::unique_ptr<TargetList> targetListB;
     std::unique_ptr<TargetList> delayTargetListA;
@@ -87,6 +96,10 @@ private:
     std::unique_ptr<TargetList> reverbTargetListB;
     std::unique_ptr<TargetList> panTargetListA;
     std::unique_ptr<TargetList> panTargetListB;
+    std::unique_ptr<TargetList> filterTargetListA;
+    std::unique_ptr<TargetList> filterTargetListB;
+    std::unique_ptr<TargetList> pitchTargetListA;
+    std::unique_ptr<TargetList> pitchTargetListB;
     juce::Component::SafePointer<juce::DialogWindow> presetWindow;
     juce::RangedAudioParameter* seqAEnabledParameter = nullptr;
     juce::RangedAudioParameter* seqBEnabledParameter = nullptr;
@@ -99,6 +112,7 @@ private:
 
     juce::ComboBox modeBox;
     juce::ComboBox sequenceModeBox;
+    juce::ComboBox filterTypeBox;
     juce::ComboBox waveformABox;
     juce::ComboBox waveformBBox;
     juce::ToggleButton syncButton { "HOST SYNC" };
@@ -129,6 +143,11 @@ private:
     juce::Slider reverbWidthSlider;
     juce::Slider reverbMixSlider;
     juce::Slider panPositionSlider;
+    juce::Slider filterCutoffSlider;
+    juce::Slider filterResonanceSlider;
+    juce::Slider filterMixSlider;
+    juce::Slider pitchShiftSlider;
+    juce::Slider pitchMixSlider;
     juce::Slider attackASlider;
     juce::Slider releaseASlider;
     juce::Slider attackBSlider;
@@ -148,6 +167,7 @@ private:
     juce::Label laneBTitle;
     juce::Label colourALabel;
     juce::Label colourBLabel;
+    juce::Label filterTypeLabel;
 
     using ButtonAttachment =
         juce::AudioProcessorValueTreeState::ButtonAttachment;
@@ -161,10 +181,13 @@ private:
     std::unique_ptr<ButtonAttachment> delayAttachment;
     std::unique_ptr<ButtonAttachment> reverbAttachment;
     std::unique_ptr<ButtonAttachment> panAttachment;
+    std::unique_ptr<ButtonAttachment> filterAttachment;
+    std::unique_ptr<ButtonAttachment> pitchAttachment;
     std::unique_ptr<ButtonAttachment> phiBridgeAttachment;
     std::unique_ptr<ButtonAttachment> noiseGateAttachment;
     std::unique_ptr<ComboAttachment> modeAttachment;
     std::unique_ptr<ComboAttachment> sequenceModeAttachment;
+    std::unique_ptr<ComboAttachment> filterTypeAttachment;
     std::unique_ptr<SliderAttachment> rateAttachment;
     std::unique_ptr<SliderAttachment> baseAttachment;
     std::unique_ptr<SliderAttachment> depthAttachment;
@@ -183,6 +206,11 @@ private:
     std::unique_ptr<SliderAttachment> reverbWidthAttachment;
     std::unique_ptr<SliderAttachment> reverbMixAttachment;
     std::unique_ptr<SliderAttachment> panPositionAttachment;
+    std::unique_ptr<SliderAttachment> filterCutoffAttachment;
+    std::unique_ptr<SliderAttachment> filterResonanceAttachment;
+    std::unique_ptr<SliderAttachment> filterMixAttachment;
+    std::unique_ptr<SliderAttachment> pitchShiftAttachment;
+    std::unique_ptr<SliderAttachment> pitchMixAttachment;
     std::unique_ptr<SliderAttachment> attackAAttachment;
     std::unique_ptr<SliderAttachment> releaseAAttachment;
     std::unique_ptr<SliderAttachment> attackBAttachment;
