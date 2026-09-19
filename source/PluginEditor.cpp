@@ -20,6 +20,7 @@ constexpr auto globalAccent = 0xff8aa3b5;
 constexpr auto gateAccent = 0xff62cf8a;
 constexpr auto delayAccent = 0xffc58aff;
 constexpr auto reverbAccent = 0xffff6f91;
+constexpr auto panAccent = 0xffffc857;
 constexpr auto phiAccent = 0xff68a8ff;
 constexpr auto targetDragPrefix = "seqwencer-target:";
 constexpr int designWidth = 1280;
@@ -58,6 +59,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::reverbDamping,
     seqwencer::ModulationTarget::reverbWidth,
     seqwencer::ModulationTarget::reverbMix
+};
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::panModulationTargetCount> panTargets {
+    seqwencer::ModulationTarget::panPosition
 };
 
 juce::String targetDragID (seqwencer::ModulationTarget target)
@@ -384,6 +390,8 @@ public:
                 return "delay_" + gateID;
             if (newEngine == seqwencer::SequencerEngine::reverb)
                 return "reverb_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::pan)
+                return "pan_" + gateID;
             return gateID;
         };
 
@@ -400,6 +408,9 @@ public:
                         stepBank, stepIndex);
                 if (newEngine == seqwencer::SequencerEngine::reverb)
                     return SeqwencerAudioProcessor::reverbStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::pan)
+                    return SeqwencerAudioProcessor::panStepParameterID (
                         stepBank, stepIndex);
                 return SeqwencerAudioProcessor::stepParameterID (
                     stepBank, stepIndex);
@@ -1812,6 +1823,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor, seqwencer::ModulationTarget::reverbWidth);
     reverbMixParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::reverbMix);
+    panPositionParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::panPosition);
     targetListA = std::make_unique<TargetList> (
         processor, 0, laneAColour,
         std::vector<seqwencer::ModulationTarget> (
@@ -1836,12 +1849,22 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor, 1, laneBColour,
         std::vector<seqwencer::ModulationTarget> (
             reverbTargets.begin(), reverbTargets.end()), "reverb_playback_mode");
+    panTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            panTargets.begin(), panTargets.end()), "pan_playback_mode");
+    panTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            panTargets.begin(), panTargets.end()), "pan_playback_mode");
     gateFxButton = std::make_unique<FxSelectorButton> (
         "GATE", juce::Colour (gateAccent));
     delayFxButton = std::make_unique<FxSelectorButton> (
         "DELAY", juce::Colour (delayAccent));
     reverbFxButton = std::make_unique<FxSelectorButton> (
         "REVERB", juce::Colour (reverbAccent));
+    panFxButton = std::make_unique<FxSelectorButton> (
+        "PAN", juce::Colour (panAccent));
     phiFxButton = std::make_unique<FxSelectorButton> (
         "PHI", juce::Colour (phiAccent));
     content.addAndMakeVisible (*baseParameterLabel);
@@ -1860,15 +1883,19 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*reverbDampingParameterLabel);
     content.addAndMakeVisible (*reverbWidthParameterLabel);
     content.addAndMakeVisible (*reverbMixParameterLabel);
+    content.addAndMakeVisible (*panPositionParameterLabel);
     content.addAndMakeVisible (*targetListA);
     content.addAndMakeVisible (*targetListB);
     content.addAndMakeVisible (*delayTargetListA);
     content.addAndMakeVisible (*delayTargetListB);
     content.addAndMakeVisible (*reverbTargetListA);
     content.addAndMakeVisible (*reverbTargetListB);
+    content.addAndMakeVisible (*panTargetListA);
+    content.addAndMakeVisible (*panTargetListB);
     content.addAndMakeVisible (*gateFxButton);
     content.addAndMakeVisible (*delayFxButton);
     content.addAndMakeVisible (*reverbFxButton);
+    content.addAndMakeVisible (*panFxButton);
     content.addAndMakeVisible (*phiFxButton);
     content.addAndMakeVisible (presetsButton);
     presetsButton.setTooltip ("Open the portable Seqwencer preset browser");
@@ -1934,6 +1961,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     reverbFxButton->getEnableButton().setTooltip (
         "Turn the built-in Reverb effect on or off");
     reverbFxButton->onClick = [this] { selectFx (SelectedFx::reverb); };
+    panFxButton->setTooltip ("Show the Pan controls");
+    panFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Pan effect and its sequencer on or off");
+    panFxButton->onClick = [this] { selectFx (SelectedFx::pan); };
     phiFxButton->setTooltip ("Show the PHI integration controls");
     phiFxButton->getEnableButton().setTooltip (
         "Turn Seqwencer's PHI parameter output on or off");
@@ -1979,6 +2010,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureKnob (reverbDampingSlider);
     configureKnob (reverbWidthSlider);
     configureKnob (reverbMixSlider);
+    configureKnob (panPositionSlider);
+    panPositionSlider.setRange (-1.0, 1.0, 0.001);
     delayTimeSlider.setTextBoxStyle (
         juce::Slider::TextBoxBelow, false, 64, 15);
     shortLengthSlider.setRange (0.10, 0.60, 0.01);
@@ -2010,6 +2043,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     reverbDampingSlider.setTooltip ("High-frequency absorption inside the reverb");
     reverbWidthSlider.setTooltip ("Stereo width of the reverb field");
     reverbMixSlider.setTooltip ("Balance between dry input and reverberated signal");
+    panPositionSlider.setTooltip (
+        "Stereo position from full left through centre to full right");
     configureKnob (attackASlider);
     configureKnob (releaseASlider);
     configureKnob (attackBSlider);
@@ -2062,6 +2097,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         slider->setColour (juce::Slider::rotarySliderFillColourId,
                            juce::Colour (reverbAccent));
     }
+    panPositionSlider.setColour (juce::Slider::rotarySliderFillColourId,
+                                 juce::Colour (panAccent));
     attackASlider.setColour (juce::Slider::rotarySliderFillColourId,
                              laneAColour);
     releaseASlider.setColour (juce::Slider::rotarySliderFillColourId,
@@ -2102,6 +2139,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "delay_enabled", delayFxButton->getEnableButton());
     reverbAttachment = std::make_unique<ButtonAttachment> (
         state, "reverb_enabled", reverbFxButton->getEnableButton());
+    panAttachment = std::make_unique<ButtonAttachment> (
+        state, "pan_enabled", panFxButton->getEnableButton());
     phiBridgeAttachment = std::make_unique<ButtonAttachment> (
         state, "phi_bridge_enabled", phiFxButton->getEnableButton());
     noiseGateAttachment = std::make_unique<ButtonAttachment> (
@@ -2138,6 +2177,15 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "reverb_width", reverbWidthSlider);
     reverbMixAttachment = std::make_unique<SliderAttachment> (
         state, "reverb_mix", reverbMixSlider);
+    panPositionAttachment = std::make_unique<SliderAttachment> (
+        state, "pan_position", panPositionSlider);
+    panPositionSlider.textFromValueFunction = [] (double value)
+    {
+        if (std::abs (value) < 0.0005)
+            return juce::String ("C");
+        return juce::String (std::lround (std::abs (value) * 100.0))
+             + (value < 0.0 ? " L" : " R");
+    };
     const auto gateLengthText = [] (double value)
     {
         return juce::String (std::lround (value * 100.0)) + "%";
@@ -2414,6 +2462,8 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
             return "delay_" + gateID;
         if (selectedFx == SelectedFx::reverb)
             return "reverb_" + gateID;
+        if (selectedFx == SelectedFx::pan)
+            return "pan_" + gateID;
         return gateID;
     };
 
@@ -2455,6 +2505,8 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
             ? seqwencer::SequencerEngine::delay
             : selectedFx == SelectedFx::reverb
                 ? seqwencer::SequencerEngine::reverb
+            : selectedFx == SelectedFx::pan
+                ? seqwencer::SequencerEngine::pan
                 : seqwencer::SequencerEngine::gate;
     gridA->setEngine (engine);
     gridB->setEngine (engine);
@@ -2477,10 +2529,12 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     const auto gateSelected = selectedFx == SelectedFx::gate;
     const auto delaySelected = selectedFx == SelectedFx::delay;
     const auto reverbSelected = selectedFx == SelectedFx::reverb;
+    const auto panSelected = selectedFx == SelectedFx::pan;
     const auto phiSelected = selectedFx == SelectedFx::phi;
     gateFxButton->setSelected (gateSelected);
     delayFxButton->setSelected (delaySelected);
     reverbFxButton->setSelected (reverbSelected);
+    panFxButton->setSelected (panSelected);
     phiFxButton->setSelected (phiSelected);
     phiFxButton->setVisible (phiAvailable);
 
@@ -2523,14 +2577,20 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     reverbMixSlider.setVisible (reverbSelected);
     reverbTargetListA->setVisible (reverbSelected);
     reverbTargetListB->setVisible (reverbSelected);
+    panPositionParameterLabel->setVisible (panSelected);
+    panPositionSlider.setVisible (panSelected);
+    panTargetListA->setVisible (panSelected);
+    panTargetListB->setVisible (panSelected);
     phiTargetButton.setVisible (phiAvailable && phiSelected);
 
     const auto laneColour = juce::Colour (gateSelected ? gateAccent
         : delaySelected ? delayAccent
-        : reverbSelected ? reverbAccent : phiAccent);
+        : reverbSelected ? reverbAccent
+        : panSelected ? panAccent : phiAccent);
     const juce::String fxName = gateSelected ? "GATE"
                               : delaySelected ? "DELAY"
-                              : reverbSelected ? "REVERB" : "PHI";
+                              : reverbSelected ? "REVERB"
+                              : panSelected ? "PAN" : "PHI";
     laneATitle.setText (fxName + " A",
                         juce::dontSendNotification);
     laneBTitle.setText (fxName + " B",
@@ -2570,6 +2630,11 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
                                laneColour);
         }
     }
+    else if (panSelected)
+    {
+        panPositionSlider.setColour (
+            juce::Slider::rotarySliderFillColourId, laneColour);
+    }
 
     if (lastPhiAvailability != phiAvailable)
     {
@@ -2593,6 +2658,8 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
     delayTargetListB->setAccentColour (laneBColour);
     reverbTargetListA->setAccentColour (laneAColour);
     reverbTargetListB->setAccentColour (laneBColour);
+    panTargetListA->setAccentColour (laneAColour);
+    panTargetListB->setAccentColour (laneBColour);
 
     for (auto* button : { &enableAButton, &bipolarAButton })
         button->setColour (juce::ToggleButton::tickColourId, laneAColour);
@@ -2639,6 +2706,7 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         selectedFx == SelectedFx::gate ? "gate_enabled"
             : selectedFx == SelectedFx::delay ? "delay_enabled"
             : selectedFx == SelectedFx::reverb ? "reverb_enabled"
+            : selectedFx == SelectedFx::pan ? "pan_enabled"
                                                : "phi_bridge_enabled");
     auto* noiseGateEnabledParameter =
         processor.getParameterState().getParameter ("noise_gate_enabled");
@@ -2650,6 +2718,7 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     const auto bipolarB = readActual (bipolarBParameter) >= 0.5f;
     const auto gateControlsAlpha = readActual (selectedFxEnabledParameter) >= 0.5f
         ? 1.0f : 0.30f;
+    const auto fxIsEnabled = gateControlsAlpha >= 0.99f;
 
     baseParameterLabel->setAlpha (gateControlsAlpha);
     baseSlider.setAlpha (gateControlsAlpha);
@@ -2686,6 +2755,8 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     reverbWidthSlider.setAlpha (gateControlsAlpha);
     reverbMixParameterLabel->setAlpha (gateControlsAlpha);
     reverbMixSlider.setAlpha (gateControlsAlpha);
+    panPositionParameterLabel->setAlpha (gateControlsAlpha);
+    panPositionSlider.setAlpha (gateControlsAlpha);
 
     enableAButton.setEnabled (true);
     enableBButton.setEnabled (true);
@@ -2710,29 +2781,37 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
 
     if (serial)
     {
-        gridA->setAlpha (1.0f);
-        gridB->setAlpha (1.0f);
-        targetListA->setAlpha (1.0f);
-        targetListB->setAlpha (1.0f);
-        delayTargetListA->setAlpha (1.0f);
-        delayTargetListB->setAlpha (1.0f);
-        reverbTargetListA->setAlpha (1.0f);
-        reverbTargetListB->setAlpha (1.0f);
-        setControlAlpha (profileB ? 0.30f : 1.0f,
+        gridA->setAlpha (gateControlsAlpha);
+        gridB->setAlpha (gateControlsAlpha);
+        targetListA->setAlpha (gateControlsAlpha);
+        targetListB->setAlpha (gateControlsAlpha);
+        delayTargetListA->setAlpha (gateControlsAlpha);
+        delayTargetListB->setAlpha (gateControlsAlpha);
+        reverbTargetListA->setAlpha (gateControlsAlpha);
+        reverbTargetListB->setAlpha (gateControlsAlpha);
+        panTargetListA->setAlpha (gateControlsAlpha);
+        panTargetListB->setAlpha (gateControlsAlpha);
+        setControlAlpha (gateControlsAlpha * (profileB ? 0.30f : 1.0f),
                          attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
-        setControlAlpha (profileB ? 1.0f : 0.30f,
+        setControlAlpha (gateControlsAlpha * (profileB ? 1.0f : 0.30f),
                          attackBSlider, attackBLabel,
                          releaseBSlider, releaseBLabel);
-        bipolarAButton.setAlpha (profileB ? 0.30f : 1.0f);
-        bipolarBButton.setAlpha (profileB ? 1.0f : 0.30f);
-        laneATitle.setAlpha (profileB ? 0.30f : 1.0f);
-        laneBTitle.setAlpha (profileB ? 1.0f : 0.30f);
+        bipolarAButton.setAlpha (
+            gateControlsAlpha * (profileB ? 0.30f : 1.0f));
+        bipolarBButton.setAlpha (
+            gateControlsAlpha * (profileB ? 1.0f : 0.30f));
+        laneATitle.setAlpha (
+            gateControlsAlpha * (profileB ? 0.30f : 1.0f));
+        laneBTitle.setAlpha (
+            gateControlsAlpha * (profileB ? 1.0f : 0.30f));
     }
     else
     {
-        const auto alphaA = laneAActive ? 1.0f : 0.30f;
-        const auto alphaB = laneBActive ? 1.0f : 0.30f;
+        const auto alphaA = fxIsEnabled
+            ? (laneAActive ? 1.0f : 0.30f) : 0.30f;
+        const auto alphaB = fxIsEnabled
+            ? (laneBActive ? 1.0f : 0.30f) : 0.30f;
         gridA->setAlpha (alphaA);
         gridB->setAlpha (alphaB);
         targetListA->setAlpha (alphaA);
@@ -2741,6 +2820,8 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         delayTargetListB->setAlpha (alphaB);
         reverbTargetListA->setAlpha (alphaA);
         reverbTargetListB->setAlpha (alphaB);
+        panTargetListA->setAlpha (alphaA);
+        panTargetListB->setAlpha (alphaB);
         setControlAlpha (alphaA, attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
         setControlAlpha (alphaB, attackBSlider, attackBLabel,
@@ -2782,7 +2863,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.5.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.6.1",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -2807,7 +2888,9 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                            : selectedFx == SelectedFx::delay
                                ? "DELAY CONTROLS"
                            : selectedFx == SelectedFx::reverb
-                               ? "REVERB CONTROLS" : "PHI CONTROLS",
+                               ? "REVERB CONTROLS"
+                           : selectedFx == SelectedFx::pan
+                               ? "PAN CONTROLS" : "PHI CONTROLS",
                        20, static_cast<int> (bottomPanelY) + 8,
                        92, 15, juce::Justification::centredLeft, false);
 
@@ -2816,7 +2899,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
     const auto laneAreaBottom = bottomPanelY - laneGap;
     const auto laneHeight = (laneAreaBottom - laneTop - laneGap) * 0.5f;
     const auto fxRail = juce::Rectangle<float> (
-        10.0f, laneTop, 84.0f, laneAreaBottom - laneTop);
+        10.0f, laneTop, 94.0f, laneAreaBottom - laneTop);
     graphics.setColour (juce::Colour (panel));
     graphics.fillRoundedRectangle (fxRail, 8.0f);
     graphics.setColour (juce::Colour (panelOutline));
@@ -2826,7 +2909,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
     graphics.drawText ("FX", fxRail.toNearestInt().withHeight (27),
                        juce::Justification::centred, false);
 
-    const auto laneX = 104.0f;
+    const auto laneX = 114.0f;
     const auto laneWidth = static_cast<float> (designWidth) - laneX - 10.0f;
     const auto serial = modeBox.getSelectedItemIndex() == 1;
     for (int lane = 0; lane < 2; ++lane)
@@ -2844,7 +2927,8 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
         const auto moduleAccent = juce::Colour (
             selectedFx == SelectedFx::gate ? gateAccent
                 : selectedFx == SelectedFx::delay ? delayAccent
-                : selectedFx == SelectedFx::reverb ? reverbAccent : phiAccent);
+                : selectedFx == SelectedFx::reverb ? reverbAccent
+                : selectedFx == SelectedFx::pan ? panAccent : phiAccent);
         graphics.setColour (moduleAccent.withAlpha (outlineAlpha));
         graphics.drawRoundedRectangle (bounds, 8.0f, 1.2f);
     }
@@ -2875,10 +2959,11 @@ void SeqwencerAudioProcessorEditor::resized()
     waveformBBox.setBounds (582, 85, 166, 31);
 
     const auto bottomPanelY = designHeight - 88;
-    gateFxButton->setBounds (20, 182, 64, 31);
-    delayFxButton->setBounds (20, 221, 64, 31);
-    reverbFxButton->setBounds (20, 260, 64, 31);
-    phiFxButton->setBounds (20, 299, 64, 31);
+    gateFxButton->setBounds (20, 182, 74, 31);
+    delayFxButton->setBounds (20, 221, 74, 31);
+    reverbFxButton->setBounds (20, 260, 74, 31);
+    panFxButton->setBounds (20, 299, 74, 31);
+    phiFxButton->setBounds (20, 338, 74, 31);
     modeBox.setBounds (20, bottomPanelY + 28, 92, 28);
     rateLabel.setBounds (122, bottomPanelY + 4, 64, 14);
     rateSlider.setBounds (122, bottomPanelY + 15, 64, 59);
@@ -2927,13 +3012,16 @@ void SeqwencerAudioProcessorEditor::resized()
     reverbMixParameterLabel->setBounds (706, bottomPanelY + 4, 88, 14);
     reverbMixSlider.setBounds (718, bottomPanelY + 15, 64, 59);
 
+    panPositionParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
+    panPositionSlider.setBounds (448, bottomPanelY + 15, 64, 59);
+
     constexpr int laneTop = 150;
     constexpr int laneGap = 10;
     const auto laneAreaBottom = bottomPanelY - laneGap;
     const auto totalLaneHeight = laneAreaBottom - laneTop - laneGap;
     const auto laneAHeight = totalLaneHeight / 2;
     const auto laneBHeight = totalLaneHeight - laneAHeight;
-    constexpr int laneX = 104;
+    constexpr int laneX = 114;
     constexpr int controlsWidth = 150;
     constexpr int targetWidth = 166;
     constexpr int componentGap = 10;
@@ -2964,8 +3052,9 @@ void SeqwencerAudioProcessorEditor::resized()
         const auto gateSelected = selectedFx == SelectedFx::gate;
         const auto delaySelected = selectedFx == SelectedFx::delay;
         const auto reverbSelected = selectedFx == SelectedFx::reverb;
+        const auto panSelected = selectedFx == SelectedFx::pan;
         const auto hasInternalTargets = gateSelected || delaySelected
-                                     || reverbSelected;
+                                     || reverbSelected || panSelected;
         const auto targetX = hasInternalTargets
             ? designWidth - 10 - innerMargin - targetWidth
             : designWidth - 10 - innerMargin;
@@ -2974,6 +3063,8 @@ void SeqwencerAudioProcessorEditor::resized()
             ? *delayTargetListA : *delayTargetListB;
         auto& selectedReverbTargetList = lane == 0
             ? *reverbTargetListA : *reverbTargetListB;
+        auto& selectedPanTargetList = lane == 0
+            ? *panTargetListA : *panTargetListB;
         gateTargetList.setBounds (targetX, y + innerMargin,
                                   gateSelected ? targetWidth : 0,
                                   laneHeight - 2 * innerMargin);
@@ -2983,6 +3074,9 @@ void SeqwencerAudioProcessorEditor::resized()
         selectedReverbTargetList.setBounds (targetX, y + innerMargin,
                                             reverbSelected ? targetWidth : 0,
                                             laneHeight - 2 * innerMargin);
+        selectedPanTargetList.setBounds (targetX, y + innerMargin,
+                                         panSelected ? targetWidth : 0,
+                                         laneHeight - 2 * innerMargin);
         const auto gridX = laneX + controlsWidth + innerMargin;
         grid.setBounds (gridX, y + innerMargin,
                         juce::jmax (128, targetX - componentGap - gridX),
@@ -3016,12 +3110,15 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     reverbDampingParameterLabel->repaint();
     reverbWidthParameterLabel->repaint();
     reverbMixParameterLabel->repaint();
+    panPositionParameterLabel->repaint();
     targetListA->refresh();
     targetListB->refresh();
     delayTargetListA->refresh();
     delayTargetListB->refresh();
     reverbTargetListA->refresh();
     reverbTargetListB->refresh();
+    panTargetListA->refresh();
+    panTargetListB->refresh();
     gridA->repaint();
     gridB->repaint();
 }

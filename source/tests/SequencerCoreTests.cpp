@@ -648,6 +648,9 @@ int main()
     expectEqual ("Reverb Mix target choice restores",
                  static_cast<int> (seqwencer::targetFromChoice (16.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::reverbMix));
+    expectEqual ("Pan target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (17.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::panPosition));
     expectEqual ("Gate Volume remains a unipolar destination",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::gateLevel) ? 1 : 0,
@@ -663,6 +666,10 @@ int main()
     expectEqual ("Reverb targets accept bipolar movement",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::reverbSize) ? 1 : 0,
+                 1);
+    expectEqual ("Pan accepts bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::panPosition) ? 1 : 0,
                  1);
     expectNear ("Depth target scales from zero to its knob ceiling",
                 seqwencer::modulatedCeiling (0.8f, 0.25f), 0.2f);

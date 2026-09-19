@@ -32,7 +32,8 @@ enum class SequencerEngine
     gate = 0,
     phi,
     delay,
-    reverb
+    reverb,
+    pan
 };
 
 enum class WaveformPreset
@@ -193,19 +194,21 @@ enum class ModulationTarget
     reverbSize = 13,
     reverbDamping = 14,
     reverbWidth = 15,
-    reverbMix = 16
+    reverbMix = 16,
+    panPosition = 17
 };
 
 constexpr int gateModulationTargetCount = 9;
 constexpr int delayModulationTargetCount = 3;
 constexpr int reverbModulationTargetCount = 4;
-constexpr int modulationTargetCount = 16;
+constexpr int panModulationTargetCount = 1;
+constexpr int modulationTargetCount = 17;
 
 inline ModulationTarget targetFromChoice (float choice) noexcept
 {
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
-            && target <= static_cast<int> (ModulationTarget::reverbMix)
+            && target <= static_cast<int> (ModulationTarget::panPosition)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -720,6 +723,7 @@ inline bool targetSupportsBipolar (ModulationTarget target) noexcept
         case ModulationTarget::reverbDamping:
         case ModulationTarget::reverbWidth:
         case ModulationTarget::reverbMix:
+        case ModulationTarget::panPosition:
             return true;
         case ModulationTarget::none:
         case ModulationTarget::gateLevel:

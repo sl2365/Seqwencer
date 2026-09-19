@@ -54,6 +54,8 @@ public:
             return delayActiveStepA.load();
         if (engine == seqwencer::SequencerEngine::reverb)
             return reverbActiveStepA.load();
+        if (engine == seqwencer::SequencerEngine::pan)
+            return panActiveStepA.load();
         return gateActiveStepA.load();
     }
     int getActiveStepB (
@@ -65,6 +67,8 @@ public:
             return delayActiveStepB.load();
         if (engine == seqwencer::SequencerEngine::reverb)
             return reverbActiveStepB.load();
+        if (engine == seqwencer::SequencerEngine::pan)
+            return panActiveStepB.load();
         return gateActiveStepB.load();
     }
     bool isPhiHostPresent() const noexcept
@@ -80,6 +84,7 @@ public:
     static juce::String phiStepParameterID (int bank, int step);
     static juce::String delayStepParameterID (int bank, int step);
     static juce::String reverbStepParameterID (int bank, int step);
+    static juce::String panStepParameterID (int bank, int step);
     static juce::String gateModeParameterID (int bank, int step);
     static juce::String targetAssignedParameterID (
         int bank, seqwencer::ModulationTarget target);
@@ -106,6 +111,8 @@ private:
                                          bool bipolar) const noexcept;
     seqwencer::Pattern readReverbPattern (int bank,
                                           bool bipolar) const noexcept;
+    seqwencer::Pattern readPanPattern (int bank,
+                                       bool bipolar) const noexcept;
     seqwencer::GateModePattern readGateModes (int bank) const noexcept;
     void migrateStepStorageIfNeeded();
 
@@ -183,6 +190,22 @@ private:
     std::atomic<float>* reverbSeqBBipolar = nullptr;
     std::atomic<float>* reverbSeqBAttack = nullptr;
     std::atomic<float>* reverbSeqBRelease = nullptr;
+    std::atomic<float>* panEnabled = nullptr;
+    std::atomic<float>* panPosition = nullptr;
+    std::atomic<float>* panPlaybackMode = nullptr;
+    std::atomic<float>* panSerialProfile = nullptr;
+    std::atomic<float>* panStartStep = nullptr;
+    std::atomic<float>* panEndStep = nullptr;
+    std::atomic<float>* panRate = nullptr;
+    std::atomic<float>* panSequenceMode = nullptr;
+    std::atomic<float>* panSeqAEnabled = nullptr;
+    std::atomic<float>* panSeqABipolar = nullptr;
+    std::atomic<float>* panSeqAAttack = nullptr;
+    std::atomic<float>* panSeqARelease = nullptr;
+    std::atomic<float>* panSeqBEnabled = nullptr;
+    std::atomic<float>* panSeqBBipolar = nullptr;
+    std::atomic<float>* panSeqBAttack = nullptr;
+    std::atomic<float>* panSeqBRelease = nullptr;
     std::atomic<float>* seqAEnabled = nullptr;
     std::atomic<float>* seqATarget = nullptr;
     std::atomic<float>* seqATargetEnabled = nullptr;
@@ -211,6 +234,8 @@ private:
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> delayStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> reverbStepsA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> reverbStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> panStepsA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> panStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesB {};
 
@@ -219,6 +244,7 @@ private:
     double phiFreeRunningPhase = 0.0;
     double delayFreeRunningPhase = 0.0;
     double reverbFreeRunningPhase = 0.0;
+    double panFreeRunningPhase = 0.0;
     double previousHostPpq = 0.0;
     juce::int64 previousHostTimeInSamples = 0;
     bool previousHostPpqValid = false;
@@ -236,6 +262,8 @@ private:
     std::atomic<int> delayActiveStepB { -1 };
     std::atomic<int> reverbActiveStepA { 0 };
     std::atomic<int> reverbActiveStepB { -1 };
+    std::atomic<int> panActiveStepA { 0 };
+    std::atomic<int> panActiveStepB { -1 };
     juce::AudioBuffer<float> delayBuffer;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>
         smoothedDelaySamples;
