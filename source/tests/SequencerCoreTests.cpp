@@ -666,6 +666,18 @@ int main()
     expectEqual ("Pitch Mix target choice restores",
                  static_cast<int> (seqwencer::targetFromChoice (22.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::pitchMix));
+    expectEqual ("Distortion Drive target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (23.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::distortionDrive));
+    expectEqual ("Distortion Tone target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (24.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::distortionTone));
+    expectEqual ("Distortion Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (25.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::distortionMix));
     expectEqual ("Gate Volume remains a unipolar destination",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::gateLevel) ? 1 : 0,
@@ -693,6 +705,10 @@ int main()
     expectEqual ("Pitch targets accept bipolar movement",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::pitchShift) ? 1 : 0,
+                 1);
+    expectEqual ("Distortion targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::distortionDrive) ? 1 : 0,
                  1);
     expectNear ("Depth target scales from zero to its knob ceiling",
                 seqwencer::modulatedCeiling (0.8f, 0.25f), 0.2f);

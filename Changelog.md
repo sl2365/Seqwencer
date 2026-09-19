@@ -2,6 +2,33 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## Stage 3.9.1 fixes
+
+- Shortened the Distortion selector label from DISTORT to DIST
+- Corrected the independent VST3 probe's Pitch test so its one-second signal
+  is processed in realistic 480-sample host blocks instead of passing a
+  48,000-sample buffer after declaring a 480-sample maximum block size
+- This removes the Windows `0xC0000005` access violation that appeared after
+  the Filter checks; the two final FAIL lines were duplicate reports of that
+  one probe crash
+
+## Stage 3.9.0 features
+
+- Added a red-orange Distortion FX selector with an independent A/B sequencer
+  page
+- Distortion Type offers Soft Clip, Hard Clip, Tube and Foldback shaping
+- Drive covers 0-36 dB; Tone runs from dark to bright; Mix blends dry and wet
+- Drive, Tone and Mix can each be dragged to A, B or both Distortion target
+  lists
+- Distortion has independent Mode, Rate, Start, End, Direction, patterns,
+  Attack/Release, Bipolar state and SERIAL control profile
+- Distortion is disabled by default; disabling it bypasses audio processing,
+  resets its Tone filter and pauses its private sequencer phase
+- Distortion state is stored in its own `[Distortion]` section in portable
+  presets
+- The VST3 release probe verifies all four shapers, Tone response, targets,
+  independent timing/pattern data and clean disabled pass-through
+
 ## Stage 3.8.0 features
 
 - Added a cyan Pitch FX selector with its own independent A/B sequencer page
@@ -470,7 +497,7 @@ the final Gate result always stays inside its valid range.
 
 ## Planned development
 
-The remaining planned internal effects are Distortion and GrainShifter. They
-will be added one controlled stage at a time so each effect
+The remaining planned internal effect is GrainShifter. It will be added as a
+controlled stage so the effect
 can receive the correct DSP, parameter ranges, bipolar/unipolar behaviour,
 target routing and regression tests without destabilising the existing engines.

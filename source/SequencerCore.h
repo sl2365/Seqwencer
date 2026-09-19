@@ -35,7 +35,8 @@ enum class SequencerEngine
     reverb,
     pan,
     filter,
-    pitch
+    pitch,
+    distortion
 };
 
 enum class WaveformPreset
@@ -202,7 +203,10 @@ enum class ModulationTarget
     filterResonance = 19,
     filterMix = 20,
     pitchShift = 21,
-    pitchMix = 22
+    pitchMix = 22,
+    distortionDrive = 23,
+    distortionTone = 24,
+    distortionMix = 25
 };
 
 constexpr int gateModulationTargetCount = 9;
@@ -211,13 +215,14 @@ constexpr int reverbModulationTargetCount = 4;
 constexpr int panModulationTargetCount = 1;
 constexpr int filterModulationTargetCount = 3;
 constexpr int pitchModulationTargetCount = 2;
-constexpr int modulationTargetCount = 22;
+constexpr int distortionModulationTargetCount = 3;
+constexpr int modulationTargetCount = 25;
 
 inline ModulationTarget targetFromChoice (float choice) noexcept
 {
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
-            && target <= static_cast<int> (ModulationTarget::pitchMix)
+            && target <= static_cast<int> (ModulationTarget::distortionMix)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -738,6 +743,9 @@ inline bool targetSupportsBipolar (ModulationTarget target) noexcept
         case ModulationTarget::filterMix:
         case ModulationTarget::pitchShift:
         case ModulationTarget::pitchMix:
+        case ModulationTarget::distortionDrive:
+        case ModulationTarget::distortionTone:
+        case ModulationTarget::distortionMix:
             return true;
         case ModulationTarget::none:
         case ModulationTarget::gateLevel:

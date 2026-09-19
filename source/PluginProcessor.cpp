@@ -171,6 +171,38 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
     pitchSeqBBipolar = parameters.getRawParameterValue ("pitch_seq_b_bipolar");
     pitchSeqBAttack = parameters.getRawParameterValue ("pitch_seq_b_attack");
     pitchSeqBRelease = parameters.getRawParameterValue ("pitch_seq_b_release");
+    distortionEnabled = parameters.getRawParameterValue ("distortion_enabled");
+    distortionType = parameters.getRawParameterValue ("distortion_type");
+    distortionDrive = parameters.getRawParameterValue ("distortion_drive");
+    distortionTone = parameters.getRawParameterValue ("distortion_tone");
+    distortionMix = parameters.getRawParameterValue ("distortion_mix");
+    distortionPlaybackMode = parameters.getRawParameterValue (
+        "distortion_playback_mode");
+    distortionSerialProfile = parameters.getRawParameterValue (
+        "distortion_serial_profile");
+    distortionStartStep = parameters.getRawParameterValue (
+        "distortion_start_step");
+    distortionEndStep = parameters.getRawParameterValue (
+        "distortion_end_step");
+    distortionRate = parameters.getRawParameterValue ("distortion_rate");
+    distortionSequenceMode = parameters.getRawParameterValue (
+        "distortion_sequence_mode");
+    distortionSeqAEnabled = parameters.getRawParameterValue (
+        "distortion_seq_a_enabled");
+    distortionSeqABipolar = parameters.getRawParameterValue (
+        "distortion_seq_a_bipolar");
+    distortionSeqAAttack = parameters.getRawParameterValue (
+        "distortion_seq_a_attack");
+    distortionSeqARelease = parameters.getRawParameterValue (
+        "distortion_seq_a_release");
+    distortionSeqBEnabled = parameters.getRawParameterValue (
+        "distortion_seq_b_enabled");
+    distortionSeqBBipolar = parameters.getRawParameterValue (
+        "distortion_seq_b_bipolar");
+    distortionSeqBAttack = parameters.getRawParameterValue (
+        "distortion_seq_b_attack");
+    distortionSeqBRelease = parameters.getRawParameterValue (
+        "distortion_seq_b_release");
     seqAEnabled = parameters.getRawParameterValue ("seq_a_enabled");
     seqATarget = parameters.getRawParameterValue ("seq_a_target");
     seqATargetEnabled = parameters.getRawParameterValue ("seq_a_target_enabled");
@@ -227,6 +259,10 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
             parameters.getRawParameterValue (pitchStepParameterID (0, step));
         pitchStepsB[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (pitchStepParameterID (1, step));
+        distortionStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (distortionStepParameterID (0, step));
+        distortionStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (distortionStepParameterID (1, step));
         gateModesA[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (gateModeParameterID (0, step));
         gateModesB[static_cast<std::size_t> (step)] =
@@ -283,6 +319,15 @@ juce::String SeqwencerAudioProcessor::filterStepParameterID (int bank, int step)
 juce::String SeqwencerAudioProcessor::pitchStepParameterID (int bank, int step)
 {
     return "pitch_seq_" + juce::String (bank == 0 ? "a" : "b") + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::distortionStepParameterID (
+    int bank, int step)
+{
+    return "distortion_seq_" + juce::String (bank == 0 ? "a" : "b")
+         + "_step_"
          + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
                .paddedLeft ('0', 2);
 }
@@ -357,6 +402,15 @@ juce::String SeqwencerAudioProcessor::targetAssignedParameterID (
         case seqwencer::ModulationTarget::pitchMix:
             return juce::String (bank == 0 ? "pitch_seq_a_mix_target"
                                            : "pitch_seq_b_mix_target");
+        case seqwencer::ModulationTarget::distortionDrive:
+            return juce::String (bank == 0 ? "distortion_seq_a_drive_target"
+                                           : "distortion_seq_b_drive_target");
+        case seqwencer::ModulationTarget::distortionTone:
+            return juce::String (bank == 0 ? "distortion_seq_a_tone_target"
+                                           : "distortion_seq_b_tone_target");
+        case seqwencer::ModulationTarget::distortionMix:
+            return juce::String (bank == 0 ? "distortion_seq_a_mix_target"
+                                           : "distortion_seq_b_mix_target");
         case seqwencer::ModulationTarget::none:
             break;
     }
@@ -426,6 +480,18 @@ juce::String SeqwencerAudioProcessor::targetEnabledParameterID (
         case seqwencer::ModulationTarget::pitchMix:
             return juce::String (bank == 0 ? "pitch_seq_a_mix_target_enabled"
                                            : "pitch_seq_b_mix_target_enabled");
+        case seqwencer::ModulationTarget::distortionDrive:
+            return juce::String (
+                bank == 0 ? "distortion_seq_a_drive_target_enabled"
+                          : "distortion_seq_b_drive_target_enabled");
+        case seqwencer::ModulationTarget::distortionTone:
+            return juce::String (
+                bank == 0 ? "distortion_seq_a_tone_target_enabled"
+                          : "distortion_seq_b_tone_target_enabled");
+        case seqwencer::ModulationTarget::distortionMix:
+            return juce::String (
+                bank == 0 ? "distortion_seq_a_mix_target_enabled"
+                          : "distortion_seq_b_mix_target_enabled");
         case seqwencer::ModulationTarget::none:
             break;
     }
@@ -459,6 +525,9 @@ juce::String SeqwencerAudioProcessor::targetDisplayName (
         case seqwencer::ModulationTarget::filterMix: return "MIX";
         case seqwencer::ModulationTarget::pitchShift: return "SHIFT";
         case seqwencer::ModulationTarget::pitchMix: return "MIX";
+        case seqwencer::ModulationTarget::distortionDrive: return "DRIVE";
+        case seqwencer::ModulationTarget::distortionTone: return "TONE";
+        case seqwencer::ModulationTarget::distortionMix: return "MIX";
         case seqwencer::ModulationTarget::none:            break;
     }
     return {};
@@ -519,6 +588,7 @@ bool SeqwencerAudioProcessor::savePortablePreset (
     juce::String panParameterLines;
     juce::String filterParameterLines;
     juce::String pitchParameterLines;
+    juce::String distortionParameterLines;
     auto parameterCount = 0;
     for (auto* baseParameter : getParameters())
     {
@@ -539,6 +609,8 @@ bool SeqwencerAudioProcessor::savePortablePreset (
                 destination = &filterParameterLines;
             else if (parameterID.startsWith ("pitch_"))
                 destination = &pitchParameterLines;
+            else if (parameterID.startsWith ("distortion_"))
+                destination = &distortionParameterLines;
             else if (parameterID == "bypass" || parameterID == "sync_to_host")
                 destination = &globalParameterLines;
 
@@ -558,7 +630,8 @@ bool SeqwencerAudioProcessor::savePortablePreset (
              << "\r\n[Reverb]\r\n" << reverbParameterLines
              << "\r\n[Pan]\r\n" << panParameterLines
              << "\r\n[Filter]\r\n" << filterParameterLines
-             << "\r\n[Pitch]\r\n" << pitchParameterLines;
+             << "\r\n[Pitch]\r\n" << pitchParameterLines
+             << "\r\n[Distortion]\r\n" << distortionParameterLines;
     if (! file.replaceWithText (contents))
     {
         errorMessage = "Seqwencer could not write:\n" + file.getFullPathName();
@@ -597,7 +670,7 @@ bool SeqwencerAudioProcessor::loadPortablePreset (
         if (line == "[Parameters]" || line == "[Global]"
             || line == "[Gate]" || line == "[PHI]" || line == "[Delay]"
             || line == "[Reverb]" || line == "[Pan]" || line == "[Filter]"
-            || line == "[Pitch]")
+            || line == "[Pitch]" || line == "[Distortion]")
         {
             inParameters = true;
             continue;
@@ -1281,6 +1354,102 @@ SeqwencerAudioProcessor::createParameterLayout()
         }
     }
 
+    // Distortion owns an eighth complete sequencer engine and three targets.
+    layout.add (std::make_unique<Bool> (
+        ID { "distortion_enabled", 1 }, "Distortion Enabled", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "distortion_type", 1 }, "Distortion Type",
+        juce::StringArray { "Soft Clip", "Hard Clip", "Tube", "Foldback" },
+        0));
+    layout.add (std::make_unique<Float> (
+        ID { "distortion_drive", 1 }, "Distortion Drive",
+        juce::NormalisableRange<float> { 0.0f, 36.0f, 0.01f }, 6.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "distortion_tone", 1 }, "Distortion Tone",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "distortion_mix", 1 }, "Distortion Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Choice> (
+        ID { "distortion_playback_mode", 1 }, "Distortion Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "distortion_rate", 1 }, "Distortion Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "distortion_seq_a_enabled", 1 },
+        "Distortion Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "distortion_seq_a_attack", 1 },
+        "Distortion Sequencer A Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "distortion_seq_a_release", 1 },
+        "Distortion Sequencer A Release", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "distortion_seq_b_enabled", 1 },
+        "Distortion Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "distortion_seq_b_attack", 1 },
+        "Distortion Sequencer B Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "distortion_seq_b_release", 1 },
+        "Distortion Sequencer B Release", 0.0f, 1.0f, 0.0f));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto bankName = bank == 0 ? "A" : "B";
+            layout.add (std::make_unique<Float> (
+                ID { distortionStepParameterID (bank, step), 1 },
+                "Distortion Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+
+    layout.add (std::make_unique<Choice> (
+        ID { "distortion_serial_profile", 1 },
+        "Distortion Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "distortion_start_step", 1 }, "Distortion Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "distortion_end_step", 1 }, "Distortion End Step", 2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "distortion_seq_a_bipolar", 1 },
+        "Distortion Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "distortion_seq_b_bipolar", 1 },
+        "Distortion Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "distortion_sequence_mode", 1 }, "Distortion Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played" }, 0));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Distortion Sequencer A " : "Distortion Sequencer B ";
+        for (int index = static_cast<int> (
+                 seqwencer::ModulationTarget::distortionDrive);
+             index <= static_cast<int> (
+                 seqwencer::ModulationTarget::distortionMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
     return layout;
 }
 
@@ -1294,6 +1463,7 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     panFreeRunningPhase = 0.0;
     filterFreeRunningPhase = 0.0;
     pitchFreeRunningPhase = 0.0;
+    distortionFreeRunningPhase = 0.0;
     previousHostPpq = 0.0;
     previousHostTimeInSamples = 0;
     previousHostPpqValid = false;
@@ -1317,6 +1487,8 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     filterActiveStepB.store (-1);
     pitchActiveStepA.store (0);
     pitchActiveStepB.store (-1);
+    distortionActiveStepA.store (0);
+    distortionActiveStepB.store (-1);
     const auto delayBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 2.05)) + 4;
     delayBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
@@ -1341,6 +1513,8 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     pitchWritePosition = 0;
     pitchReadPhase = 0.0;
     pitchWasActive = false;
+    distortionToneStates.fill (0.0f);
+    distortionWasActive = false;
 }
 
 void SeqwencerAudioProcessor::releaseResources()
@@ -1357,6 +1531,8 @@ void SeqwencerAudioProcessor::releaseResources()
     pitchWritePosition = 0;
     pitchReadPhase = 0.0;
     pitchWasActive = false;
+    distortionToneStates.fill (0.0f);
+    distortionWasActive = false;
 }
 
 void SeqwencerAudioProcessor::resetFilterProcessor() noexcept
@@ -1508,6 +1684,21 @@ seqwencer::Pattern SeqwencerAudioProcessor::readPitchPattern (
 {
     seqwencer::Pattern result {};
     const auto& source = bank == 0 ? pitchStepsA : pitchStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readDistortionPattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? distortionStepsA : distortionStepsB;
 
     for (std::size_t i = 0; i < result.size(); ++i)
     {
@@ -1851,6 +2042,46 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         pitchSequenceMode != nullptr ? pitchSequenceMode->load() : 0.0f);
     const auto pitchRetriggersFromPlayedNotes =
         pitchTraversalMode == seqwencer::SequenceMode::played;
+
+    const auto distortionAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        distortionSeqAAttack != nullptr ? distortionSeqAAttack->load() : 0.0f);
+    const auto distortionReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        distortionSeqARelease != nullptr ? distortionSeqARelease->load() : 0.0f);
+    const auto distortionAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        distortionSeqBAttack != nullptr ? distortionSeqBAttack->load() : 0.0f);
+    const auto distortionReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        distortionSeqBRelease != nullptr ? distortionSeqBRelease->load() : 0.0f);
+    const auto distortionLinked = distortionPlaybackMode != nullptr
+                               && distortionPlaybackMode->load() >= 0.5f;
+    const auto distortionUsesProfileB = distortionSerialProfile != nullptr
+                                     && distortionSerialProfile->load() >= 0.5f;
+    const auto distortionSerialAttack = distortionUsesProfileB
+        ? distortionAttackBValue : distortionAttackAValue;
+    const auto distortionSerialRelease = distortionUsesProfileB
+        ? distortionReleaseBValue : distortionReleaseAValue;
+    const auto distortionBipolarAValue = distortionSeqABipolar != nullptr
+                                      && distortionSeqABipolar->load() >= 0.5f;
+    const auto distortionBipolarBValue = distortionSeqBBipolar != nullptr
+                                      && distortionSeqBBipolar->load() >= 0.5f;
+    const auto distortionSerialBipolar = distortionUsesProfileB
+        ? distortionBipolarBValue : distortionBipolarAValue;
+    const auto distortionUnipolarPatternA = readDistortionPattern (0, false);
+    const auto distortionUnipolarPatternB = readDistortionPattern (1, false);
+    const auto distortionCanonicalPatternA = readDistortionPattern (0, true);
+    const auto distortionCanonicalPatternB = readDistortionPattern (1, true);
+    const auto distortionRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            distortionRate != nullptr ? distortionRate->load() : 6.0f)));
+    const auto distortionStepBeats = seqwencer::beatsForRate (distortionRateIndex);
+    const auto distortionTraversalMode = seqwencer::sequenceModeFromChoice (
+        distortionSequenceMode != nullptr ? distortionSequenceMode->load() : 0.0f);
+    const auto distortionRetriggersFromPlayedNotes =
+        distortionTraversalMode == seqwencer::SequenceMode::played;
     auto hostBpm = 120.0;
     auto hostPpq = 0.0;
     auto hostPositionAvailable = false;
@@ -1955,6 +2186,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                    && hostPositionAvailable
                                    && ! phiTimelineNeedsFreeRun
                                    && ! pitchRetriggersFromPlayedNotes;
+    const auto distortionUseHostPosition = hostSyncEnabled
+                                        && hostPositionAvailable
+                                        && ! phiTimelineNeedsFreeRun
+                                        && ! distortionRetriggersFromPlayedNotes;
     const auto gateRange = seqwencer::makeStepRange (
         static_cast<int> (std::lround (startStep != nullptr ? startStep->load() : 1.0f)),
         static_cast<int> (std::lround (endStep != nullptr ? endStep->load() : 64.0f)),
@@ -1995,6 +2230,12 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         static_cast<int> (std::lround (
             pitchEndStep != nullptr ? pitchEndStep->load() : 64.0f)),
         pitchLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
+    const auto distortionRange = seqwencer::makeStepRange (
+        static_cast<int> (std::lround (
+            distortionStartStep != nullptr ? distortionStartStep->load() : 1.0f)),
+        static_cast<int> (std::lround (
+            distortionEndStep != nullptr ? distortionEndStep->load() : 64.0f)),
+        distortionLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
     const auto gateCycleLength = seqwencer::sequenceCycleLength (
         gateRange.length(), gateTraversalMode);
     const auto phiCycleLength = seqwencer::sequenceCycleLength (
@@ -2009,6 +2250,8 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         filterRange.length(), filterTraversalMode);
     const auto pitchCycleLength = seqwencer::sequenceCycleLength (
         pitchRange.length(), pitchTraversalMode);
+    const auto distortionCycleLength = seqwencer::sequenceCycleLength (
+        distortionRange.length(), distortionTraversalMode);
     const auto gatePhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * gateStepBeats * currentSampleRate / hostBpm);
     const auto phiPhaseIncrement = 1.0 / juce::jmax (
@@ -2023,6 +2266,8 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         1.0, 60.0 * filterStepBeats * currentSampleRate / hostBpm);
     const auto pitchPhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * pitchStepBeats * currentSampleRate / hostBpm);
+    const auto distortionPhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * distortionStepBeats * currentSampleRate / hostBpm);
     const auto shouldBypass = bypass != nullptr && bypass->load() >= 0.5f;
     const auto shouldGate = gateEnabled != nullptr && gateEnabled->load() >= 0.5f;
     const auto base = juce::jlimit (
@@ -2096,6 +2341,20 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         -24.0f, 24.0f, pitchShift != nullptr ? pitchShift->load() : 0.0f);
     const auto basePitchMix = juce::jlimit (
         0.0f, 1.0f, pitchMix != nullptr ? pitchMix->load() : 1.0f);
+    const auto shouldDistortion = distortionEnabled != nullptr
+                               && distortionEnabled->load() >= 0.5f;
+    const auto baseDistortionType = juce::jlimit (
+        0, 3, static_cast<int> (std::lround (
+            distortionType != nullptr ? distortionType->load() : 0.0f)));
+    const auto baseDistortionDrive = juce::jlimit (
+        0.0f, 36.0f,
+        distortionDrive != nullptr ? distortionDrive->load() : 6.0f);
+    const auto baseDistortionTone = juce::jlimit (
+        0.0f, 1.0f,
+        distortionTone != nullptr ? distortionTone->load() : 1.0f);
+    const auto baseDistortionMix = juce::jlimit (
+        0.0f, 1.0f,
+        distortionMix != nullptr ? distortionMix->load() : 1.0f);
     const auto gateAIsEnabled = seqAEnabled == nullptr
                              || seqAEnabled->load() >= 0.5f;
     const auto gateBIsEnabled = seqBEnabled != nullptr
@@ -2124,6 +2383,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                               || pitchSeqAEnabled->load() >= 0.5f;
     const auto pitchBIsEnabled = pitchSeqBEnabled != nullptr
                               && pitchSeqBEnabled->load() >= 0.5f;
+    const auto distortionAIsEnabled = distortionSeqAEnabled == nullptr
+                                   || distortionSeqAEnabled->load() >= 0.5f;
+    const auto distortionBIsEnabled = distortionSeqBEnabled != nullptr
+                                   && distortionSeqBEnabled->load() >= 0.5f;
     const auto targetIsActive = [this] (
         int bank, seqwencer::ModulationTarget target)
     {
@@ -2199,6 +2462,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         pitchReadPhase = 0.0;
     }
     pitchWasActive = pitchIsProcessing;
+    const auto distortionIsProcessing = shouldDistortion && ! shouldBypass;
+    if (distortionIsProcessing != distortionWasActive)
+        distortionToneStates.fill (0.0f);
+    distortionWasActive = distortionIsProcessing;
     if (! gateIsProcessing)
     {
         gateActiveStepA.store (-1);
@@ -2229,6 +2496,11 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         pitchActiveStepA.store (-1);
         pitchActiveStepB.store (-1);
     }
+    if (! distortionIsProcessing)
+    {
+        distortionActiveStepA.store (-1);
+        distortionActiveStepB.store (-1);
+    }
     std::size_t nextPhraseStart = 0;
 
     for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
@@ -2250,6 +2522,8 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 filterFreeRunningPhase = 0.0;
             if (pitchRetriggersFromPlayedNotes)
                 pitchFreeRunningPhase = 0.0;
+            if (distortionRetriggersFromPlayedNotes)
+                distortionFreeRunningPhase = 0.0;
             ++nextPhraseStart;
         }
 
@@ -2328,6 +2602,17 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                        : 0.0);
             pitchPhase = seqwencer::phaseFromQuarterNotes (
                 ppq, pitchStepBeats, pitchCycleLength);
+        }
+
+        auto distortionPhase = distortionFreeRunningPhase;
+        if (distortionUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            distortionPhase = seqwencer::phaseFromQuarterNotes (
+                ppq, distortionStepBeats, distortionCycleLength);
         }
 
         auto gateUnipolarA = 1.0f;
@@ -2869,6 +3154,82 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 pitchBipolarBValue, assigned);
         };
 
+        auto distortionUnipolarA = 1.0f;
+        auto distortionUnipolarB = 1.0f;
+        auto distortionCanonicalA = 1.0f;
+        auto distortionCanonicalB = 1.0f;
+        auto distortionSerialUnipolar = 1.0f;
+        auto distortionSerialCanonical = 1.0f;
+        if (distortionIsProcessing && distortionLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            distortionSerialUnipolar = seqwencer::evaluateLinkedRange (
+                distortionUnipolarPatternA, distortionUnipolarPatternB,
+                distortionPhase, distortionRange,
+                distortionSerialAttack, distortionSerialRelease,
+                distortionSerialAttack, distortionSerialRelease,
+                &activeBank, &activeStep, distortionTraversalMode);
+            distortionSerialCanonical = seqwencer::evaluateLinkedRange (
+                distortionCanonicalPatternA, distortionCanonicalPatternB,
+                distortionPhase, distortionRange,
+                distortionSerialAttack, distortionSerialRelease,
+                distortionSerialAttack, distortionSerialRelease,
+                nullptr, nullptr, distortionTraversalMode);
+            distortionActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            distortionActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else if (distortionIsProcessing)
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            distortionUnipolarA = seqwencer::evaluateBankRange (
+                distortionUnipolarPatternA, distortionPhase, distortionRange,
+                distortionAttackAValue, distortionReleaseAValue,
+                &stepA, distortionTraversalMode);
+            distortionUnipolarB = seqwencer::evaluateBankRange (
+                distortionUnipolarPatternB, distortionPhase, distortionRange,
+                distortionAttackBValue, distortionReleaseBValue,
+                &stepB, distortionTraversalMode);
+            distortionCanonicalA = seqwencer::evaluateBankRange (
+                distortionCanonicalPatternA, distortionPhase, distortionRange,
+                distortionAttackAValue, distortionReleaseAValue,
+                nullptr, distortionTraversalMode);
+            distortionCanonicalB = seqwencer::evaluateBankRange (
+                distortionCanonicalPatternB, distortionPhase, distortionRange,
+                distortionAttackBValue, distortionReleaseBValue,
+                nullptr, distortionTraversalMode);
+            distortionActiveStepA.store (distortionAIsEnabled ? stepA : -1);
+            distortionActiveStepB.store (distortionBIsEnabled ? stepB : -1);
+        }
+
+        const auto distortionTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (distortionLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return distortionSerialBipolar
+                    ? 2.0f * distortionSerialCanonical - 1.0f
+                    : distortionSerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                distortionBipolarAValue
+                    ? distortionCanonicalA : distortionUnipolarA,
+                distortionAIsEnabled && targetIsActive (0, target), target,
+                distortionBipolarAValue,
+                distortionBipolarBValue
+                    ? distortionCanonicalB : distortionUnipolarB,
+                distortionBIsEnabled && targetIsActive (1, target), target,
+                distortionBipolarBValue, assigned);
+        };
+
         if (shouldGate && shouldNoiseGate && ! shouldBypass)
         {
             const auto modulatedActual = [&] (
@@ -3212,6 +3573,96 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 pitchReadPhase + (1.0 - ratio) / windowSpan + 1.0, 1.0);
         }
 
+        if (distortionIsProcessing)
+        {
+            const auto modulatedDistortionNormalised = [&] (
+                float baseNormalised, seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = distortionTargetDeviation (
+                    target, &assigned);
+                return assigned
+                    ? seqwencer::applyModulationDepth (
+                        baseNormalised, deviation, 1.0f)
+                    : baseNormalised;
+            };
+
+            const auto driveDb = 36.0f * modulatedDistortionNormalised (
+                baseDistortionDrive / 36.0f,
+                seqwencer::ModulationTarget::distortionDrive);
+            const auto toneValue = modulatedDistortionNormalised (
+                baseDistortionTone,
+                seqwencer::ModulationTarget::distortionTone);
+            const auto mixValue = modulatedDistortionNormalised (
+                baseDistortionMix,
+                seqwencer::ModulationTarget::distortionMix);
+            const auto inputGain = juce::Decibels::decibelsToGain (driveDb);
+            constexpr auto toneMinimum = 800.0f;
+            constexpr auto toneMaximum = 20000.0f;
+            const auto toneCutoff = juce::jlimit (
+                toneMinimum,
+                static_cast<float> (juce::jmax (
+                    static_cast<double> (toneMinimum),
+                    currentSampleRate * 0.45)),
+                toneMinimum * std::pow (
+                    toneMaximum / toneMinimum, toneValue));
+            const auto toneCoefficient = static_cast<float> (
+                1.0 - std::exp (-juce::MathConstants<double>::twoPi
+                                * toneCutoff / currentSampleRate));
+            const auto channels = juce::jmin (
+                buffer.getNumChannels(),
+                static_cast<int> (distortionToneStates.size()));
+
+            for (int channel = 0; channel < channels; ++channel)
+            {
+                const auto drySample = buffer.getSample (channel, sample);
+                const auto drivenSample = drySample * inputGain;
+                auto wetSample = drivenSample;
+
+                switch (baseDistortionType)
+                {
+                    case 1:
+                        wetSample = juce::jlimit (-1.0f, 1.0f, drivenSample);
+                        break;
+                    case 2:
+                    {
+                        const auto tubeInput = juce::jlimit (
+                            -1.5f, 1.5f, drivenSample);
+                        wetSample = (tubeInput
+                            * (1.0f - tubeInput * tubeInput / 9.0f)) / 1.125f;
+                        break;
+                    }
+                    case 3:
+                        wetSample = drivenSample > 1.0f || drivenSample < -1.0f
+                            ? std::abs (std::abs (
+                                std::fmod (drivenSample - 1.0f, 4.0f)) - 2.0f)
+                                - 1.0f
+                            : drivenSample;
+                        break;
+                    default:
+                        wetSample = std::tanh (drivenSample);
+                        break;
+                }
+
+                if (toneValue < 0.999f)
+                {
+                    auto& toneState = distortionToneStates[
+                        static_cast<std::size_t> (channel)];
+                    toneState += toneCoefficient * (wetSample - toneState);
+                    wetSample = toneState;
+                }
+                else
+                {
+                    distortionToneStates[
+                        static_cast<std::size_t> (channel)] = wetSample;
+                }
+
+                buffer.setSample (
+                    channel, sample,
+                    drySample + mixValue * (wetSample - drySample));
+            }
+        }
+
         const auto mayAdvance = ! hostSyncEnabled || hostTimelineAdvancing;
         if (gateIsProcessing && ! gateUseHostPosition
             && (mayAdvance || gateRetriggersFromPlayedNotes))
@@ -3258,6 +3709,13 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 pitchFreeRunningPhase + pitchPhaseIncrement,
                 pitchCycleLength);
         }
+        if (distortionIsProcessing && ! distortionUseHostPosition
+            && (mayAdvance || distortionRetriggersFromPlayedNotes))
+        {
+            distortionFreeRunningPhase = seqwencer::wrapPhase (
+                distortionFreeRunningPhase + distortionPhaseIncrement,
+                distortionCycleLength);
+        }
     }
 
     if (gateIsProcessing && gateUseHostPosition && hostTimelineAdvancing)
@@ -3301,6 +3759,13 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         pitchFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
             hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
             pitchStepBeats, pitchCycleLength);
+    }
+    if (distortionIsProcessing && distortionUseHostPosition
+        && hostTimelineAdvancing)
+    {
+        distortionFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            distortionStepBeats, distortionCycleLength);
     }
 
     if (shouldSendPhiBridge && buffer.getNumSamples() > 0)

@@ -34,8 +34,9 @@ The current development build includes:
 - Pan
 - Filter
 - Pitch
+- Distortion
 
-Distortion and GrainShifter are planned additions. Reverb is included
+GrainShifter is the remaining planned addition. Reverb is included
 because sequenced Mix can create useful rhythmic effects even when sequencing
 its tail parameters is less suitable.
 
@@ -103,6 +104,15 @@ Mix blends the shifted signal with the dry input. Shift and Mix can each be
 sequenced from A, B or both lanes. Pitch has its own patterns, timing, range,
 direction and envelopes; disabling it bypasses the audio processor and pauses
 its private sequencer.
+
+## Distortion
+
+Distortion Type offers Soft Clip, Hard Clip, Tube and Foldback shaping. Drive
+covers 0-36 dB, Tone darkens or brightens the wet signal, and Mix blends it
+with the dry input. Drive, Tone and Mix can each be sequenced from A, B or both
+lanes. Distortion has its own patterns, timing, range, direction and envelopes;
+disabling it bypasses processing, resets its Tone filter and pauses its private
+sequencer.
 
 ## PHI parameter control
 

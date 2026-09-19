@@ -60,6 +60,8 @@ public:
             return filterActiveStepA.load();
         if (engine == seqwencer::SequencerEngine::pitch)
             return pitchActiveStepA.load();
+        if (engine == seqwencer::SequencerEngine::distortion)
+            return distortionActiveStepA.load();
         return gateActiveStepA.load();
     }
     int getActiveStepB (
@@ -77,6 +79,8 @@ public:
             return filterActiveStepB.load();
         if (engine == seqwencer::SequencerEngine::pitch)
             return pitchActiveStepB.load();
+        if (engine == seqwencer::SequencerEngine::distortion)
+            return distortionActiveStepB.load();
         return gateActiveStepB.load();
     }
     bool isPhiHostPresent() const noexcept
@@ -95,6 +99,7 @@ public:
     static juce::String panStepParameterID (int bank, int step);
     static juce::String filterStepParameterID (int bank, int step);
     static juce::String pitchStepParameterID (int bank, int step);
+    static juce::String distortionStepParameterID (int bank, int step);
     static juce::String gateModeParameterID (int bank, int step);
     static juce::String targetAssignedParameterID (
         int bank, seqwencer::ModulationTarget target);
@@ -133,6 +138,8 @@ private:
                                           bool bipolar) const noexcept;
     seqwencer::Pattern readPitchPattern (int bank,
                                          bool bipolar) const noexcept;
+    seqwencer::Pattern readDistortionPattern (int bank,
+                                              bool bipolar) const noexcept;
     seqwencer::GateModePattern readGateModes (int bank) const noexcept;
     void migrateStepStorageIfNeeded();
     void resetFilterProcessor() noexcept;
@@ -266,6 +273,25 @@ private:
     std::atomic<float>* pitchSeqBBipolar = nullptr;
     std::atomic<float>* pitchSeqBAttack = nullptr;
     std::atomic<float>* pitchSeqBRelease = nullptr;
+    std::atomic<float>* distortionEnabled = nullptr;
+    std::atomic<float>* distortionType = nullptr;
+    std::atomic<float>* distortionDrive = nullptr;
+    std::atomic<float>* distortionTone = nullptr;
+    std::atomic<float>* distortionMix = nullptr;
+    std::atomic<float>* distortionPlaybackMode = nullptr;
+    std::atomic<float>* distortionSerialProfile = nullptr;
+    std::atomic<float>* distortionStartStep = nullptr;
+    std::atomic<float>* distortionEndStep = nullptr;
+    std::atomic<float>* distortionRate = nullptr;
+    std::atomic<float>* distortionSequenceMode = nullptr;
+    std::atomic<float>* distortionSeqAEnabled = nullptr;
+    std::atomic<float>* distortionSeqABipolar = nullptr;
+    std::atomic<float>* distortionSeqAAttack = nullptr;
+    std::atomic<float>* distortionSeqARelease = nullptr;
+    std::atomic<float>* distortionSeqBEnabled = nullptr;
+    std::atomic<float>* distortionSeqBBipolar = nullptr;
+    std::atomic<float>* distortionSeqBAttack = nullptr;
+    std::atomic<float>* distortionSeqBRelease = nullptr;
     std::atomic<float>* seqAEnabled = nullptr;
     std::atomic<float>* seqATarget = nullptr;
     std::atomic<float>* seqATargetEnabled = nullptr;
@@ -300,6 +326,8 @@ private:
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> filterStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> pitchStepsA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> pitchStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> distortionStepsA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> distortionStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesB {};
 
@@ -311,6 +339,7 @@ private:
     double panFreeRunningPhase = 0.0;
     double filterFreeRunningPhase = 0.0;
     double pitchFreeRunningPhase = 0.0;
+    double distortionFreeRunningPhase = 0.0;
     double previousHostPpq = 0.0;
     juce::int64 previousHostTimeInSamples = 0;
     bool previousHostPpqValid = false;
@@ -334,6 +363,8 @@ private:
     std::atomic<int> filterActiveStepB { -1 };
     std::atomic<int> pitchActiveStepA { 0 };
     std::atomic<int> pitchActiveStepB { -1 };
+    std::atomic<int> distortionActiveStepA { 0 };
+    std::atomic<int> distortionActiveStepB { -1 };
     juce::AudioBuffer<float> delayBuffer;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>
         smoothedDelaySamples;
@@ -347,6 +378,8 @@ private:
     int pitchWritePosition = 0;
     double pitchReadPhase = 0.0;
     bool pitchWasActive = false;
+    std::array<float, 2> distortionToneStates {};
+    bool distortionWasActive = false;
     std::atomic<bool> phiHostPresent { false };
     std::atomic<bool> phiTargetBrowserRequestPending { false };
 

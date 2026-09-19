@@ -23,6 +23,7 @@ constexpr auto reverbAccent = 0xffff6f91;
 constexpr auto panAccent = 0xffffc857;
 constexpr auto filterAccent = 0xff50d8a8;
 constexpr auto pitchAccent = 0xff66d9ff;
+constexpr auto distortionAccent = 0xffff684f;
 constexpr auto phiAccent = 0xff68a8ff;
 constexpr auto targetDragPrefix = "seqwencer-target:";
 constexpr int designWidth = 1280;
@@ -79,6 +80,13 @@ constexpr std::array<seqwencer::ModulationTarget,
                      seqwencer::pitchModulationTargetCount> pitchTargets {
     seqwencer::ModulationTarget::pitchShift,
     seqwencer::ModulationTarget::pitchMix
+};
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::distortionModulationTargetCount> distortionTargets {
+    seqwencer::ModulationTarget::distortionDrive,
+    seqwencer::ModulationTarget::distortionTone,
+    seqwencer::ModulationTarget::distortionMix
 };
 
 juce::String targetDragID (seqwencer::ModulationTarget target)
@@ -411,6 +419,8 @@ public:
                 return "filter_" + gateID;
             if (newEngine == seqwencer::SequencerEngine::pitch)
                 return "pitch_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::distortion)
+                return "distortion_" + gateID;
             return gateID;
         };
 
@@ -436,6 +446,9 @@ public:
                         stepBank, stepIndex);
                 if (newEngine == seqwencer::SequencerEngine::pitch)
                     return SeqwencerAudioProcessor::pitchStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::distortion)
+                    return SeqwencerAudioProcessor::distortionStepParameterID (
                         stepBank, stepIndex);
                 return SeqwencerAudioProcessor::stepParameterID (
                     stepBank, stepIndex);
@@ -1860,6 +1873,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor, seqwencer::ModulationTarget::pitchShift);
     pitchMixParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::pitchMix);
+    distortionDriveParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::distortionDrive);
+    distortionToneParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::distortionTone);
+    distortionMixParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::distortionMix);
     targetListA = std::make_unique<TargetList> (
         processor, 0, laneAColour,
         std::vector<seqwencer::ModulationTarget> (
@@ -1908,6 +1927,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor, 1, laneBColour,
         std::vector<seqwencer::ModulationTarget> (
             pitchTargets.begin(), pitchTargets.end()), "pitch_playback_mode");
+    distortionTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            distortionTargets.begin(), distortionTargets.end()),
+        "distortion_playback_mode");
+    distortionTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            distortionTargets.begin(), distortionTargets.end()),
+        "distortion_playback_mode");
     gateFxButton = std::make_unique<FxSelectorButton> (
         "GATE", juce::Colour (gateAccent));
     delayFxButton = std::make_unique<FxSelectorButton> (
@@ -1920,6 +1949,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         "FILTER", juce::Colour (filterAccent));
     pitchFxButton = std::make_unique<FxSelectorButton> (
         "PITCH", juce::Colour (pitchAccent));
+    distortionFxButton = std::make_unique<FxSelectorButton> (
+        "DIST", juce::Colour (distortionAccent));
     phiFxButton = std::make_unique<FxSelectorButton> (
         "PHI", juce::Colour (phiAccent));
     content.addAndMakeVisible (*baseParameterLabel);
@@ -1944,6 +1975,9 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*filterMixParameterLabel);
     content.addAndMakeVisible (*pitchShiftParameterLabel);
     content.addAndMakeVisible (*pitchMixParameterLabel);
+    content.addAndMakeVisible (*distortionDriveParameterLabel);
+    content.addAndMakeVisible (*distortionToneParameterLabel);
+    content.addAndMakeVisible (*distortionMixParameterLabel);
     content.addAndMakeVisible (*targetListA);
     content.addAndMakeVisible (*targetListB);
     content.addAndMakeVisible (*delayTargetListA);
@@ -1956,12 +1990,15 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*filterTargetListB);
     content.addAndMakeVisible (*pitchTargetListA);
     content.addAndMakeVisible (*pitchTargetListB);
+    content.addAndMakeVisible (*distortionTargetListA);
+    content.addAndMakeVisible (*distortionTargetListB);
     content.addAndMakeVisible (*gateFxButton);
     content.addAndMakeVisible (*delayFxButton);
     content.addAndMakeVisible (*reverbFxButton);
     content.addAndMakeVisible (*panFxButton);
     content.addAndMakeVisible (*filterFxButton);
     content.addAndMakeVisible (*pitchFxButton);
+    content.addAndMakeVisible (*distortionFxButton);
     content.addAndMakeVisible (*phiFxButton);
     content.addAndMakeVisible (presetsButton);
     presetsButton.setTooltip ("Open the portable Seqwencer preset browser");
@@ -1984,6 +2021,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     filterTypeBox.addItem ("PEAKING", 5);
     filterTypeBox.setTooltip ("Choose the Filter response");
     content.addAndMakeVisible (filterTypeBox);
+    distortionTypeBox.addItem ("SOFT CLIP", 1);
+    distortionTypeBox.addItem ("HARD CLIP", 2);
+    distortionTypeBox.addItem ("TUBE", 3);
+    distortionTypeBox.addItem ("FOLDBACK", 4);
+    distortionTypeBox.setTooltip ("Choose the Distortion waveshaper");
+    content.addAndMakeVisible (distortionTypeBox);
     const auto configureWaveformBox = [this] (juce::ComboBox& box,
                                               const juce::String& laneName)
     {
@@ -2046,6 +2089,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     pitchFxButton->getEnableButton().setTooltip (
         "Turn the built-in Pitch effect and its sequencer on or off");
     pitchFxButton->onClick = [this] { selectFx (SelectedFx::pitch); };
+    distortionFxButton->setTooltip ("Show the Distortion controls");
+    distortionFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Distortion effect and its sequencer on or off");
+    distortionFxButton->onClick = [this] {
+        selectFx (SelectedFx::distortion);
+    };
     phiFxButton->setTooltip ("Show the PHI integration controls");
     phiFxButton->getEnableButton().setTooltip (
         "Turn Seqwencer's PHI parameter output on or off");
@@ -2097,6 +2146,9 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureKnob (filterMixSlider);
     configureKnob (pitchShiftSlider);
     configureKnob (pitchMixSlider);
+    configureKnob (distortionDriveSlider);
+    configureKnob (distortionToneSlider);
+    configureKnob (distortionMixSlider);
     panPositionSlider.setRange (-1.0, 1.0, 0.001);
     delayTimeSlider.setTextBoxStyle (
         juce::Slider::TextBoxBelow, false, 64, 15);
@@ -2111,6 +2163,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     filterCutoffSlider.setRange (20.0, 20000.0, 0.1);
     filterResonanceSlider.setRange (0.10, 10.0, 0.001);
     pitchShiftSlider.setRange (-24.0, 24.0, 0.01);
+    distortionDriveSlider.setRange (0.0, 36.0, 0.01);
     shortLengthSlider.setTooltip (
         "Length of every Gate step set to Short (10-60% of one step)");
     longLengthSlider.setTooltip (
@@ -2144,6 +2197,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         "Transpose the signal from two octaves down to two octaves up");
     pitchMixSlider.setTooltip (
         "Balance between dry input and pitch-shifted signal");
+    distortionDriveSlider.setTooltip (
+        "Input gain into the Distortion waveshaper from 0 to 36 dB");
+    distortionToneSlider.setTooltip (
+        "Darken or brighten the distorted signal");
+    distortionMixSlider.setTooltip (
+        "Balance between dry input and distorted signal");
     configureKnob (attackASlider);
     configureKnob (releaseASlider);
     configureKnob (attackBSlider);
@@ -2209,6 +2268,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         slider->setColour (juce::Slider::rotarySliderFillColourId,
                            juce::Colour (pitchAccent));
     }
+    for (auto* slider : { &distortionDriveSlider, &distortionToneSlider,
+                          &distortionMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (distortionAccent));
+    }
     attackASlider.setColour (juce::Slider::rotarySliderFillColourId,
                              laneAColour);
     releaseASlider.setColour (juce::Slider::rotarySliderFillColourId,
@@ -2231,6 +2296,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureLabel (colourALabel, "A COLOUR");
     configureLabel (colourBLabel, "B COLOUR");
     configureLabel (filterTypeLabel, "TYPE");
+    configureLabel (distortionTypeLabel, "TYPE");
     laneATitle.setColour (juce::Label::textColourId,
                           juce::Colour (gateAccent));
     laneBTitle.setColour (juce::Label::textColourId,
@@ -2256,12 +2322,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "filter_enabled", filterFxButton->getEnableButton());
     pitchAttachment = std::make_unique<ButtonAttachment> (
         state, "pitch_enabled", pitchFxButton->getEnableButton());
+    distortionAttachment = std::make_unique<ButtonAttachment> (
+        state, "distortion_enabled", distortionFxButton->getEnableButton());
     phiBridgeAttachment = std::make_unique<ButtonAttachment> (
         state, "phi_bridge_enabled", phiFxButton->getEnableButton());
     noiseGateAttachment = std::make_unique<ButtonAttachment> (
         state, "noise_gate_enabled", noiseGateButton);
     filterTypeAttachment = std::make_unique<ComboAttachment> (
         state, "filter_type", filterTypeBox);
+    distortionTypeAttachment = std::make_unique<ComboAttachment> (
+        state, "distortion_type", distortionTypeBox);
     baseAttachment = std::make_unique<SliderAttachment> (
         state, "gate_base", baseSlider);
     depthAttachment = std::make_unique<SliderAttachment> (
@@ -2306,6 +2376,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "pitch_shift", pitchShiftSlider);
     pitchMixAttachment = std::make_unique<SliderAttachment> (
         state, "pitch_mix", pitchMixSlider);
+    distortionDriveAttachment = std::make_unique<SliderAttachment> (
+        state, "distortion_drive", distortionDriveSlider);
+    distortionToneAttachment = std::make_unique<SliderAttachment> (
+        state, "distortion_tone", distortionToneSlider);
+    distortionMixAttachment = std::make_unique<SliderAttachment> (
+        state, "distortion_mix", distortionMixSlider);
     panPositionSlider.textFromValueFunction = [] (double value)
     {
         if (std::abs (value) < 0.0005)
@@ -2329,6 +2405,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
             return juce::String ("0.00 st");
         return juce::String (value > 0.0 ? "+" : "")
              + juce::String (value, 2) + " st";
+    };
+    distortionDriveSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, 2) + " dB";
     };
     const auto gateLengthText = [] (double value)
     {
@@ -2612,6 +2692,8 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
             return "filter_" + gateID;
         if (selectedFx == SelectedFx::pitch)
             return "pitch_" + gateID;
+        if (selectedFx == SelectedFx::distortion)
+            return "distortion_" + gateID;
         return gateID;
     };
 
@@ -2659,6 +2741,8 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
                 ? seqwencer::SequencerEngine::filter
             : selectedFx == SelectedFx::pitch
                 ? seqwencer::SequencerEngine::pitch
+            : selectedFx == SelectedFx::distortion
+                ? seqwencer::SequencerEngine::distortion
                 : seqwencer::SequencerEngine::gate;
     gridA->setEngine (engine);
     gridB->setEngine (engine);
@@ -2684,6 +2768,7 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     const auto panSelected = selectedFx == SelectedFx::pan;
     const auto filterSelected = selectedFx == SelectedFx::filter;
     const auto pitchSelected = selectedFx == SelectedFx::pitch;
+    const auto distortionSelected = selectedFx == SelectedFx::distortion;
     const auto phiSelected = selectedFx == SelectedFx::phi;
     gateFxButton->setSelected (gateSelected);
     delayFxButton->setSelected (delaySelected);
@@ -2691,6 +2776,7 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     panFxButton->setSelected (panSelected);
     filterFxButton->setSelected (filterSelected);
     pitchFxButton->setSelected (pitchSelected);
+    distortionFxButton->setSelected (distortionSelected);
     phiFxButton->setSelected (phiSelected);
     phiFxButton->setVisible (phiAvailable);
 
@@ -2753,6 +2839,16 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     pitchMixSlider.setVisible (pitchSelected);
     pitchTargetListA->setVisible (pitchSelected);
     pitchTargetListB->setVisible (pitchSelected);
+    distortionTypeLabel.setVisible (distortionSelected);
+    distortionTypeBox.setVisible (distortionSelected);
+    distortionDriveParameterLabel->setVisible (distortionSelected);
+    distortionDriveSlider.setVisible (distortionSelected);
+    distortionToneParameterLabel->setVisible (distortionSelected);
+    distortionToneSlider.setVisible (distortionSelected);
+    distortionMixParameterLabel->setVisible (distortionSelected);
+    distortionMixSlider.setVisible (distortionSelected);
+    distortionTargetListA->setVisible (distortionSelected);
+    distortionTargetListB->setVisible (distortionSelected);
     phiTargetButton.setVisible (phiAvailable && phiSelected);
 
     const auto laneColour = juce::Colour (gateSelected ? gateAccent
@@ -2760,13 +2856,15 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
         : reverbSelected ? reverbAccent
         : panSelected ? panAccent
         : filterSelected ? filterAccent
-        : pitchSelected ? pitchAccent : phiAccent);
+        : pitchSelected ? pitchAccent
+        : distortionSelected ? distortionAccent : phiAccent);
     const juce::String fxName = gateSelected ? "GATE"
                               : delaySelected ? "DELAY"
                               : reverbSelected ? "REVERB"
                               : panSelected ? "PAN"
                               : filterSelected ? "FILTER"
-                              : pitchSelected ? "PITCH" : "PHI";
+                              : pitchSelected ? "PITCH"
+                              : distortionSelected ? "DISTORTION" : "PHI";
     laneATitle.setText (fxName + " A",
                         juce::dontSendNotification);
     laneBTitle.setText (fxName + " B",
@@ -2828,6 +2926,15 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
                                laneColour);
         }
     }
+    else if (distortionSelected)
+    {
+        for (auto* slider : { &distortionDriveSlider, &distortionToneSlider,
+                              &distortionMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
 
     if (lastPhiAvailability != phiAvailable)
     {
@@ -2857,6 +2964,8 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
     filterTargetListB->setAccentColour (laneBColour);
     pitchTargetListA->setAccentColour (laneAColour);
     pitchTargetListB->setAccentColour (laneBColour);
+    distortionTargetListA->setAccentColour (laneAColour);
+    distortionTargetListB->setAccentColour (laneBColour);
 
     for (auto* button : { &enableAButton, &bipolarAButton })
         button->setColour (juce::ToggleButton::tickColourId, laneAColour);
@@ -2906,6 +3015,7 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
             : selectedFx == SelectedFx::pan ? "pan_enabled"
             : selectedFx == SelectedFx::filter ? "filter_enabled"
             : selectedFx == SelectedFx::pitch ? "pitch_enabled"
+            : selectedFx == SelectedFx::distortion ? "distortion_enabled"
                                                : "phi_bridge_enabled");
     auto* noiseGateEnabledParameter =
         processor.getParameterState().getParameter ("noise_gate_enabled");
@@ -2968,6 +3078,14 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     pitchShiftSlider.setAlpha (gateControlsAlpha);
     pitchMixParameterLabel->setAlpha (gateControlsAlpha);
     pitchMixSlider.setAlpha (gateControlsAlpha);
+    distortionTypeLabel.setAlpha (gateControlsAlpha);
+    distortionTypeBox.setAlpha (gateControlsAlpha);
+    distortionDriveParameterLabel->setAlpha (gateControlsAlpha);
+    distortionDriveSlider.setAlpha (gateControlsAlpha);
+    distortionToneParameterLabel->setAlpha (gateControlsAlpha);
+    distortionToneSlider.setAlpha (gateControlsAlpha);
+    distortionMixParameterLabel->setAlpha (gateControlsAlpha);
+    distortionMixSlider.setAlpha (gateControlsAlpha);
 
     enableAButton.setEnabled (true);
     enableBButton.setEnabled (true);
@@ -3006,6 +3124,8 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         filterTargetListB->setAlpha (gateControlsAlpha);
         pitchTargetListA->setAlpha (gateControlsAlpha);
         pitchTargetListB->setAlpha (gateControlsAlpha);
+        distortionTargetListA->setAlpha (gateControlsAlpha);
+        distortionTargetListB->setAlpha (gateControlsAlpha);
         setControlAlpha (gateControlsAlpha * (profileB ? 0.30f : 1.0f),
                          attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
@@ -3041,6 +3161,8 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         filterTargetListB->setAlpha (alphaB);
         pitchTargetListA->setAlpha (alphaA);
         pitchTargetListB->setAlpha (alphaB);
+        distortionTargetListA->setAlpha (alphaA);
+        distortionTargetListB->setAlpha (alphaB);
         setControlAlpha (alphaA, attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
         setControlAlpha (alphaB, attackBSlider, attackBLabel,
@@ -3082,7 +3204,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.8.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.9.1",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -3113,7 +3235,9 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                            : selectedFx == SelectedFx::filter
                                ? "FILTER CONTROLS"
                            : selectedFx == SelectedFx::pitch
-                               ? "PITCH CONTROLS" : "PHI CONTROLS",
+                               ? "PITCH CONTROLS"
+                           : selectedFx == SelectedFx::distortion
+                               ? "DISTORTION CONTROLS" : "PHI CONTROLS",
                        20, static_cast<int> (bottomPanelY) + 8,
                        92, 15, juce::Justification::centredLeft, false);
 
@@ -3153,7 +3277,9 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                 : selectedFx == SelectedFx::reverb ? reverbAccent
                 : selectedFx == SelectedFx::pan ? panAccent
                 : selectedFx == SelectedFx::filter ? filterAccent
-                : selectedFx == SelectedFx::pitch ? pitchAccent : phiAccent);
+                : selectedFx == SelectedFx::pitch ? pitchAccent
+                : selectedFx == SelectedFx::distortion
+                    ? distortionAccent : phiAccent);
         graphics.setColour (moduleAccent.withAlpha (outlineAlpha));
         graphics.drawRoundedRectangle (bounds, 8.0f, 1.2f);
     }
@@ -3190,7 +3316,8 @@ void SeqwencerAudioProcessorEditor::resized()
     panFxButton->setBounds (20, 299, 74, 31);
     filterFxButton->setBounds (20, 338, 74, 31);
     pitchFxButton->setBounds (20, 377, 74, 31);
-    phiFxButton->setBounds (20, 416, 74, 31);
+    distortionFxButton->setBounds (20, 416, 74, 31);
+    phiFxButton->setBounds (20, 455, 74, 31);
     modeBox.setBounds (20, bottomPanelY + 28, 92, 28);
     rateLabel.setBounds (122, bottomPanelY + 4, 64, 14);
     rateSlider.setBounds (122, bottomPanelY + 15, 64, 59);
@@ -3256,6 +3383,18 @@ void SeqwencerAudioProcessorEditor::resized()
     pitchMixParameterLabel->setBounds (526, bottomPanelY + 4, 88, 14);
     pitchMixSlider.setBounds (538, bottomPanelY + 15, 64, 59);
 
+    distortionTypeLabel.setBounds (436, bottomPanelY + 4, 122, 14);
+    distortionTypeBox.setBounds (436, bottomPanelY + 28, 122, 28);
+    distortionDriveParameterLabel->setBounds (
+        566, bottomPanelY + 4, 88, 14);
+    distortionDriveSlider.setBounds (578, bottomPanelY + 15, 64, 59);
+    distortionToneParameterLabel->setBounds (
+        654, bottomPanelY + 4, 92, 14);
+    distortionToneSlider.setBounds (668, bottomPanelY + 15, 64, 59);
+    distortionMixParameterLabel->setBounds (
+        744, bottomPanelY + 4, 88, 14);
+    distortionMixSlider.setBounds (756, bottomPanelY + 15, 64, 59);
+
     constexpr int laneTop = 150;
     constexpr int laneGap = 10;
     const auto laneAreaBottom = bottomPanelY - laneGap;
@@ -3296,9 +3435,11 @@ void SeqwencerAudioProcessorEditor::resized()
         const auto panSelected = selectedFx == SelectedFx::pan;
         const auto filterSelected = selectedFx == SelectedFx::filter;
         const auto pitchSelected = selectedFx == SelectedFx::pitch;
+        const auto distortionSelected = selectedFx == SelectedFx::distortion;
         const auto hasInternalTargets = gateSelected || delaySelected
                                      || reverbSelected || panSelected
-                                     || filterSelected || pitchSelected;
+                                     || filterSelected || pitchSelected
+                                     || distortionSelected;
         const auto targetX = hasInternalTargets
             ? designWidth - 10 - innerMargin - targetWidth
             : designWidth - 10 - innerMargin;
@@ -3313,6 +3454,8 @@ void SeqwencerAudioProcessorEditor::resized()
             ? *filterTargetListA : *filterTargetListB;
         auto& selectedPitchTargetList = lane == 0
             ? *pitchTargetListA : *pitchTargetListB;
+        auto& selectedDistortionTargetList = lane == 0
+            ? *distortionTargetListA : *distortionTargetListB;
         gateTargetList.setBounds (targetX, y + innerMargin,
                                   gateSelected ? targetWidth : 0,
                                   laneHeight - 2 * innerMargin);
@@ -3331,6 +3474,10 @@ void SeqwencerAudioProcessorEditor::resized()
         selectedPitchTargetList.setBounds (targetX, y + innerMargin,
                                            pitchSelected ? targetWidth : 0,
                                            laneHeight - 2 * innerMargin);
+        selectedDistortionTargetList.setBounds (
+            targetX, y + innerMargin,
+            distortionSelected ? targetWidth : 0,
+            laneHeight - 2 * innerMargin);
         const auto gridX = laneX + controlsWidth + innerMargin;
         grid.setBounds (gridX, y + innerMargin,
                         juce::jmax (128, targetX - componentGap - gridX),
@@ -3370,6 +3517,9 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     filterMixParameterLabel->repaint();
     pitchShiftParameterLabel->repaint();
     pitchMixParameterLabel->repaint();
+    distortionDriveParameterLabel->repaint();
+    distortionToneParameterLabel->repaint();
+    distortionMixParameterLabel->repaint();
     targetListA->refresh();
     targetListB->refresh();
     delayTargetListA->refresh();
@@ -3382,6 +3532,8 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     filterTargetListB->refresh();
     pitchTargetListA->refresh();
     pitchTargetListB->refresh();
+    distortionTargetListA->refresh();
+    distortionTargetListB->refresh();
     gridA->repaint();
     gridB->repaint();
 }

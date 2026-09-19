@@ -192,6 +192,19 @@ int main (int argumentCount, char* arguments[])
     auto* pitchSequenceMode = findParameterByName ("Pitch Direction");
     auto* pitchStepA1 = findParameterByName ("Pitch Sequencer A Step 1");
     auto* pitchStepA2 = findParameterByName ("Pitch Sequencer A Step 2");
+    auto* distortionEnabled = findParameterByName ("Distortion Enabled");
+    auto* distortionType = findParameterByName ("Distortion Type");
+    auto* distortionDrive = findParameterByName ("Distortion Drive");
+    auto* distortionTone = findParameterByName ("Distortion Tone");
+    auto* distortionMix = findParameterByName ("Distortion Mix");
+    auto* distortionRate = findParameterByName ("Distortion Rate");
+    auto* distortionStartStep = findParameterByName ("Distortion Start Step");
+    auto* distortionEndStep = findParameterByName ("Distortion End Step");
+    auto* distortionSequenceMode = findParameterByName ("Distortion Direction");
+    auto* distortionStepA1 = findParameterByName (
+        "Distortion Sequencer A Step 1");
+    auto* distortionStepA2 = findParameterByName (
+        "Distortion Sequencer A Step 2");
     if (startStep == nullptr || endStep == nullptr || serialProfile == nullptr
         || bipolarA == nullptr || bipolarB == nullptr || rate == nullptr
         || hostSync == nullptr || phiBridge == nullptr
@@ -230,9 +243,15 @@ int main (int argumentCount, char* arguments[])
         || pitchShift == nullptr || pitchMix == nullptr
         || pitchRate == nullptr || pitchStartStep == nullptr
         || pitchEndStep == nullptr || pitchSequenceMode == nullptr
-        || pitchStepA1 == nullptr || pitchStepA2 == nullptr)
+        || pitchStepA1 == nullptr || pitchStepA2 == nullptr
+        || distortionEnabled == nullptr || distortionType == nullptr
+        || distortionDrive == nullptr || distortionTone == nullptr
+        || distortionMix == nullptr || distortionRate == nullptr
+        || distortionStartStep == nullptr || distortionEndStep == nullptr
+        || distortionSequenceMode == nullptr || distortionStepA1 == nullptr
+        || distortionStepA2 == nullptr)
     {
-        std::cout << "FAIL: a Gate, PHI, Delay, Reverb, Pan or Filter engine parameter was not found\n";
+        std::cout << "FAIL: an FX engine parameter was not found\n";
         return 1;
     }
     if (findParameterByName ("Mix") != nullptr)
@@ -334,7 +353,32 @@ int main (int argumentCount, char* arguments[])
         std::cout << "FAIL: Pitch did not restore its safe state or complete controls\n";
         return 1;
     }
-    std::cout << "PASS: Gate, PHI, Delay, Reverb, Filter and Pitch engine controls are exposed" << std::endl;
+    if (distortionEnabled->getValue() >= 0.5f
+        || distortionType->getNumSteps() != 4
+        || distortionType->getCurrentValueAsText() != "Soft Clip"
+        || distortionRate->getNumSteps() != seqwencer::rateChoiceCount
+        || distortionSequenceMode->getNumSteps() != 4
+        || std::abs (distortionTone->getValue() - 1.0f) > 0.001f
+        || std::abs (distortionMix->getValue() - 1.0f) > 0.001f)
+    {
+        std::cout << "FAIL: Distortion did not restore its safe state or complete controls\n";
+        return 1;
+    }
+    int distortionTypeIndex = 0;
+    for (const auto* expectedName : {
+             "Soft Clip", "Hard Clip", "Tube", "Foldback" })
+    {
+        distortionType->setValueNotifyingHost (
+            static_cast<float> (distortionTypeIndex++) / 3.0f);
+        if (distortionType->getCurrentValueAsText() != expectedName)
+        {
+            std::cout << "FAIL: Distortion Type did not expose the expected shaper: "
+                      << expectedName << "\n";
+            return 1;
+        }
+    }
+    distortionType->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: all FX engine controls are exposed" << std::endl;
 
     rate->setValueNotifyingHost (5.0f / 13.0f);
     phiRate->setValueNotifyingHost (9.0f / 13.0f);
@@ -342,11 +386,13 @@ int main (int argumentCount, char* arguments[])
     reverbRate->setValueNotifyingHost (3.0f / 13.0f);
     filterRate->setValueNotifyingHost (8.0f / 13.0f);
     pitchRate->setValueNotifyingHost (1.0f / 13.0f);
+    distortionRate->setValueNotifyingHost (12.0f / 13.0f);
     phiStepA1->setValueNotifyingHost (0.80f);
     delayStepA1->setValueNotifyingHost (0.65f);
     reverbStepA1->setValueNotifyingHost (0.35f);
     filterStepA1->setValueNotifyingHost (0.90f);
     pitchStepA1->setValueNotifyingHost (0.55f);
+    distortionStepA1->setValueNotifyingHost (0.45f);
     auto* gateStepA1ForIndependence = findParameterByName (
         "Sequencer A Step 1");
     if (gateStepA1ForIndependence == nullptr)
@@ -361,14 +407,16 @@ int main (int argumentCount, char* arguments[])
         || reverbRate->getCurrentValueAsText() != "1/32T"
         || filterRate->getCurrentValueAsText() != "1/8"
         || pitchRate->getCurrentValueAsText() != "1/64T"
+        || distortionRate->getCurrentValueAsText() != "1/2"
         || std::abs (gateStepA1ForIndependence->getValue() - 0.20f) > 0.001f
         || std::abs (phiStepA1->getValue() - 0.80f) > 0.001f
         || std::abs (delayStepA1->getValue() - 0.65f) > 0.001f
         || std::abs (reverbStepA1->getValue() - 0.35f) > 0.001f
         || std::abs (filterStepA1->getValue() - 0.90f) > 0.001f
-        || std::abs (pitchStepA1->getValue() - 0.55f) > 0.001f)
+        || std::abs (pitchStepA1->getValue() - 0.55f) > 0.001f
+        || std::abs (distortionStepA1->getValue() - 0.45f) > 0.001f)
     {
-        std::cout << "FAIL: Gate, PHI, Delay, Reverb, Filter or Pitch timing or step data were coupled\n";
+        std::cout << "FAIL: FX timing or step data were coupled\n";
         return 1;
     }
     rate->setValueNotifyingHost (6.0f / 13.0f);
@@ -377,13 +425,15 @@ int main (int argumentCount, char* arguments[])
     reverbRate->setValueNotifyingHost (6.0f / 13.0f);
     filterRate->setValueNotifyingHost (6.0f / 13.0f);
     pitchRate->setValueNotifyingHost (6.0f / 13.0f);
+    distortionRate->setValueNotifyingHost (6.0f / 13.0f);
     gateStepA1ForIndependence->setValueNotifyingHost (1.0f);
     phiStepA1->setValueNotifyingHost (1.0f);
     delayStepA1->setValueNotifyingHost (1.0f);
     reverbStepA1->setValueNotifyingHost (1.0f);
     filterStepA1->setValueNotifyingHost (1.0f);
     pitchStepA1->setValueNotifyingHost (1.0f);
-    std::cout << "PASS: Gate, PHI, Delay, Reverb, Filter and Pitch sequencer engines are independent" << std::endl;
+    distortionStepA1->setValueNotifyingHost (1.0f);
+    std::cout << "PASS: all FX sequencer engines are independent" << std::endl;
 
     for (const auto* name : {
              "Sequencer A DEPTH Target", "Sequencer A SHORT STEP Target",
@@ -517,6 +567,42 @@ int main (int argumentCount, char* arguments[])
         }
     }
     std::cout << "PASS: Shift and Mix expose independent Pitch targets" << std::endl;
+
+    for (const auto* name : {
+             "Distortion Sequencer A DRIVE Target",
+             "Distortion Sequencer A DRIVE Target Enabled",
+             "Distortion Sequencer A TONE Target",
+             "Distortion Sequencer A TONE Target Enabled",
+             "Distortion Sequencer A MIX Target",
+             "Distortion Sequencer A MIX Target Enabled",
+             "Distortion Sequencer B DRIVE Target",
+             "Distortion Sequencer B DRIVE Target Enabled",
+             "Distortion Sequencer B TONE Target",
+             "Distortion Sequencer B TONE Target Enabled",
+             "Distortion Sequencer B MIX Target",
+             "Distortion Sequencer B MIX Target Enabled" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Distortion target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    auto* distortionDriveTargetA = findParameterByName (
+        "Distortion Sequencer A DRIVE Target");
+    auto* distortionDriveTargetB = findParameterByName (
+        "Distortion Sequencer B DRIVE Target");
+    distortionDriveTargetA->setValueNotifyingHost (1.0f);
+    distortionDriveTargetB->setValueNotifyingHost (0.0f);
+    if (distortionDriveTargetA->getValue() < 0.5f
+        || distortionDriveTargetB->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: assigning Distortion Drive to A also changed B\n";
+        return 1;
+    }
+    distortionDriveTargetA->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: Drive, Tone and Mix expose independent Distortion targets" << std::endl;
 
     auto* gateEnabled = findParameterByName ("Gate Enabled");
     auto* gateVolume = findParameterByName ("Gate Volume");
@@ -933,8 +1019,19 @@ int main (int argumentCount, char* arguments[])
                     0.25 * std::sin (
                         juce::MathConstants<double>::twoPi * 440.0
                         * static_cast<double> (sample) / 48000.0)));
-    instance->prepareToPlay (48000.0, 480);
-    instance->processBlock (pitchAudio, midi);
+    constexpr int pitchTestBlockSize = 480;
+    instance->prepareToPlay (48000.0, pitchTestBlockSize);
+    for (int offset = 0; offset < pitchTestSampleCount;
+         offset += pitchTestBlockSize)
+    {
+        const auto samplesThisBlock = std::min (
+            pitchTestBlockSize, pitchTestSampleCount - offset);
+        juce::AudioBuffer<float> pitchBlock (
+            pitchAudio.getArrayOfWritePointers(),
+            pitchAudio.getNumChannels(), offset, samplesThisBlock);
+        juce::MidiBuffer pitchMidi;
+        instance->processBlock (pitchBlock, pitchMidi);
+    }
     instance->releaseResources();
 
     auto upwardZeroCrossings = 0;
@@ -980,6 +1077,105 @@ int main (int argumentCount, char* arguments[])
         return 1;
     }
     std::cout << "PASS: Pitch shifts by an octave and disables cleanly" << std::endl;
+
+    distortionDrive->setValueNotifyingHost (12.0f / 36.0f);
+    distortionTone->setValueNotifyingHost (1.0f);
+    distortionMix->setValueNotifyingHost (1.0f);
+    distortionEnabled->setValueNotifyingHost (1.0f);
+    std::array<float, 4> distortionTypeOutputs {};
+    for (int typeIndex = 0; typeIndex < 4; ++typeIndex)
+    {
+        distortionType->setValueNotifyingHost (
+            static_cast<float> (typeIndex) / 3.0f);
+        juce::AudioBuffer<float> distortionAudio (2, offTestSampleCount);
+        for (int channel = 0; channel < distortionAudio.getNumChannels(); ++channel)
+            std::fill_n (distortionAudio.getWritePointer (channel),
+                         offTestSampleCount, 0.30f);
+        instance->prepareToPlay (48000.0, offTestSampleCount);
+        instance->processBlock (distortionAudio, midi);
+        instance->releaseResources();
+        distortionTypeOutputs[static_cast<std::size_t> (typeIndex)] =
+            distortionAudio.getSample (0, offTestSampleCount - 1);
+        if (! std::isfinite (
+                distortionTypeOutputs[static_cast<std::size_t> (typeIndex)])
+            || std::abs (
+                distortionTypeOutputs[static_cast<std::size_t> (typeIndex)])
+                   > 1.1f)
+        {
+            std::cout << "FAIL: a Distortion Type produced invalid audio\n";
+            return 1;
+        }
+    }
+    for (std::size_t first = 0; first < distortionTypeOutputs.size(); ++first)
+        for (std::size_t second = first + 1;
+             second < distortionTypeOutputs.size(); ++second)
+            if (std::abs (distortionTypeOutputs[first]
+                          - distortionTypeOutputs[second]) < 0.015f)
+            {
+                std::cout << "FAIL: two Distortion Types produced the same response\n";
+                return 1;
+            }
+
+    const auto measureDistortionToneRms = [&] (float toneValue)
+    {
+        distortionType->setValueNotifyingHost (1.0f / 3.0f);
+        distortionDrive->setValueNotifyingHost (0.0f);
+        distortionTone->setValueNotifyingHost (toneValue);
+        juce::AudioBuffer<float> toneAudio (2, 4096);
+        for (int channel = 0; channel < toneAudio.getNumChannels(); ++channel)
+            for (int sample = 0; sample < toneAudio.getNumSamples(); ++sample)
+                toneAudio.setSample (
+                    channel, sample, (sample & 1) == 0 ? 0.25f : -0.25f);
+        instance->prepareToPlay (48000.0, toneAudio.getNumSamples());
+        instance->processBlock (toneAudio, midi);
+        instance->releaseResources();
+        auto squareTotal = 0.0;
+        auto sampleCount = 0;
+        for (int channel = 0; channel < toneAudio.getNumChannels(); ++channel)
+            for (int sample = toneAudio.getNumSamples() / 2;
+                 sample < toneAudio.getNumSamples(); ++sample)
+            {
+                const auto value = static_cast<double> (
+                    toneAudio.getSample (channel, sample));
+                squareTotal += value * value;
+                ++sampleCount;
+            }
+        return static_cast<float> (std::sqrt (
+            squareTotal / static_cast<double> (sampleCount)));
+    };
+    const auto darkDistortionRms = measureDistortionToneRms (0.0f);
+    const auto brightDistortionRms = measureDistortionToneRms (1.0f);
+    if (darkDistortionRms >= brightDistortionRms * 0.30f)
+    {
+        std::cout << "FAIL: Distortion Tone did not darken high-frequency audio\n";
+        return 1;
+    }
+
+    distortionEnabled->setValueNotifyingHost (0.0f);
+    juce::AudioBuffer<float> bypassedDistortionAudio (2, offTestSampleCount);
+    for (int channel = 0; channel < bypassedDistortionAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+            bypassedDistortionAudio.setSample (
+                channel, sample, (sample & 1) == 0 ? 0.25f : -0.25f);
+    instance->prepareToPlay (48000.0, offTestSampleCount);
+    instance->processBlock (bypassedDistortionAudio, midi);
+    instance->releaseResources();
+    auto distortionBypassError = 0.0f;
+    for (int channel = 0; channel < bypassedDistortionAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+        {
+            const auto expected = (sample & 1) == 0 ? 0.25f : -0.25f;
+            distortionBypassError = std::max (
+                distortionBypassError,
+                std::abs (bypassedDistortionAudio.getSample (channel, sample)
+                          - expected));
+        }
+    if (distortionBypassError > 0.00001f)
+    {
+        std::cout << "FAIL: disabled Distortion still altered the audio\n";
+        return 1;
+    }
+    std::cout << "PASS: all Distortion Types, Tone and disabled bypass process correctly" << std::endl;
 
     auto* stepA2 = findParameterByName ("Sequencer A Step 2");
     auto* gateModeA2 = findParameterByName ("Sequencer A Gate Mode 2");
