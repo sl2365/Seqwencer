@@ -37,6 +37,58 @@ void expectEqual (const char* name, int actual, int expected)
 
 int main()
 {
+    expectNear ("a dual target contrasts with identical lane colours",
+                seqwencer::combinedTargetHue (0.20f, 0.20f), 0.70f);
+    expectNear ("a dual target handles the hue wraparound",
+                seqwencer::combinedTargetHue (0.95f, 0.05f), 0.50f);
+    expectNear ("opposing lane colours produce a distinct dual target",
+                seqwencer::combinedTargetHue (0.0f, 0.5f), 0.25f);
+
+    const auto defaultFxOrder = seqwencer::defaultAudioFxOrder();
+    expectEqual ("default FX routing begins with Gate",
+                 static_cast<int> (defaultFxOrder.front()),
+                 static_cast<int> (seqwencer::AudioFxStage::gate));
+    expectEqual ("default FX routing ends with Compressor",
+                 static_cast<int> (defaultFxOrder.back()),
+                 static_cast<int> (seqwencer::AudioFxStage::compressor));
+
+    const auto compressorFirst = seqwencer::moveAudioFxStage (
+        defaultFxOrder, seqwencer::AudioFxStage::compressor, 0);
+    expectEqual ("FX routing can move Compressor to the first stage",
+                 static_cast<int> (compressorFirst.front()),
+                 static_cast<int> (seqwencer::AudioFxStage::compressor));
+    expectEqual ("moving Compressor first shifts Gate to the second stage",
+                 static_cast<int> (compressorFirst[1]),
+                 static_cast<int> (seqwencer::AudioFxStage::gate));
+
+    const auto repairedFxOrder = seqwencer::sanitiseAudioFxOrder (
+        std::array<int, seqwencer::audioFxStageCount> {
+            8, 8, -1, 2, 99, 0, 5, 4, 3 });
+    std::array<bool, seqwencer::audioFxStageCount> repairedStages {};
+    for (const auto stage : repairedFxOrder)
+        repairedStages[static_cast<std::size_t> (
+            static_cast<int> (stage))] = true;
+    expectEqual ("invalid saved FX routing is repaired to nine unique stages",
+                 static_cast<int> (std::count (
+                     repairedStages.begin(), repairedStages.end(), true)),
+                 seqwencer::audioFxStageCount);
+
+    seqwencer::Pattern numberedSteps {};
+    for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        numberedSteps[static_cast<std::size_t> (step)] =
+            static_cast<float> (step);
+    const auto nudgedLeft = seqwencer::nudgeStepArray (numberedSteps, -1);
+    const auto nudgedRight = seqwencer::nudgeStepArray (numberedSteps, 1);
+    expectNear ("left nudge moves step two into step one",
+                nudgedLeft.front(), 1.0f);
+    expectNear ("left nudge wraps step one to the end",
+                nudgedLeft.back(), 0.0f);
+    expectNear ("right nudge wraps the final step to step one",
+                nudgedRight.front(),
+                static_cast<float> (seqwencer::stepsPerBank - 1));
+    expectNear ("right nudge moves step one into step two",
+                nudgedRight[1], 0.0f);
+
     expectEqual (
         "HOST SYNC advances when a nested host omits all transport fields",
         seqwencer::hostTimelineShouldAdvance (
@@ -225,6 +277,50 @@ int main()
                  seqwencer::sequenceCycleLength (
                      4, seqwencer::SequenceMode::bounce),
                  6);
+    expectEqual ("Random is the fifth Direction choice",
+                 static_cast<int> (seqwencer::sequenceModeFromChoice (4.0f)),
+                 static_cast<int> (seqwencer::SequenceMode::random));
+    expectEqual ("Played retains its original Direction choice",
+                 static_cast<int> (seqwencer::sequenceModeFromChoice (3.0f)),
+                 static_cast<int> (seqwencer::SequenceMode::played));
+    expectEqual ("four-step Random has eight shuffled passes",
+                 seqwencer::sequenceCycleLength (
+                     4, seqwencer::SequenceMode::random),
+                 32);
+    std::array<bool, 4> firstRandomPass {};
+    auto randomOffsetsAreInRange = true;
+    auto randomPassesDiffer = false;
+    for (int phase = 0; phase < 8; ++phase)
+    {
+        const auto offset = seqwencer::sequencePositionForPhase (
+            static_cast<double> (phase), 4,
+            seqwencer::SequenceMode::random).currentOffset;
+        randomOffsetsAreInRange = randomOffsetsAreInRange
+            && offset >= 0 && offset < 4;
+        if (phase < 4)
+            firstRandomPass[static_cast<std::size_t> (offset)] = true;
+        else
+        {
+            const auto firstPassOffset = seqwencer::sequencePositionForPhase (
+                static_cast<double> (phase - 4), 4,
+                seqwencer::SequenceMode::random).currentOffset;
+            randomPassesDiffer = randomPassesDiffer
+                || offset != firstPassOffset;
+        }
+    }
+    expectEqual ("Random offsets remain inside the selected range",
+                 randomOffsetsAreInRange ? 1 : 0, 1);
+    expectEqual ("each Random pass visits every selected step once",
+                 static_cast<int> (std::count (
+                     firstRandomPass.begin(), firstRandomPass.end(), true)),
+                 4);
+    expectEqual ("successive Random passes use different orders",
+                 randomPassesDiffer ? 1 : 0, 1);
+    expectEqual ("Random traversal is repeatable at the same phase",
+                 seqwencer::sequencePositionForPhase (
+                     19.0, 4, seqwencer::SequenceMode::random).currentOffset,
+                 seqwencer::sequencePositionForPhase (
+                     51.0, 4, seqwencer::SequenceMode::random).currentOffset);
 
     seqwencer::NotePhraseTracker phraseTracker;
     expectEqual ("first played note starts a phrase",
@@ -714,6 +810,42 @@ int main()
     expectEqual ("Compressor Mix target choice restores",
                  static_cast<int> (seqwencer::targetFromChoice (35.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::compressorMix));
+    expectEqual ("Gate Sequencer A Attack target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (36.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::gateSequencerAAttack));
+    expectEqual ("Compressor Sequencer B Release target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (71.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::compressorSequencerBRelease));
+    const auto filterEnvelopeTargets = seqwencer::sequencerEnvelopeTargets (
+        seqwencer::SequencerEngine::filter);
+    expectEqual ("Filter exposes A Attack as its first envelope target",
+                 static_cast<int> (filterEnvelopeTargets[0]),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::filterSequencerAAttack));
+    expectEqual ("Filter exposes B Release as its fourth envelope target",
+                 static_cast<int> (filterEnvelopeTargets[3]),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::filterSequencerBRelease));
+    expectEqual ("an envelope target identifies its owning engine",
+                 static_cast<int> (
+                     seqwencer::sequencerEnvelopeTargetEngine (
+                         seqwencer::ModulationTarget::grainSequencerARelease)),
+                 static_cast<int> (seqwencer::SequencerEngine::grain));
+    expectEqual ("an envelope target identifies Sequencer B",
+                 seqwencer::sequencerEnvelopeTargetBank (
+                     seqwencer::ModulationTarget::pitchSequencerBAttack),
+                 1);
+    expectEqual ("an envelope target distinguishes Attack from Release",
+                 seqwencer::sequencerEnvelopeTargetIsAttack (
+                     seqwencer::ModulationTarget::delaySequencerBRelease)
+                     ? 1 : 0,
+                 0);
+    expectEqual ("PHI has no internal envelope modulation targets",
+                 static_cast<int> (seqwencer::sequencerEnvelopeTargets (
+                     seqwencer::SequencerEngine::phi)[0]),
+                 static_cast<int> (seqwencer::ModulationTarget::none));
     expectEqual ("Gate Volume remains a unipolar destination",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::gateLevel) ? 1 : 0,
@@ -753,6 +885,11 @@ int main()
     expectEqual ("Compressor targets accept bipolar movement",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::compressorThreshold) ? 1 : 0,
+                 1);
+    expectEqual ("Sequencer envelope targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::reverbSequencerBAttack)
+                     ? 1 : 0,
                  1);
     expectNear ("Depth target scales from zero to its knob ceiling",
                 seqwencer::modulatedCeiling (0.8f, 0.25f), 0.2f);

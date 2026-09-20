@@ -42,7 +42,7 @@ pause
 exit /b %BUILD_EXIT_CODE%
 
 :run_build
-title Seqwencer - Stage 3.11.0 Build
+title Seqwencer - v1.3.16.0 Build
 
 set "PROJECT_ROOT=%~dp0"
 set "SOURCE_DIR=%PROJECT_ROOT%source"
@@ -56,7 +56,7 @@ set "BUNDLE_BINARY=%BUILD_DIR%\Seqwencer_artefacts\Release\VST3\Seqwencer.vst3\C
 set "FINAL_PLUGIN=%DIST_DIR%\Seqwencer.vst3"
 
 echo.
-echo Seqwencer 64-bit VST3 - Stage 3.11.0 Build
+echo Seqwencer 64-bit VST3 - v1.3.16.0 Build
 echo ========================================
 echo.
 
@@ -154,7 +154,7 @@ echo.
 echo BUILD SUMMARY
 echo   - PASS: Required tools and source files found
 echo   - PASS: Visual Studio Community 2026 x64 configured
-echo   - PASS: Sequencer timing, Gate, Delay, Reverb, Pan, Filter, Pitch, Distortion, Grain Shifter, Compressor, routing and HOST SYNC tests passed
+echo   - PASS: Sequencer timing, pattern tools, all FX, routing and HOST SYNC tests passed
 echo   - PASS: Release VST3 compiled
 echo   - PASS: Single-file VST3 created
 echo   - PASS: Independent VST3 editor probe passed
@@ -246,7 +246,7 @@ goto :failed
 echo.
 echo BUILD FAILED
 echo   - FAIL: Seqwencer failed the independent VST3 bridge/editor probe
-echo   - FAIL: Probe exit code %PROBE_EXIT_CODE%
+echo   - Probe exit code: %PROBE_EXIT_CODE%
 goto :failed
 
 :build_failed

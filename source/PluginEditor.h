@@ -8,6 +8,7 @@
 
 class SeqwencerAudioProcessorEditor final : public juce::AudioProcessorEditor,
                                             public juce::DragAndDropContainer,
+                                            public juce::DragAndDropTarget,
                                             private juce::Timer
 {
 public:
@@ -21,6 +22,7 @@ private:
     class StepGrid;
     class SeqwencerLookAndFeel;
     class FxSelectorButton;
+    class PatternNudgeControls;
     class ModulationParameterLabel;
     class TargetList;
     class PresetBrowser;
@@ -56,12 +58,25 @@ private:
     void updateLaneColours();
     void applyWaveformPreset (int bank);
     void showPresetBrowser();
+    bool isInterestedInDragSource (
+        const juce::DragAndDropTarget::SourceDetails&) override;
+    void itemDragMove (
+        const juce::DragAndDropTarget::SourceDetails&) override;
+    void itemDragExit (
+        const juce::DragAndDropTarget::SourceDetails&) override;
+    void itemDropped (
+        const juce::DragAndDropTarget::SourceDetails&) override;
+    void updateFxSelectorBounds();
+    FxSelectorButton* buttonForAudioFxStage (
+        seqwencer::AudioFxStage) const noexcept;
 
     SeqwencerAudioProcessor& processor;
     juce::Component content;
     std::unique_ptr<SeqwencerLookAndFeel> lookAndFeel;
     std::unique_ptr<StepGrid> gridA;
     std::unique_ptr<StepGrid> gridB;
+    std::unique_ptr<PatternNudgeControls> nudgeControlsA;
+    std::unique_ptr<PatternNudgeControls> nudgeControlsB;
     std::unique_ptr<FxSelectorButton> gateFxButton;
     std::unique_ptr<FxSelectorButton> delayFxButton;
     std::unique_ptr<FxSelectorButton> reverbFxButton;
@@ -88,6 +103,10 @@ private:
     std::unique_ptr<ModulationParameterLabel> reverbDampingParameterLabel;
     std::unique_ptr<ModulationParameterLabel> reverbWidthParameterLabel;
     std::unique_ptr<ModulationParameterLabel> reverbMixParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> attackAParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> releaseAParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> attackBParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> releaseBParameterLabel;
     std::unique_ptr<ModulationParameterLabel> panPositionParameterLabel;
     std::unique_ptr<ModulationParameterLabel> filterCutoffParameterLabel;
     std::unique_ptr<ModulationParameterLabel> filterResonanceParameterLabel;
@@ -198,10 +217,6 @@ private:
     juce::Label sequenceModeLabel;
     juce::Label startLabel;
     juce::Label endLabel;
-    juce::Label attackALabel;
-    juce::Label releaseALabel;
-    juce::Label attackBLabel;
-    juce::Label releaseBLabel;
     juce::Label laneATitle;
     juce::Label laneBTitle;
     juce::Label colourALabel;
@@ -275,6 +290,9 @@ private:
     bool updatingRangeControls = false;
     SelectedFx selectedFx = SelectedFx::gate;
     SelectedFx boundFx = SelectedFx::gate;
+    seqwencer::AudioFxOrder displayedAudioFxOrder =
+        seqwencer::defaultAudioFxOrder();
+    int fxDropIndex = -1;
     bool bindingsInitialised = false;
     bool lastPhiAvailability = false;
     juce::Colour laneAColour { 0xff34d6c6 };

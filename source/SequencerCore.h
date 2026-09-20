@@ -11,6 +11,17 @@ constexpr int linkedStepCount = 64;
 constexpr int rateChoiceCount = 14;
 using Pattern = std::array<float, stepsPerBank>;
 
+template <typename Value>
+inline std::array<Value, stepsPerBank> nudgeStepArray (
+    std::array<Value, stepsPerBank> values, int direction) noexcept
+{
+    if (direction < 0)
+        std::rotate (values.begin(), values.begin() + 1, values.end());
+    else if (direction > 0)
+        std::rotate (values.rbegin(), values.rbegin() + 1, values.rend());
+    return values;
+}
+
 enum class GateStepMode
 {
     off = 0,
@@ -24,7 +35,8 @@ enum class SequenceMode
     loop = 0,
     bounce = 1,
     reverse = 2,
-    played = 3
+    played = 3,
+    random = 4
 };
 
 enum class SequencerEngine
@@ -40,6 +52,119 @@ enum class SequencerEngine
     grain,
     compressor
 };
+
+inline float combinedTargetHue (float hueA, float hueB) noexcept
+{
+    const auto wrapHue = [] (float hue)
+    {
+        hue = std::fmod (hue, 1.0f);
+        return hue < 0.0f ? hue + 1.0f : hue;
+    };
+    hueA = wrapHue (hueA);
+    hueB = wrapHue (hueB);
+
+    constexpr auto twoPi = 6.28318530717958647692;
+    const auto x = std::cos (static_cast<double> (hueA) * twoPi)
+                 + std::cos (static_cast<double> (hueB) * twoPi);
+    const auto y = std::sin (static_cast<double> (hueA) * twoPi)
+                 + std::sin (static_cast<double> (hueB) * twoPi);
+
+    if (std::hypot (x, y) < 0.00001)
+        return wrapHue (std::min (hueA, hueB) + 0.25f);
+
+    auto midpoint = static_cast<float> (std::atan2 (y, x) / twoPi);
+    midpoint = wrapHue (midpoint);
+    return wrapHue (midpoint + 0.5f);
+}
+
+enum class AudioFxStage
+{
+    gate = 0,
+    delay,
+    reverb,
+    pan,
+    filter,
+    pitch,
+    distortion,
+    grain,
+    compressor
+};
+
+constexpr int audioFxStageCount = 9;
+using AudioFxOrder = std::array<AudioFxStage, audioFxStageCount>;
+
+inline constexpr AudioFxOrder defaultAudioFxOrder() noexcept
+{
+    return { AudioFxStage::gate,
+             AudioFxStage::delay,
+             AudioFxStage::reverb,
+             AudioFxStage::pan,
+             AudioFxStage::filter,
+             AudioFxStage::pitch,
+             AudioFxStage::distortion,
+             AudioFxStage::grain,
+             AudioFxStage::compressor };
+}
+
+inline AudioFxOrder sanitiseAudioFxOrder (
+    const std::array<int, audioFxStageCount>& storedOrder) noexcept
+{
+    AudioFxOrder result {};
+    std::array<bool, audioFxStageCount> used {};
+    auto destination = 0;
+    for (const auto value : storedOrder)
+    {
+        if (value < 0 || value >= audioFxStageCount
+            || used[static_cast<std::size_t> (value)])
+            continue;
+
+        result[static_cast<std::size_t> (destination++)] =
+            static_cast<AudioFxStage> (value);
+        used[static_cast<std::size_t> (value)] = true;
+    }
+
+    for (const auto stage : defaultAudioFxOrder())
+    {
+        const auto value = static_cast<int> (stage);
+        if (! used[static_cast<std::size_t> (value)])
+            result[static_cast<std::size_t> (destination++)] = stage;
+    }
+    return result;
+}
+
+inline AudioFxOrder moveAudioFxStage (AudioFxOrder order,
+                                      AudioFxStage stage,
+                                      int destinationIndex) noexcept
+{
+    auto sourceIndex = -1;
+    for (int index = 0; index < audioFxStageCount; ++index)
+        if (order[static_cast<std::size_t> (index)] == stage)
+            sourceIndex = index;
+
+    if (sourceIndex < 0)
+        return order;
+
+    destinationIndex = std::clamp (
+        destinationIndex, 0, audioFxStageCount - 1);
+    if (sourceIndex == destinationIndex)
+        return order;
+
+    const auto movedStage = order[static_cast<std::size_t> (sourceIndex)];
+    if (sourceIndex < destinationIndex)
+    {
+        for (auto index = sourceIndex; index < destinationIndex; ++index)
+            order[static_cast<std::size_t> (index)] =
+                order[static_cast<std::size_t> (index + 1)];
+    }
+    else
+    {
+        for (auto index = sourceIndex; index > destinationIndex; --index)
+            order[static_cast<std::size_t> (index)] =
+                order[static_cast<std::size_t> (index - 1)];
+    }
+    order[static_cast<std::size_t> (destinationIndex)] = movedStage;
+    return order;
+}
 
 enum class WaveformPreset
 {
@@ -64,7 +189,7 @@ inline SequenceMode sequenceModeFromChoice (float choice) noexcept
     const auto index = std::clamp (
         static_cast<int> (std::lround (choice)),
         static_cast<int> (SequenceMode::loop),
-        static_cast<int> (SequenceMode::played));
+        static_cast<int> (SequenceMode::random));
     return static_cast<SequenceMode> (index);
 }
 
@@ -218,25 +343,164 @@ enum class ModulationTarget
     compressorAttack = 32,
     compressorRelease = 33,
     compressorMakeup = 34,
-    compressorMix = 35
+    compressorMix = 35,
+    gateSequencerAAttack = 36,
+    gateSequencerARelease = 37,
+    gateSequencerBAttack = 38,
+    gateSequencerBRelease = 39,
+    delaySequencerAAttack = 40,
+    delaySequencerARelease = 41,
+    delaySequencerBAttack = 42,
+    delaySequencerBRelease = 43,
+    reverbSequencerAAttack = 44,
+    reverbSequencerARelease = 45,
+    reverbSequencerBAttack = 46,
+    reverbSequencerBRelease = 47,
+    panSequencerAAttack = 48,
+    panSequencerARelease = 49,
+    panSequencerBAttack = 50,
+    panSequencerBRelease = 51,
+    filterSequencerAAttack = 52,
+    filterSequencerARelease = 53,
+    filterSequencerBAttack = 54,
+    filterSequencerBRelease = 55,
+    pitchSequencerAAttack = 56,
+    pitchSequencerARelease = 57,
+    pitchSequencerBAttack = 58,
+    pitchSequencerBRelease = 59,
+    distortionSequencerAAttack = 60,
+    distortionSequencerARelease = 61,
+    distortionSequencerBAttack = 62,
+    distortionSequencerBRelease = 63,
+    grainSequencerAAttack = 64,
+    grainSequencerARelease = 65,
+    grainSequencerBAttack = 66,
+    grainSequencerBRelease = 67,
+    compressorSequencerAAttack = 68,
+    compressorSequencerARelease = 69,
+    compressorSequencerBAttack = 70,
+    compressorSequencerBRelease = 71
 };
 
-constexpr int gateModulationTargetCount = 9;
-constexpr int delayModulationTargetCount = 3;
-constexpr int reverbModulationTargetCount = 4;
-constexpr int panModulationTargetCount = 1;
-constexpr int filterModulationTargetCount = 3;
-constexpr int pitchModulationTargetCount = 2;
-constexpr int distortionModulationTargetCount = 3;
-constexpr int grainModulationTargetCount = 4;
-constexpr int compressorModulationTargetCount = 6;
-constexpr int modulationTargetCount = 35;
+constexpr int sequencerEnvelopeTargetCount = 4;
+constexpr int gateModulationTargetCount = 13;
+constexpr int delayModulationTargetCount = 7;
+constexpr int reverbModulationTargetCount = 8;
+constexpr int panModulationTargetCount = 5;
+constexpr int filterModulationTargetCount = 7;
+constexpr int pitchModulationTargetCount = 6;
+constexpr int distortionModulationTargetCount = 7;
+constexpr int grainModulationTargetCount = 8;
+constexpr int compressorModulationTargetCount = 10;
+constexpr int modulationTargetCount = 71;
+
+inline bool isSequencerEnvelopeTarget (ModulationTarget target) noexcept
+{
+    const auto value = static_cast<int> (target);
+    return value >= static_cast<int> (ModulationTarget::gateSequencerAAttack)
+        && value <= static_cast<int> (
+            ModulationTarget::compressorSequencerBRelease);
+}
+
+inline SequencerEngine sequencerEnvelopeTargetEngine (
+    ModulationTarget target) noexcept
+{
+    if (! isSequencerEnvelopeTarget (target))
+        return SequencerEngine::phi;
+
+    const auto group = (static_cast<int> (target)
+        - static_cast<int> (ModulationTarget::gateSequencerAAttack))
+        / sequencerEnvelopeTargetCount;
+    switch (group)
+    {
+        case 0:  return SequencerEngine::gate;
+        case 1:  return SequencerEngine::delay;
+        case 2:  return SequencerEngine::reverb;
+        case 3:  return SequencerEngine::pan;
+        case 4:  return SequencerEngine::filter;
+        case 5:  return SequencerEngine::pitch;
+        case 6:  return SequencerEngine::distortion;
+        case 7:  return SequencerEngine::grain;
+        case 8:  return SequencerEngine::compressor;
+        default: return SequencerEngine::phi;
+    }
+}
+
+inline int sequencerEnvelopeTargetBank (ModulationTarget target) noexcept
+{
+    if (! isSequencerEnvelopeTarget (target))
+        return -1;
+    const auto offset = (static_cast<int> (target)
+        - static_cast<int> (ModulationTarget::gateSequencerAAttack))
+        % sequencerEnvelopeTargetCount;
+    return offset >= 2 ? 1 : 0;
+}
+
+inline bool sequencerEnvelopeTargetIsAttack (
+    ModulationTarget target) noexcept
+{
+    if (! isSequencerEnvelopeTarget (target))
+        return false;
+    const auto offset = (static_cast<int> (target)
+        - static_cast<int> (ModulationTarget::gateSequencerAAttack))
+        % sequencerEnvelopeTargetCount;
+    return offset == 0 || offset == 2;
+}
+
+inline std::array<ModulationTarget, sequencerEnvelopeTargetCount>
+sequencerEnvelopeTargets (SequencerEngine engine) noexcept
+{
+    auto first = static_cast<int> (ModulationTarget::none);
+    switch (engine)
+    {
+        case SequencerEngine::gate:
+            first = static_cast<int> (ModulationTarget::gateSequencerAAttack);
+            break;
+        case SequencerEngine::delay:
+            first = static_cast<int> (ModulationTarget::delaySequencerAAttack);
+            break;
+        case SequencerEngine::reverb:
+            first = static_cast<int> (ModulationTarget::reverbSequencerAAttack);
+            break;
+        case SequencerEngine::pan:
+            first = static_cast<int> (ModulationTarget::panSequencerAAttack);
+            break;
+        case SequencerEngine::filter:
+            first = static_cast<int> (ModulationTarget::filterSequencerAAttack);
+            break;
+        case SequencerEngine::pitch:
+            first = static_cast<int> (ModulationTarget::pitchSequencerAAttack);
+            break;
+        case SequencerEngine::distortion:
+            first = static_cast<int> (
+                ModulationTarget::distortionSequencerAAttack);
+            break;
+        case SequencerEngine::grain:
+            first = static_cast<int> (ModulationTarget::grainSequencerAAttack);
+            break;
+        case SequencerEngine::compressor:
+            first = static_cast<int> (
+                ModulationTarget::compressorSequencerAAttack);
+            break;
+        case SequencerEngine::phi:
+            break;
+    }
+
+    if (first == static_cast<int> (ModulationTarget::none))
+        return { ModulationTarget::none, ModulationTarget::none,
+                 ModulationTarget::none, ModulationTarget::none };
+    return { static_cast<ModulationTarget> (first),
+             static_cast<ModulationTarget> (first + 1),
+             static_cast<ModulationTarget> (first + 2),
+             static_cast<ModulationTarget> (first + 3) };
+}
 
 inline ModulationTarget targetFromChoice (float choice) noexcept
 {
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
-            && target <= static_cast<int> (ModulationTarget::compressorMix)
+            && target <= static_cast<int> (
+                ModulationTarget::compressorSequencerBRelease)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -251,8 +515,53 @@ inline double wrapPhase (double phase, int length) noexcept
 inline int sequenceCycleLength (int stepCount, SequenceMode mode) noexcept
 {
     stepCount = std::max (1, stepCount);
+    if (mode == SequenceMode::random)
+        return stepCount * 8;
     return mode == SequenceMode::bounce && stepCount > 1
         ? 2 * (stepCount - 1) : stepCount;
+}
+
+inline unsigned randomDirectionHash (unsigned value) noexcept
+{
+    value ^= value >> 16;
+    value *= 0x7feb352dU;
+    value ^= value >> 15;
+    value *= 0x846ca68bU;
+    value ^= value >> 16;
+    return value;
+}
+
+inline int greatestCommonDivisor (int left, int right) noexcept
+{
+    while (right != 0)
+    {
+        const auto remainder = left % right;
+        left = right;
+        right = remainder;
+    }
+    return left;
+}
+
+inline int randomDirectionOffset (int cycleTick, int stepCount) noexcept
+{
+    if (stepCount <= 1)
+        return 0;
+
+    const auto shuffle = cycleTick / stepCount;
+    const auto position = cycleTick % stepCount;
+    const auto seed = randomDirectionHash (
+        static_cast<unsigned> (stepCount * 131 + shuffle * 977));
+    auto stride = 1 + static_cast<int> (seed
+        % static_cast<unsigned> (stepCount - 1));
+    while (greatestCommonDivisor (stride, stepCount) != 1)
+        stride = stride % (stepCount - 1) + 1;
+
+    const auto baseOffset = static_cast<int> (
+        randomDirectionHash (static_cast<unsigned> (stepCount)
+                             ^ 0x9e3779b9U)
+        % static_cast<unsigned> (stepCount));
+    const auto offset = (baseOffset + (shuffle & 1)) % stepCount;
+    return (offset + position * stride) % stepCount;
 }
 
 struct SequencePosition
@@ -278,6 +587,8 @@ inline SequencePosition sequencePositionForPhase (
             return stepCount - 1 - cycleTick;
         if (mode == SequenceMode::bounce && cycleTick >= stepCount)
             return cycleLength - cycleTick;
+        if (mode == SequenceMode::random)
+            return randomDirectionOffset (cycleTick, stepCount);
         return cycleTick;
     };
 
@@ -737,6 +1048,9 @@ inline Pattern makeWaveformPreset (WaveformPreset preset,
 
 inline bool targetSupportsBipolar (ModulationTarget target) noexcept
 {
+    if (isSequencerEnvelopeTarget (target))
+        return true;
+
     switch (target)
     {
         case ModulationTarget::noiseGateThreshold:
@@ -777,8 +1091,9 @@ inline bool targetSupportsBipolar (ModulationTarget target) noexcept
         case ModulationTarget::shortGateLength:
         case ModulationTarget::longGateLength:
             return false;
+        default:
+            return false;
     }
-    return false;
 }
 
 inline float targetValueFromCanonical (float canonicalValue,

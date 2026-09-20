@@ -1,5 +1,7 @@
 # Seqwencer
 
+## Coming soon...
+
 [![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
 
@@ -36,9 +38,18 @@ The current development build includes:
 - Grain Shifter
 - Compressor
 
-The FX rail's next planned upgrade is drag-to-reorder routing so audio can flow
-from top to bottom in a user-selected order such as Gate into Compressor or
-Compressor into Gate.
+## Audio routing
+
+Audio flows through the internal FX from top to bottom in the left rail. Drag
+the body of any Gate-through-Compressor selector up or down to change its
+position in the chain. Its small LED remains the independent on/off control.
+The order can therefore be changed between arrangements such as Gate into
+Compressor and Compressor into Gate without changing either effect's settings.
+
+PHI remains fixed at the bottom and cannot be dragged because it sends parameter
+modulation rather than processing audio inside Seqwencer. The chosen internal
+FX order is stored in DAW projects and portable presets. Older projects and
+presets that contain no routing order use the original Gate-to-Compressor order.
 
 ## Sequencers
 
@@ -47,11 +58,20 @@ Compressor into Gate.
 - Serial mode for one continuous 64-step pattern
 - Unipolar and Bipolar values
 - Independent Rate, Start, End, Direction, Attack and Release for every effect
-- Loop, Bounce, Reverse and Played directions
+- Draggable A/B Attack and Release targets on every internal FX page
+- Loop, Bounce, Reverse, Played and Random directions
 - Straight and triplet rates from 1/128 through 1/1
 - Waveform drawing presets for each lane
+- Right-click bulk menus for step values and Gate modes
+- Independent left/right nudging for step values and Gate modes
 - Per-lane target lists with temporary enable checkboxes and remove buttons
+- Target captions that follow the adjustable A/B lane colours, with a distinct
+  derived colour when a parameter is assigned to both lanes
 - Host synchronisation and note-triggered playback
+
+Random uses repeatable shuffled passes: every selected step is visited once per
+pass, the order changes between passes, and saved projects recall the same
+sequence reliably.
 
 ## Basic use
 
@@ -68,8 +88,23 @@ Compressor into Gate.
 The step shortcuts are:
 
 - Double-click: set that step to 0%
-- Right-click: set that step to +100%
+- Right-click: open Zero, Max, Min, Random, Reset, Copy and Paste for the
+  complete 32-step lane
 - Middle-click: set that step to -100% in Bipolar mode, or 0% in Unipolar mode
+
+`Reset` reloads only the right-clicked lane from the current portable preset;
+all other lanes and controls remain untouched. `Copy` and `Paste` transfer the
+complete lane between any A or B sequencers, including sequencers belonging to
+different FX.
+
+The small `STEPS < >` controls beneath each lane's Attack/Release knobs rotate
+the whole 32-step pattern left or right, including wraparound.
+
+On every internal FX page, the `ATTACK` and `RELEASE` captions are also
+draggable targets. Drag A Attack, A Release, B Attack or B Release into either
+target list to sequence that envelope from lane A, lane B or both. PHI keeps
+plain Attack/Release captions because its modulation destinations are selected
+through PHI's external target browser.
 
 ## Gate modes
 
@@ -82,6 +117,10 @@ Each Gate step has a small mode cell above its value bar:
 
 Short Step covers 10-60% of a step and Long Step covers 65-95%. Their knobs
 change the audio timing without changing the fixed cell symbols.
+
+Right-click any Gate mode cell for Short, Long, Random, Reset, Copy and Paste
+commands covering that complete A or B Gate-mode row. The `GATE < >` controls
+shown only on the Gate page rotate all Gate modes independently of the values.
 
 ## Pan
 
@@ -135,9 +174,8 @@ Sequencing Threshold or Mix can create rhythmic, sidechain-style pumping when
 used with Gate, even though the Compressor does not require an external
 sidechain input. Compressor has independent patterns, timing, range, direction
 and envelopes; disabling it bypasses processing, resets its detector gain and
-pauses its private sequencer. It currently processes after Grain Shifter in the
-fixed FX chain; planned drag-to-reorder routing will make positions such as
-Gate into Compressor and Compressor into Gate selectable.
+pauses its private sequencer. Drag-to-reorder routing allows positions such as
+Gate into Compressor and Compressor into Gate.
 
 ## PHI parameter control
 
@@ -173,6 +211,11 @@ Data/
 `Settings.ini` remembers the editor size and lane colours. Presets store the
 complete state of every internal effect, its sequencers and target assignments.
 Saving over an existing preset requires confirmation.
+
+The A Colour and B Colour knobs also control the colour of any draggable
+parameter caption assigned to that lane. A caption assigned to both lanes uses
+a contrasting colour calculated from the two current lane colours, so dual
+assignments remain visible when either colour knob is changed.
 
 ## Building from source
 

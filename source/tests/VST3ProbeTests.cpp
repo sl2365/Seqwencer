@@ -74,6 +74,71 @@ int main (int argumentCount, char* arguments[])
         return 1;
     }
 
+    const auto processorStateXmlFromHostState = [] (
+        const juce::XmlElement& hostState)
+    {
+        auto* componentState = hostState.getChildByName ("IComponent");
+        if (componentState == nullptr)
+            return std::unique_ptr<juce::XmlElement>();
+
+        juce::MemoryBlock processorState;
+        if (! processorState.fromBase64Encoding (
+                componentState->getAllSubText()))
+            return std::unique_ptr<juce::XmlElement>();
+
+        return juce::AudioProcessor::getXmlFromBinary (
+            processorState.getData(),
+            static_cast<int> (processorState.getSize()));
+    };
+    const auto readAudioFxOrder = [&]() -> juce::String
+    {
+        juce::MemoryBlock state;
+        instance->getStateInformation (state);
+        const auto hostXml = juce::AudioProcessor::getXmlFromBinary (
+            state.getData(), static_cast<int> (state.getSize()));
+        if (hostXml == nullptr)
+            return {};
+        const auto processorXml = processorStateXmlFromHostState (*hostXml);
+        return processorXml != nullptr
+            ? processorXml->getStringAttribute ("audio_fx_order")
+            : juce::String();
+    };
+    const auto setAudioFxOrder = [&] (const juce::String& order)
+    {
+        juce::MemoryBlock state;
+        instance->getStateInformation (state);
+        auto hostXml = juce::AudioProcessor::getXmlFromBinary (
+            state.getData(), static_cast<int> (state.getSize()));
+        if (hostXml == nullptr)
+            return false;
+        auto* componentState = hostXml->getChildByName ("IComponent");
+        auto processorXml = processorStateXmlFromHostState (*hostXml);
+        if (componentState == nullptr || processorXml == nullptr)
+            return false;
+
+        processorXml->setAttribute ("audio_fx_order", order);
+        juce::MemoryBlock updatedProcessorState;
+        juce::AudioProcessor::copyXmlToBinary (
+            *processorXml, updatedProcessorState);
+        componentState->deleteAllChildElements();
+        componentState->addTextElement (
+            updatedProcessorState.toBase64Encoding());
+
+        juce::MemoryBlock updatedState;
+        juce::AudioProcessor::copyXmlToBinary (*hostXml, updatedState);
+        instance->setStateInformation (
+            updatedState.getData(), static_cast<int> (updatedState.getSize()));
+        return true;
+    };
+    const juce::String defaultAudioFxOrder {
+        "Gate,Delay,Reverb,Pan,Filter,Pitch,Distortion,Grain,Compressor" };
+    if (readAudioFxOrder() != defaultAudioFxOrder)
+    {
+        std::cout << "FAIL: the default top-to-bottom FX routing was not stored\n";
+        return 1;
+    }
+    std::cout << "PASS: default FX routing is stored without PHI" << std::endl;
+
     const auto findParameterByName = [&] (const juce::String& name)
         -> juce::AudioProcessorParameter*
     {
@@ -299,6 +364,38 @@ int main (int argumentCount, char* arguments[])
         return 1;
     }
 
+    const std::array<juce::String, 9> internalEngineNames {
+        "Gate", "Delay", "Reverb", "Pan", "Filter", "Pitch",
+        "Distortion", "Grain", "Compressor"
+    };
+    for (const auto& engineName : internalEngineNames)
+    {
+        for (const auto& sourceBank : { juce::String ("A"),
+                                        juce::String ("B") })
+        {
+            for (const auto& destinationBank : { juce::String ("A"),
+                                                 juce::String ("B") })
+            {
+                for (const auto& envelope : { juce::String ("ATTACK"),
+                                               juce::String ("RELEASE") })
+                {
+                    const auto baseName = engineName + " Sequencer "
+                        + sourceBank + " " + destinationBank + " " + envelope
+                        + " Target";
+                    if (findParameterByName (baseName) == nullptr
+                        || findParameterByName (baseName + " Enabled") == nullptr)
+                    {
+                        std::cout << "FAIL: missing sequencer envelope target: "
+                                  << baseName.toStdString() << "\n";
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
+    std::cout << "PASS: every internal FX exposes A/B Attack and Release "
+                 "targets to both sequencers" << std::endl;
+
     bipolarA->setValueNotifyingHost (1.0f);
     bipolarB->setValueNotifyingHost (0.0f);
     if (bipolarA->getValue() < 0.5f || bipolarB->getValue() >= 0.5f)
@@ -334,12 +431,46 @@ int main (int argumentCount, char* arguments[])
         std::cout << "FAIL: adjustable Gate lengths did not restore their defaults\n";
         return 1;
     }
-    if (sequenceMode->getNumSteps() != 4
-        || sequenceMode->getCurrentValueAsText() != "Loop")
+    juce::AudioProcessorParameter* directionParameters[] {
+        sequenceMode, phiSequenceMode, delaySequenceMode,
+        reverbSequenceMode, panSequenceMode, filterSequenceMode,
+        pitchSequenceMode, distortionSequenceMode, grainSequenceMode,
+        compressorSequenceMode
+    };
+    for (auto* directionParameter : directionParameters)
     {
-        std::cout << "FAIL: Direction did not expose Loop, Bounce, Reverse and Played\n";
+        if (directionParameter->getNumSteps() != 5)
+        {
+            std::cout << "FAIL: an FX Direction did not expose all five choices\n";
+            return 1;
+        }
+    }
+    const auto setChoiceIndex = [] (juce::AudioProcessorParameter& parameter,
+                                    int choiceIndex)
+    {
+        const auto finalIndex = juce::jmax (1, parameter.getNumSteps() - 1);
+        parameter.setValueNotifyingHost (
+            static_cast<float> (choiceIndex)
+                / static_cast<float> (finalIndex));
+    };
+    if (sequenceMode->getCurrentValueAsText() != "Loop")
+    {
+        std::cout << "FAIL: Direction did not restore Loop as its default\n";
         return 1;
     }
+    setChoiceIndex (*sequenceMode, 3);
+    if (sequenceMode->getCurrentValueAsText() != "Played")
+    {
+        std::cout << "FAIL: Direction did not preserve Played as its fourth choice\n";
+        return 1;
+    }
+    setChoiceIndex (*sequenceMode, 4);
+    if (sequenceMode->getCurrentValueAsText() != "Random")
+    {
+        std::cout << "FAIL: Direction did not expose Random as its fifth choice\n";
+        return 1;
+    }
+    sequenceMode->setValueNotifyingHost (0.0f);
     if (noiseGateEnabled->getValue() >= 0.5f
         || std::abs (noiseGateRange->getValue() - 1.0f) > 0.001f)
     {
@@ -348,14 +479,14 @@ int main (int argumentCount, char* arguments[])
     }
     if (delayEnabled->getValue() >= 0.5f
         || delayRate->getNumSteps() != seqwencer::rateChoiceCount
-        || delaySequenceMode->getNumSteps() != 4)
+        || delaySequenceMode->getNumSteps() != 5)
     {
         std::cout << "FAIL: Delay did not restore its safe state or complete timing controls\n";
         return 1;
     }
     if (reverbEnabled->getValue() >= 0.5f
         || reverbRate->getNumSteps() != seqwencer::rateChoiceCount
-        || reverbSequenceMode->getNumSteps() != 4)
+        || reverbSequenceMode->getNumSteps() != 5)
     {
         std::cout << "FAIL: Reverb did not restore its safe state or complete timing controls\n";
         return 1;
@@ -364,7 +495,7 @@ int main (int argumentCount, char* arguments[])
         || filterType->getNumSteps() != 5
         || filterType->getCurrentValueAsText() != "Low Pass"
         || filterRate->getNumSteps() != seqwencer::rateChoiceCount
-        || filterSequenceMode->getNumSteps() != 4)
+        || filterSequenceMode->getNumSteps() != 5)
     {
         std::cout << "FAIL: Filter did not restore its safe state or complete controls\n";
         return 1;
@@ -385,7 +516,7 @@ int main (int argumentCount, char* arguments[])
     filterType->setValueNotifyingHost (0.0f);
     if (pitchEnabled->getValue() >= 0.5f
         || pitchRate->getNumSteps() != seqwencer::rateChoiceCount
-        || pitchSequenceMode->getNumSteps() != 4
+        || pitchSequenceMode->getNumSteps() != 5
         || std::abs (pitchShift->getValue() - 0.5f) > 0.001f
         || std::abs (pitchMix->getValue() - 1.0f) > 0.001f)
     {
@@ -396,7 +527,7 @@ int main (int argumentCount, char* arguments[])
         || distortionType->getNumSteps() != 4
         || distortionType->getCurrentValueAsText() != "Soft Clip"
         || distortionRate->getNumSteps() != seqwencer::rateChoiceCount
-        || distortionSequenceMode->getNumSteps() != 4
+        || distortionSequenceMode->getNumSteps() != 5
         || std::abs (distortionTone->getValue() - 1.0f) > 0.001f
         || std::abs (distortionMix->getValue() - 1.0f) > 0.001f)
     {
@@ -419,7 +550,7 @@ int main (int argumentCount, char* arguments[])
     distortionType->setValueNotifyingHost (0.0f);
     if (grainEnabled->getValue() >= 0.5f
         || grainRate->getNumSteps() != seqwencer::rateChoiceCount
-        || grainSequenceMode->getNumSteps() != 4
+        || grainSequenceMode->getNumSteps() != 5
         || std::abs (grainSize->getValue() - grainSize->getDefaultValue())
                > 0.001f
         || std::abs (grainShift->getValue() - grainShift->getDefaultValue())
@@ -434,7 +565,7 @@ int main (int argumentCount, char* arguments[])
     }
     if (compressorEnabled->getValue() >= 0.5f
         || compressorRate->getNumSteps() != seqwencer::rateChoiceCount
-        || compressorSequenceMode->getNumSteps() != 4
+        || compressorSequenceMode->getNumSteps() != 5
         || std::abs (compressorThreshold->getValue()
                      - compressorThreshold->getDefaultValue()) > 0.001f
         || std::abs (compressorRatio->getValue()
@@ -1496,6 +1627,91 @@ int main (int argumentCount, char* arguments[])
     }
     std::cout << "PASS: Compressor applies stereo-linked gain reduction and disables cleanly" << std::endl;
 
+    delayEnabled->setValueNotifyingHost (0.0f);
+    reverbEnabled->setValueNotifyingHost (0.0f);
+    panEnabled->setValueNotifyingHost (0.0f);
+    filterEnabled->setValueNotifyingHost (0.0f);
+    pitchEnabled->setValueNotifyingHost (0.0f);
+    grainEnabled->setValueNotifyingHost (0.0f);
+    compressorEnabled->setValueNotifyingHost (0.0f);
+    noiseGateEnabled->setValueNotifyingHost (0.0f);
+    gateEnabled->setValueNotifyingHost (1.0f);
+    gateVolume->setValueNotifyingHost (0.25f);
+    gateDepth->setValueNotifyingHost (1.0f);
+    sequencerAEnabled->setValueNotifyingHost (1.0f);
+    sequencerBEnabled->setValueNotifyingHost (0.0f);
+    targetA->setValueNotifyingHost (0.0f);
+    attackA->setValueNotifyingHost (0.0f);
+    releaseA->setValueNotifyingHost (0.0f);
+    for (int step = 1; step <= seqwencer::stepsPerBank; ++step)
+    {
+        auto* stepParameter = findParameterByName (
+            "Sequencer A Step " + juce::String (step));
+        auto* modeParameter = findParameterByName (
+            "Sequencer A Gate Mode " + juce::String (step));
+        if (stepParameter == nullptr || modeParameter == nullptr)
+        {
+            std::cout << "FAIL: routing audio test could not configure Gate steps\n";
+            return 1;
+        }
+        stepParameter->setValueNotifyingHost (1.0f);
+        modeParameter->setValueNotifyingHost (1.0f);
+    }
+    distortionType->setValueNotifyingHost (0.0f);
+    distortionDrive->setValueNotifyingHost (24.0f / 36.0f);
+    distortionTone->setValueNotifyingHost (1.0f);
+    distortionMix->setValueNotifyingHost (1.0f);
+    distortionEnabled->setValueNotifyingHost (1.0f);
+
+    const auto measureRoutedOutput = [&]
+    {
+        constexpr int sampleCount = 4800;
+        constexpr int blockSize = 480;
+        juce::AudioBuffer<float> audio (2, sampleCount);
+        for (int channel = 0; channel < audio.getNumChannels(); ++channel)
+            std::fill_n (audio.getWritePointer (channel), sampleCount, 0.40f);
+        instance->prepareToPlay (48000.0, blockSize);
+        for (int offset = 0; offset < sampleCount; offset += blockSize)
+        {
+            juce::AudioBuffer<float> block (
+                audio.getArrayOfWritePointers(), audio.getNumChannels(),
+                offset, std::min (blockSize, sampleCount - offset));
+            juce::MidiBuffer blockMidi;
+            instance->processBlock (block, blockMidi);
+        }
+        instance->releaseResources();
+        return std::abs (audio.getSample (0, sampleCount - 1));
+    };
+
+    if (! setAudioFxOrder (defaultAudioFxOrder))
+    {
+        std::cout << "FAIL: default FX routing state could not be restored\n";
+        return 1;
+    }
+    const auto gateThenDistortion = measureRoutedOutput();
+    const juce::String distortionFirstOrder {
+        "Distortion,Gate,Delay,Reverb,Pan,Filter,Pitch,Grain,Compressor" };
+    if (! setAudioFxOrder (distortionFirstOrder)
+        || readAudioFxOrder() != distortionFirstOrder)
+    {
+        std::cout << "FAIL: reordered FX routing was not retained in plug-in state\n";
+        return 1;
+    }
+    const auto distortionThenGate = measureRoutedOutput();
+    if (gateThenDistortion < 0.75f || distortionThenGate > 0.35f
+        || gateThenDistortion - distortionThenGate < 0.40f)
+    {
+        std::cout << "FAIL: changing Gate/Distortion order did not change the audio chain ("
+                  << gateThenDistortion << " vs " << distortionThenGate << ")\n";
+        return 1;
+    }
+    setAudioFxOrder (defaultAudioFxOrder);
+    gateEnabled->setValueNotifyingHost (0.0f);
+    gateVolume->setValueNotifyingHost (1.0f);
+    targetA->setValueNotifyingHost (1.0f);
+    distortionEnabled->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: saved FX order changes the audible top-to-bottom processing chain" << std::endl;
+
     auto* stepA2 = findParameterByName ("Sequencer A Step 2");
     auto* gateModeA2 = findParameterByName ("Sequencer A Gate Mode 2");
     if (stepA2 == nullptr || gateModeA2 == nullptr)
@@ -1508,7 +1724,7 @@ int main (int argumentCount, char* arguments[])
     phiBridge->setValueNotifyingHost (1.0f);
     phiSequencerAEnabled->setValueNotifyingHost (1.0f);
     phiSequencerBEnabled->setValueNotifyingHost (0.0f);
-    phiSequenceMode->setValueNotifyingHost (2.0f / 3.0f);
+    setChoiceIndex (*phiSequenceMode, 2);
     phiStartStep->setValueNotifyingHost (0.0f);
     phiEndStep->setValueNotifyingHost (0.0f);
     phiRate->setValueNotifyingHost (0.0f);
@@ -1549,7 +1765,7 @@ int main (int argumentCount, char* arguments[])
     phiSequenceMode->setValueNotifyingHost (0.0f);
     std::cout << "PASS: Reverse begins at the selected End step" << std::endl;
 
-    phiSequenceMode->setValueNotifyingHost (1.0f);
+    setChoiceIndex (*phiSequenceMode, 3);
     hostSync->setValueNotifyingHost (0.0f);
     phiAttackA->setValueNotifyingHost (0.0f);
     phiReleaseA->setValueNotifyingHost (0.0f);

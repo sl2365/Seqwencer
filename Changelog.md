@@ -2,6 +2,100 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.16.0 features
+
+- Draggable parameter captions assigned to Sequencer A now use the live colour
+  selected by the A Colour knob instead of the original fixed turquoise
+- Captions assigned to Sequencer B likewise follow the live B Colour setting
+- A caption assigned to both sequencers uses a dynamically calculated third
+  colour based on the current A/B hues
+- The dual-assignment colour is the complement of the circular A/B hue
+  midpoint, keeping it distinguishable even when A and B use the same colour
+- Opposing A/B hues use a stable quarter-turn fallback rather than producing
+  an undefined or flickering midpoint colour
+- The drag handle and clear cross follow the same live assignment colour as
+  the caption
+- Core tests cover identical, wraparound and opposing A/B colour combinations
+
+## v1.3.15.0 features and fixes
+
+- Every internal FX page now exposes its Sequencer A and Sequencer B Attack and
+  Release captions as drag targets
+- Either lane can control A Attack, A Release, B Attack or B Release, including
+  assigning the same envelope control to both lanes
+- Envelope targets follow the same temporary enable, remove, Parallel, Serial,
+  Unipolar and Bipolar behaviour as existing parameter targets
+- PHI Attack and Release remain local controls because PHI targets parameters
+  in its external host rather than Seqwencer's internal FX engines
+- Preset and DAW-state compatibility is preserved by appending the new target
+  IDs after all existing modulation targets
+- Fixed the independent probe's Reverse and Played checks: after Random became
+  the fifth Direction choice, the probe still used normalized fractions from
+  the previous four-choice list and accidentally selected other modes
+- Direction probe choices are now selected by index and parameter step count,
+  so another appended Direction mode cannot silently retarget these checks
+- Core tests cover envelope-target identity, ownership, lane mapping and
+  Bipolar support; the VST3 probe verifies every internal FX exposes all four
+  envelope destinations to both source lanes
+
+## v1.3.14.0 features
+
+- Added Random as a fifth Direction choice for Gate, PHI, Delay, Reverb, Pan,
+  Filter, Pitch, Distortion, Grain Shifter and Compressor
+- Random traverses the selected Start/End range in shuffled passes, visiting
+  every selected step once before beginning the next shuffled pass
+- The shuffled traversal is deterministic so DAW projects and portable presets
+  recall consistently, while each of eight successive passes changes order
+- Existing Direction values remain compatible: Loop, Bounce, Reverse and
+  Played retain their original choice indices
+- Core tests now verify Random range safety, complete shuffled passes and
+  repeatability; the VST3 probe verifies all ten Direction parameters
+
+## Stage 3.13.1 fixes
+
+- Step-pattern Copy/Paste now works between any two sequencers, including A/B
+  lanes belonging to different FX
+- Corrected the independent VST3 probe so it reads and edits Seqwencer's
+  processor state inside JUCE's outer `VST3PluginState` wrapper
+- The routing test now checks the same embedded state that a VST3 host actually
+  saves and restores
+
+## Stage 3.13.0 features and fixes
+
+- Right-clicking a step lane now opens Zero, Max, Min, Random, Reset, Copy and
+  Paste commands for all 32 values in that lane
+- Right-clicking the Gate mode row now opens Short, Long, Random, Reset, Copy
+  and Paste commands for all 32 Gate modes in that lane
+- Copy/Paste transfers the selected FX pattern or Gate-mode row between A and B
+  without changing any other sequencer data
+- Reset reloads only the selected step lane or Gate-mode row from the current
+  portable preset; INITIAL uses the parameter defaults
+- Added `STEPS < >` beneath both lanes for one-step rotation with wraparound
+- Added independent `GATE < >` rotation controls that appear only on the Gate
+  page
+- The plug-in state writer now always injects the saved audio FX order into the
+  emitted state, fixing the independent VST3 routing assertion on hosts that
+  rebuild the initial parameter tree after construction
+- A failed VST3 probe now produces one `FAIL` summary line instead of reporting
+  the same exit condition twice
+- Core tests verify left and right pattern rotation and wraparound
+
+## Stage 3.12.0 features
+
+- Internal FX selectors from Gate through Compressor can be dragged vertically
+  to change the real top-to-bottom audio-processing order
+- The left rail immediately follows the new order while the selected page,
+  enabled states, patterns, controls and effect tails remain intact
+- PHI remains fixed at the bottom and is deliberately excluded from audio-chain
+  routing because it sends modulation to the host rather than processing audio
+- FX order is saved with DAW plug-in state and in a portable preset's new
+  `[Routing]` section
+- Existing DAW projects and older portable presets without routing data retain
+  the original Gate, Delay, Reverb, Pan, Filter, Pitch, Distortion, Grain and
+  Compressor order
+- Core tests verify moving and repairing FX orders; the independent VST3 probe
+  verifies saved routing and an audible Gate/Distortion order change
+
 ## Stage 3.11.0 features
 
 - Added a periwinkle Compressor selector with its own independent A/B
@@ -409,8 +503,8 @@ the final Gate result always stays inside its valid range.
     display and play as 0%. Change back to Bipolar and confirm the exact
     negative pattern returns.
 23. Double-click one step and confirm only that step becomes 0%. Confirm
-    right-click sets one step to +100%, and Bipolar middle-click sets one step
-    to -100%.
+    right-click opens the complete-lane editing menu, and Bipolar middle-click
+    sets one step to -100%.
 24. Save and reopen the PHI project and confirm Gate modes, Rate, ranges,
     polarity, patterns, assignments, checkbox states and the SERIAL profile return.
 25. Resize from a corner and confirm every interface element and mouse area
@@ -535,6 +629,5 @@ the final Gate result always stays inside its valid range.
 
 ## Planned development
 
-The left rail will gain drag-to-reorder routing so the audio-processing order
-can be chosen from top to bottom (for example Gate into Compressor or
-Compressor into Gate).
+Further requested sequencer workflow work includes sequencer Attack/Release
+targets and target-caption colour feedback.

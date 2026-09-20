@@ -99,6 +99,10 @@ public:
     {
         phiTargetBrowserRequestPending.store (true, std::memory_order_release);
     }
+    seqwencer::AudioFxOrder getAudioFxOrder() const noexcept;
+    void setAudioFxOrder (const seqwencer::AudioFxOrder& order);
+    void moveAudioFxStage (seqwencer::AudioFxStage stage,
+                           int destinationIndex);
 
     static juce::String stepParameterID (int bank, int step);
     static juce::String phiStepParameterID (int bank, int step);
@@ -123,6 +127,9 @@ public:
                              juce::String& errorMessage);
     bool loadPortablePreset (const juce::File& file,
                              juce::String& errorMessage);
+    bool restoreSequenceFromCurrentPreset (
+        seqwencer::SequencerEngine engine, int bank,
+        bool gateModesOnly, juce::String& errorMessage);
     void resetToInitialPreset();
     juce::String getCurrentPresetName() const;
 
@@ -156,6 +163,7 @@ private:
                                               bool bipolar) const noexcept;
     seqwencer::GateModePattern readGateModes (int bank) const noexcept;
     void migrateStepStorageIfNeeded();
+    void syncAudioFxOrderFromState();
     void resetFilterProcessor() noexcept;
     float processFilterSample (int channel, float input,
                                float cutoffHz, float resonance,
@@ -388,6 +396,7 @@ private:
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> compressorStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesB {};
+    std::array<std::atomic<int>, seqwencer::audioFxStageCount> audioFxOrder {};
 
     double currentSampleRate = 44100.0;
     double gateFreeRunningPhase = 0.0;
