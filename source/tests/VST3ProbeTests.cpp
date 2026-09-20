@@ -205,6 +205,33 @@ int main (int argumentCount, char* arguments[])
         "Distortion Sequencer A Step 1");
     auto* distortionStepA2 = findParameterByName (
         "Distortion Sequencer A Step 2");
+    auto* grainEnabled = findParameterByName ("Grain Shifter Enabled");
+    auto* grainSize = findParameterByName ("Grain Size");
+    auto* grainShift = findParameterByName ("Grain Shift");
+    auto* grainFeedback = findParameterByName ("Grain Feedback");
+    auto* grainMix = findParameterByName ("Grain Mix");
+    auto* grainRate = findParameterByName ("Grain Rate");
+    auto* grainStartStep = findParameterByName ("Grain Start Step");
+    auto* grainEndStep = findParameterByName ("Grain End Step");
+    auto* grainSequenceMode = findParameterByName ("Grain Direction");
+    auto* grainStepA1 = findParameterByName ("Grain Sequencer A Step 1");
+    auto* grainStepA2 = findParameterByName ("Grain Sequencer A Step 2");
+    auto* compressorEnabled = findParameterByName ("Compressor Enabled");
+    auto* compressorThreshold = findParameterByName ("Compressor Threshold");
+    auto* compressorRatio = findParameterByName ("Compressor Ratio");
+    auto* compressorAttack = findParameterByName ("Compressor Attack");
+    auto* compressorRelease = findParameterByName ("Compressor Release");
+    auto* compressorMakeup = findParameterByName ("Compressor Makeup");
+    auto* compressorMix = findParameterByName ("Compressor Mix");
+    auto* compressorRate = findParameterByName ("Compressor Rate");
+    auto* compressorStartStep = findParameterByName ("Compressor Start Step");
+    auto* compressorEndStep = findParameterByName ("Compressor End Step");
+    auto* compressorSequenceMode = findParameterByName (
+        "Compressor Direction");
+    auto* compressorStepA1 = findParameterByName (
+        "Compressor Sequencer A Step 1");
+    auto* compressorStepA2 = findParameterByName (
+        "Compressor Sequencer A Step 2");
     if (startStep == nullptr || endStep == nullptr || serialProfile == nullptr
         || bipolarA == nullptr || bipolarB == nullptr || rate == nullptr
         || hostSync == nullptr || phiBridge == nullptr
@@ -249,7 +276,19 @@ int main (int argumentCount, char* arguments[])
         || distortionMix == nullptr || distortionRate == nullptr
         || distortionStartStep == nullptr || distortionEndStep == nullptr
         || distortionSequenceMode == nullptr || distortionStepA1 == nullptr
-        || distortionStepA2 == nullptr)
+        || distortionStepA2 == nullptr || grainEnabled == nullptr
+        || grainSize == nullptr || grainShift == nullptr
+        || grainFeedback == nullptr || grainMix == nullptr
+        || grainRate == nullptr || grainStartStep == nullptr
+        || grainEndStep == nullptr || grainSequenceMode == nullptr
+        || grainStepA1 == nullptr || grainStepA2 == nullptr
+        || compressorEnabled == nullptr || compressorThreshold == nullptr
+        || compressorRatio == nullptr || compressorAttack == nullptr
+        || compressorRelease == nullptr || compressorMakeup == nullptr
+        || compressorMix == nullptr || compressorRate == nullptr
+        || compressorStartStep == nullptr || compressorEndStep == nullptr
+        || compressorSequenceMode == nullptr || compressorStepA1 == nullptr
+        || compressorStepA2 == nullptr)
     {
         std::cout << "FAIL: an FX engine parameter was not found\n";
         return 1;
@@ -378,6 +417,40 @@ int main (int argumentCount, char* arguments[])
         }
     }
     distortionType->setValueNotifyingHost (0.0f);
+    if (grainEnabled->getValue() >= 0.5f
+        || grainRate->getNumSteps() != seqwencer::rateChoiceCount
+        || grainSequenceMode->getNumSteps() != 4
+        || std::abs (grainSize->getValue() - grainSize->getDefaultValue())
+               > 0.001f
+        || std::abs (grainShift->getValue() - grainShift->getDefaultValue())
+               > 0.001f
+        || std::abs (grainFeedback->getValue()
+                     - grainFeedback->getDefaultValue()) > 0.001f
+        || std::abs (grainMix->getValue() - grainMix->getDefaultValue())
+               > 0.001f)
+    {
+        std::cout << "FAIL: Grain Shifter did not restore its safe state or complete controls\n";
+        return 1;
+    }
+    if (compressorEnabled->getValue() >= 0.5f
+        || compressorRate->getNumSteps() != seqwencer::rateChoiceCount
+        || compressorSequenceMode->getNumSteps() != 4
+        || std::abs (compressorThreshold->getValue()
+                     - compressorThreshold->getDefaultValue()) > 0.001f
+        || std::abs (compressorRatio->getValue()
+                     - compressorRatio->getDefaultValue()) > 0.001f
+        || std::abs (compressorAttack->getValue()
+                     - compressorAttack->getDefaultValue()) > 0.001f
+        || std::abs (compressorRelease->getValue()
+                     - compressorRelease->getDefaultValue()) > 0.001f
+        || std::abs (compressorMakeup->getValue()
+                     - compressorMakeup->getDefaultValue()) > 0.001f
+        || std::abs (compressorMix->getValue()
+                     - compressorMix->getDefaultValue()) > 0.001f)
+    {
+        std::cout << "FAIL: Compressor did not restore its safe state or complete controls\n";
+        return 1;
+    }
     std::cout << "PASS: all FX engine controls are exposed" << std::endl;
 
     rate->setValueNotifyingHost (5.0f / 13.0f);
@@ -387,12 +460,16 @@ int main (int argumentCount, char* arguments[])
     filterRate->setValueNotifyingHost (8.0f / 13.0f);
     pitchRate->setValueNotifyingHost (1.0f / 13.0f);
     distortionRate->setValueNotifyingHost (12.0f / 13.0f);
+    grainRate->setValueNotifyingHost (10.0f / 13.0f);
+    compressorRate->setValueNotifyingHost (7.0f / 13.0f);
     phiStepA1->setValueNotifyingHost (0.80f);
     delayStepA1->setValueNotifyingHost (0.65f);
     reverbStepA1->setValueNotifyingHost (0.35f);
     filterStepA1->setValueNotifyingHost (0.90f);
     pitchStepA1->setValueNotifyingHost (0.55f);
     distortionStepA1->setValueNotifyingHost (0.45f);
+    grainStepA1->setValueNotifyingHost (0.75f);
+    compressorStepA1->setValueNotifyingHost (0.60f);
     auto* gateStepA1ForIndependence = findParameterByName (
         "Sequencer A Step 1");
     if (gateStepA1ForIndependence == nullptr)
@@ -408,13 +485,17 @@ int main (int argumentCount, char* arguments[])
         || filterRate->getCurrentValueAsText() != "1/8"
         || pitchRate->getCurrentValueAsText() != "1/64T"
         || distortionRate->getCurrentValueAsText() != "1/2"
+        || grainRate->getCurrentValueAsText() != "1/4"
+        || compressorRate->getCurrentValueAsText() != "1/8T"
         || std::abs (gateStepA1ForIndependence->getValue() - 0.20f) > 0.001f
         || std::abs (phiStepA1->getValue() - 0.80f) > 0.001f
         || std::abs (delayStepA1->getValue() - 0.65f) > 0.001f
         || std::abs (reverbStepA1->getValue() - 0.35f) > 0.001f
         || std::abs (filterStepA1->getValue() - 0.90f) > 0.001f
         || std::abs (pitchStepA1->getValue() - 0.55f) > 0.001f
-        || std::abs (distortionStepA1->getValue() - 0.45f) > 0.001f)
+        || std::abs (distortionStepA1->getValue() - 0.45f) > 0.001f
+        || std::abs (grainStepA1->getValue() - 0.75f) > 0.001f
+        || std::abs (compressorStepA1->getValue() - 0.60f) > 0.001f)
     {
         std::cout << "FAIL: FX timing or step data were coupled\n";
         return 1;
@@ -426,6 +507,8 @@ int main (int argumentCount, char* arguments[])
     filterRate->setValueNotifyingHost (6.0f / 13.0f);
     pitchRate->setValueNotifyingHost (6.0f / 13.0f);
     distortionRate->setValueNotifyingHost (6.0f / 13.0f);
+    grainRate->setValueNotifyingHost (6.0f / 13.0f);
+    compressorRate->setValueNotifyingHost (6.0f / 13.0f);
     gateStepA1ForIndependence->setValueNotifyingHost (1.0f);
     phiStepA1->setValueNotifyingHost (1.0f);
     delayStepA1->setValueNotifyingHost (1.0f);
@@ -433,6 +516,8 @@ int main (int argumentCount, char* arguments[])
     filterStepA1->setValueNotifyingHost (1.0f);
     pitchStepA1->setValueNotifyingHost (1.0f);
     distortionStepA1->setValueNotifyingHost (1.0f);
+    grainStepA1->setValueNotifyingHost (1.0f);
+    compressorStepA1->setValueNotifyingHost (1.0f);
     std::cout << "PASS: all FX sequencer engines are independent" << std::endl;
 
     for (const auto* name : {
@@ -603,6 +688,94 @@ int main (int argumentCount, char* arguments[])
     }
     distortionDriveTargetA->setValueNotifyingHost (0.0f);
     std::cout << "PASS: Drive, Tone and Mix expose independent Distortion targets" << std::endl;
+
+    for (const auto* name : {
+             "Grain Sequencer A GRAIN Target",
+             "Grain Sequencer A GRAIN Target Enabled",
+             "Grain Sequencer A SHIFT Target",
+             "Grain Sequencer A SHIFT Target Enabled",
+             "Grain Sequencer A FEEDBACK Target",
+             "Grain Sequencer A FEEDBACK Target Enabled",
+             "Grain Sequencer A MIX Target",
+             "Grain Sequencer A MIX Target Enabled",
+             "Grain Sequencer B GRAIN Target",
+             "Grain Sequencer B GRAIN Target Enabled",
+             "Grain Sequencer B SHIFT Target",
+             "Grain Sequencer B SHIFT Target Enabled",
+             "Grain Sequencer B FEEDBACK Target",
+             "Grain Sequencer B FEEDBACK Target Enabled",
+             "Grain Sequencer B MIX Target",
+             "Grain Sequencer B MIX Target Enabled" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Grain Shifter target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    auto* grainSizeTargetA = findParameterByName (
+        "Grain Sequencer A GRAIN Target");
+    auto* grainSizeTargetB = findParameterByName (
+        "Grain Sequencer B GRAIN Target");
+    grainSizeTargetA->setValueNotifyingHost (1.0f);
+    grainSizeTargetB->setValueNotifyingHost (0.0f);
+    if (grainSizeTargetA->getValue() < 0.5f
+        || grainSizeTargetB->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: assigning Grain Size to A also changed B\n";
+        return 1;
+    }
+    grainSizeTargetA->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: Grain, Shift, Feedback and Mix expose independent Grain Shifter targets" << std::endl;
+
+    for (const auto* name : {
+             "Compressor Sequencer A THRESHOLD Target",
+             "Compressor Sequencer A THRESHOLD Target Enabled",
+             "Compressor Sequencer A RATIO Target",
+             "Compressor Sequencer A RATIO Target Enabled",
+             "Compressor Sequencer A ATTACK Target",
+             "Compressor Sequencer A ATTACK Target Enabled",
+             "Compressor Sequencer A RELEASE Target",
+             "Compressor Sequencer A RELEASE Target Enabled",
+             "Compressor Sequencer A MAKEUP Target",
+             "Compressor Sequencer A MAKEUP Target Enabled",
+             "Compressor Sequencer A MIX Target",
+             "Compressor Sequencer A MIX Target Enabled",
+             "Compressor Sequencer B THRESHOLD Target",
+             "Compressor Sequencer B THRESHOLD Target Enabled",
+             "Compressor Sequencer B RATIO Target",
+             "Compressor Sequencer B RATIO Target Enabled",
+             "Compressor Sequencer B ATTACK Target",
+             "Compressor Sequencer B ATTACK Target Enabled",
+             "Compressor Sequencer B RELEASE Target",
+             "Compressor Sequencer B RELEASE Target Enabled",
+             "Compressor Sequencer B MAKEUP Target",
+             "Compressor Sequencer B MAKEUP Target Enabled",
+             "Compressor Sequencer B MIX Target",
+             "Compressor Sequencer B MIX Target Enabled" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Compressor target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    auto* compressorThresholdTargetA = findParameterByName (
+        "Compressor Sequencer A THRESHOLD Target");
+    auto* compressorThresholdTargetB = findParameterByName (
+        "Compressor Sequencer B THRESHOLD Target");
+    compressorThresholdTargetA->setValueNotifyingHost (1.0f);
+    compressorThresholdTargetB->setValueNotifyingHost (0.0f);
+    if (compressorThresholdTargetA->getValue() < 0.5f
+        || compressorThresholdTargetB->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: assigning Compressor Threshold to A also changed B\n";
+        return 1;
+    }
+    compressorThresholdTargetA->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: Threshold, Ratio, Attack, Release, Makeup and Mix expose independent Compressor targets" << std::endl;
 
     auto* gateEnabled = findParameterByName ("Gate Enabled");
     auto* gateVolume = findParameterByName ("Gate Volume");
@@ -1176,6 +1349,152 @@ int main (int argumentCount, char* arguments[])
         return 1;
     }
     std::cout << "PASS: all Distortion Types, Tone and disabled bypass process correctly" << std::endl;
+
+    grainSize->setValueNotifyingHost ((80.0f - 10.0f) / 240.0f);
+    grainShift->setValueNotifyingHost (0.75f); // +12 semitones.
+    grainFeedback->setValueNotifyingHost (0.0f);
+    grainMix->setValueNotifyingHost (1.0f);
+    grainEnabled->setValueNotifyingHost (1.0f);
+    constexpr int grainTestSampleCount = 48000;
+    constexpr int grainTestBlockSize = 480;
+    juce::AudioBuffer<float> grainAudio (2, grainTestSampleCount);
+    for (int channel = 0; channel < grainAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < grainTestSampleCount; ++sample)
+            grainAudio.setSample (
+                channel, sample, static_cast<float> (
+                    0.25 * std::sin (
+                        juce::MathConstants<double>::twoPi * 440.0
+                        * static_cast<double> (sample) / 48000.0)));
+    instance->prepareToPlay (48000.0, grainTestBlockSize);
+    for (int offset = 0; offset < grainTestSampleCount;
+         offset += grainTestBlockSize)
+    {
+        const auto samplesThisBlock = std::min (
+            grainTestBlockSize, grainTestSampleCount - offset);
+        juce::AudioBuffer<float> grainBlock (
+            grainAudio.getArrayOfWritePointers(),
+            grainAudio.getNumChannels(), offset, samplesThisBlock);
+        juce::MidiBuffer grainMidi;
+        instance->processBlock (grainBlock, grainMidi);
+    }
+    instance->releaseResources();
+
+    auto grainUpwardZeroCrossings = 0;
+    auto previousGrainSample = grainAudio.getSample (
+        0, grainTestSampleCount / 2);
+    for (int sample = grainTestSampleCount / 2 + 1;
+         sample < grainTestSampleCount; ++sample)
+    {
+        const auto currentGrainSample = grainAudio.getSample (0, sample);
+        if (previousGrainSample <= 0.0f && currentGrainSample > 0.0f)
+            ++grainUpwardZeroCrossings;
+        previousGrainSample = currentGrainSample;
+    }
+    if (grainUpwardZeroCrossings < 360 || grainUpwardZeroCrossings > 520)
+    {
+        std::cout << "FAIL: +12 semitone Grain Shift did not approximately double frequency ("
+                  << grainUpwardZeroCrossings << " positive crossings)\n";
+        return 1;
+    }
+
+    grainEnabled->setValueNotifyingHost (0.0f);
+    juce::AudioBuffer<float> bypassedGrainAudio (2, offTestSampleCount);
+    for (int channel = 0; channel < bypassedGrainAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+            bypassedGrainAudio.setSample (
+                channel, sample, (sample & 1) == 0 ? 0.25f : -0.25f);
+    instance->prepareToPlay (48000.0, offTestSampleCount);
+    instance->processBlock (bypassedGrainAudio, midi);
+    instance->releaseResources();
+    auto grainBypassError = 0.0f;
+    for (int channel = 0; channel < bypassedGrainAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+        {
+            const auto expected = (sample & 1) == 0 ? 0.25f : -0.25f;
+            grainBypassError = std::max (
+                grainBypassError,
+                std::abs (bypassedGrainAudio.getSample (channel, sample)
+                          - expected));
+        }
+    if (grainBypassError > 0.00001f)
+    {
+        std::cout << "FAIL: disabled Grain Shifter still altered the audio\n";
+        return 1;
+    }
+    std::cout << "PASS: Grain Shifter transposes by an octave and disables cleanly" << std::endl;
+
+    compressorThreshold->setValueNotifyingHost (0.5f); // -30 dB.
+    compressorRatio->setValueNotifyingHost (1.0f);     // 20:1.
+    compressorAttack->setValueNotifyingHost (0.0f);    // 0.1 ms.
+    compressorRelease->setValueNotifyingHost (
+        (100.0f - 10.0f) / (1000.0f - 10.0f));
+    compressorMakeup->setValueNotifyingHost (0.0f);
+    compressorMix->setValueNotifyingHost (1.0f);
+    compressorEnabled->setValueNotifyingHost (1.0f);
+    constexpr int compressorTestSampleCount = 4800;
+    constexpr int compressorTestBlockSize = 480;
+    juce::AudioBuffer<float> compressorAudio (2, compressorTestSampleCount);
+    std::fill_n (compressorAudio.getWritePointer (0),
+                 compressorTestSampleCount, 0.50f);
+    std::fill_n (compressorAudio.getWritePointer (1),
+                 compressorTestSampleCount, 0.05f);
+    instance->prepareToPlay (48000.0, compressorTestBlockSize);
+    for (int offset = 0; offset < compressorTestSampleCount;
+         offset += compressorTestBlockSize)
+    {
+        const auto samplesThisBlock = std::min (
+            compressorTestBlockSize, compressorTestSampleCount - offset);
+        juce::AudioBuffer<float> compressorBlock (
+            compressorAudio.getArrayOfWritePointers(),
+            compressorAudio.getNumChannels(), offset, samplesThisBlock);
+        juce::MidiBuffer compressorMidi;
+        instance->processBlock (compressorBlock, compressorMidi);
+    }
+    instance->releaseResources();
+
+    const auto compressedLeft = std::abs (
+        compressorAudio.getSample (0, compressorTestSampleCount - 1));
+    const auto compressedRight = std::abs (
+        compressorAudio.getSample (1, compressorTestSampleCount - 1));
+    if (compressedLeft < 0.02f || compressedLeft > 0.06f)
+    {
+        std::cout << "FAIL: Compressor did not apply the expected gain reduction ("
+                  << compressedLeft << ")\n";
+        return 1;
+    }
+    const auto compressedStereoRatio = compressedRight / compressedLeft;
+    if (compressedStereoRatio < 0.08f || compressedStereoRatio > 0.12f)
+    {
+        std::cout << "FAIL: Compressor detector did not preserve stereo linking ("
+                  << compressedStereoRatio << ")\n";
+        return 1;
+    }
+
+    compressorEnabled->setValueNotifyingHost (0.0f);
+    juce::AudioBuffer<float> bypassedCompressorAudio (2, offTestSampleCount);
+    for (int channel = 0; channel < bypassedCompressorAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+            bypassedCompressorAudio.setSample (
+                channel, sample, (sample & 1) == 0 ? 0.25f : -0.25f);
+    instance->prepareToPlay (48000.0, offTestSampleCount);
+    instance->processBlock (bypassedCompressorAudio, midi);
+    instance->releaseResources();
+    auto compressorBypassError = 0.0f;
+    for (int channel = 0; channel < bypassedCompressorAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+        {
+            const auto expected = (sample & 1) == 0 ? 0.25f : -0.25f;
+            compressorBypassError = std::max (
+                compressorBypassError,
+                std::abs (bypassedCompressorAudio.getSample (channel, sample)
+                          - expected));
+        }
+    if (compressorBypassError > 0.00001f)
+    {
+        std::cout << "FAIL: disabled Compressor still altered the audio\n";
+        return 1;
+    }
+    std::cout << "PASS: Compressor applies stereo-linked gain reduction and disables cleanly" << std::endl;
 
     auto* stepA2 = findParameterByName ("Sequencer A Step 2");
     auto* gateModeA2 = findParameterByName ("Sequencer A Gate Mode 2");

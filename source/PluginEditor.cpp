@@ -24,6 +24,8 @@ constexpr auto panAccent = 0xffffc857;
 constexpr auto filterAccent = 0xff50d8a8;
 constexpr auto pitchAccent = 0xff66d9ff;
 constexpr auto distortionAccent = 0xffff684f;
+constexpr auto grainAccent = 0xffa8e063;
+constexpr auto compressorAccent = 0xff8f9cff;
 constexpr auto phiAccent = 0xff68a8ff;
 constexpr auto targetDragPrefix = "seqwencer-target:";
 constexpr int designWidth = 1280;
@@ -88,6 +90,25 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::distortionTone,
     seqwencer::ModulationTarget::distortionMix
 };
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::grainModulationTargetCount> grainTargets {
+    seqwencer::ModulationTarget::grainSize,
+    seqwencer::ModulationTarget::grainShift,
+    seqwencer::ModulationTarget::grainFeedback,
+    seqwencer::ModulationTarget::grainMix
+};
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::compressorModulationTargetCount>
+    compressorTargets {
+        seqwencer::ModulationTarget::compressorThreshold,
+        seqwencer::ModulationTarget::compressorRatio,
+        seqwencer::ModulationTarget::compressorAttack,
+        seqwencer::ModulationTarget::compressorRelease,
+        seqwencer::ModulationTarget::compressorMakeup,
+        seqwencer::ModulationTarget::compressorMix
+    };
 
 juce::String targetDragID (seqwencer::ModulationTarget target)
 {
@@ -421,6 +442,10 @@ public:
                 return "pitch_" + gateID;
             if (newEngine == seqwencer::SequencerEngine::distortion)
                 return "distortion_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::grain)
+                return "grain_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::compressor)
+                return "compressor_" + gateID;
             return gateID;
         };
 
@@ -449,6 +474,12 @@ public:
                         stepBank, stepIndex);
                 if (newEngine == seqwencer::SequencerEngine::distortion)
                     return SeqwencerAudioProcessor::distortionStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::grain)
+                    return SeqwencerAudioProcessor::grainStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::compressor)
+                    return SeqwencerAudioProcessor::compressorStepParameterID (
                         stepBank, stepIndex);
                 return SeqwencerAudioProcessor::stepParameterID (
                     stepBank, stepIndex);
@@ -1879,6 +1910,33 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         processor, seqwencer::ModulationTarget::distortionTone);
     distortionMixParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::distortionMix);
+    grainSizeParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::grainSize);
+    grainShiftParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::grainShift);
+    grainFeedbackParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::grainFeedback, "FDBK");
+    grainMixParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::grainMix);
+    compressorThresholdParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::compressorThreshold,
+            "THRESH");
+    compressorRatioParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::compressorRatio);
+    compressorAttackParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::compressorAttack);
+    compressorReleaseParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::compressorRelease);
+    compressorMakeupParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::compressorMakeup);
+    compressorMixParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::compressorMix);
     targetListA = std::make_unique<TargetList> (
         processor, 0, laneAColour,
         std::vector<seqwencer::ModulationTarget> (
@@ -1937,6 +1995,24 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         std::vector<seqwencer::ModulationTarget> (
             distortionTargets.begin(), distortionTargets.end()),
         "distortion_playback_mode");
+    grainTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            grainTargets.begin(), grainTargets.end()), "grain_playback_mode");
+    grainTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            grainTargets.begin(), grainTargets.end()), "grain_playback_mode");
+    compressorTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            compressorTargets.begin(), compressorTargets.end()),
+        "compressor_playback_mode");
+    compressorTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            compressorTargets.begin(), compressorTargets.end()),
+        "compressor_playback_mode");
     gateFxButton = std::make_unique<FxSelectorButton> (
         "GATE", juce::Colour (gateAccent));
     delayFxButton = std::make_unique<FxSelectorButton> (
@@ -1951,6 +2027,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         "PITCH", juce::Colour (pitchAccent));
     distortionFxButton = std::make_unique<FxSelectorButton> (
         "DIST", juce::Colour (distortionAccent));
+    grainFxButton = std::make_unique<FxSelectorButton> (
+        "GRAIN", juce::Colour (grainAccent));
+    compressorFxButton = std::make_unique<FxSelectorButton> (
+        "COMP", juce::Colour (compressorAccent));
     phiFxButton = std::make_unique<FxSelectorButton> (
         "PHI", juce::Colour (phiAccent));
     content.addAndMakeVisible (*baseParameterLabel);
@@ -1978,6 +2058,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*distortionDriveParameterLabel);
     content.addAndMakeVisible (*distortionToneParameterLabel);
     content.addAndMakeVisible (*distortionMixParameterLabel);
+    content.addAndMakeVisible (*grainSizeParameterLabel);
+    content.addAndMakeVisible (*grainShiftParameterLabel);
+    content.addAndMakeVisible (*grainFeedbackParameterLabel);
+    content.addAndMakeVisible (*grainMixParameterLabel);
+    content.addAndMakeVisible (*compressorThresholdParameterLabel);
+    content.addAndMakeVisible (*compressorRatioParameterLabel);
+    content.addAndMakeVisible (*compressorAttackParameterLabel);
+    content.addAndMakeVisible (*compressorReleaseParameterLabel);
+    content.addAndMakeVisible (*compressorMakeupParameterLabel);
+    content.addAndMakeVisible (*compressorMixParameterLabel);
     content.addAndMakeVisible (*targetListA);
     content.addAndMakeVisible (*targetListB);
     content.addAndMakeVisible (*delayTargetListA);
@@ -1992,6 +2082,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*pitchTargetListB);
     content.addAndMakeVisible (*distortionTargetListA);
     content.addAndMakeVisible (*distortionTargetListB);
+    content.addAndMakeVisible (*grainTargetListA);
+    content.addAndMakeVisible (*grainTargetListB);
+    content.addAndMakeVisible (*compressorTargetListA);
+    content.addAndMakeVisible (*compressorTargetListB);
     content.addAndMakeVisible (*gateFxButton);
     content.addAndMakeVisible (*delayFxButton);
     content.addAndMakeVisible (*reverbFxButton);
@@ -1999,6 +2093,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*filterFxButton);
     content.addAndMakeVisible (*pitchFxButton);
     content.addAndMakeVisible (*distortionFxButton);
+    content.addAndMakeVisible (*grainFxButton);
+    content.addAndMakeVisible (*compressorFxButton);
     content.addAndMakeVisible (*phiFxButton);
     content.addAndMakeVisible (presetsButton);
     presetsButton.setTooltip ("Open the portable Seqwencer preset browser");
@@ -2095,6 +2191,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     distortionFxButton->onClick = [this] {
         selectFx (SelectedFx::distortion);
     };
+    grainFxButton->setTooltip ("Show the Grain Shifter controls");
+    grainFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Grain Shifter effect and its sequencer on or off");
+    grainFxButton->onClick = [this] { selectFx (SelectedFx::grain); };
+    compressorFxButton->setTooltip ("Show the Compressor controls");
+    compressorFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Compressor effect and its sequencer on or off");
+    compressorFxButton->onClick = [this] {
+        selectFx (SelectedFx::compressor);
+    };
     phiFxButton->setTooltip ("Show the PHI integration controls");
     phiFxButton->getEnableButton().setTooltip (
         "Turn Seqwencer's PHI parameter output on or off");
@@ -2149,6 +2255,16 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureKnob (distortionDriveSlider);
     configureKnob (distortionToneSlider);
     configureKnob (distortionMixSlider);
+    configureKnob (grainSizeSlider);
+    configureKnob (grainShiftSlider);
+    configureKnob (grainFeedbackSlider);
+    configureKnob (grainMixSlider);
+    configureKnob (compressorThresholdSlider);
+    configureKnob (compressorRatioSlider);
+    configureKnob (compressorAttackSlider);
+    configureKnob (compressorReleaseSlider);
+    configureKnob (compressorMakeupSlider);
+    configureKnob (compressorMixSlider);
     panPositionSlider.setRange (-1.0, 1.0, 0.001);
     delayTimeSlider.setTextBoxStyle (
         juce::Slider::TextBoxBelow, false, 64, 15);
@@ -2164,6 +2280,14 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     filterResonanceSlider.setRange (0.10, 10.0, 0.001);
     pitchShiftSlider.setRange (-24.0, 24.0, 0.01);
     distortionDriveSlider.setRange (0.0, 36.0, 0.01);
+    grainSizeSlider.setRange (10.0, 250.0, 0.1);
+    grainShiftSlider.setRange (-24.0, 24.0, 0.01);
+    grainFeedbackSlider.setRange (0.0, 0.90, 0.001);
+    compressorThresholdSlider.setRange (-60.0, 0.0, 0.1);
+    compressorRatioSlider.setRange (1.0, 20.0, 0.1);
+    compressorAttackSlider.setRange (0.1, 100.0, 0.1);
+    compressorReleaseSlider.setRange (10.0, 1000.0, 1.0);
+    compressorMakeupSlider.setRange (0.0, 24.0, 0.1);
     shortLengthSlider.setTooltip (
         "Length of every Gate step set to Short (10-60% of one step)");
     longLengthSlider.setTooltip (
@@ -2203,6 +2327,26 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         "Darken or brighten the distorted signal");
     distortionMixSlider.setTooltip (
         "Balance between dry input and distorted signal");
+    grainSizeSlider.setTooltip (
+        "Length of each overlapping grain from 10 to 250 milliseconds");
+    grainShiftSlider.setTooltip (
+        "Transpose the grains from two octaves down to two octaves up");
+    grainFeedbackSlider.setTooltip (
+        "Amount of the shifted grains fed back into the Grain Shifter");
+    grainMixSlider.setTooltip (
+        "Balance between dry input and grain-shifted signal");
+    compressorThresholdSlider.setTooltip (
+        "Level above which the Compressor reduces gain");
+    compressorRatioSlider.setTooltip (
+        "Amount of gain reduction above the Compressor threshold");
+    compressorAttackSlider.setTooltip (
+        "Time taken for the Compressor to apply gain reduction");
+    compressorReleaseSlider.setTooltip (
+        "Time taken for the Compressor gain to recover");
+    compressorMakeupSlider.setTooltip (
+        "Output gain added after compression");
+    compressorMixSlider.setTooltip (
+        "Balance between dry input and compressed signal");
     configureKnob (attackASlider);
     configureKnob (releaseASlider);
     configureKnob (attackBSlider);
@@ -2274,6 +2418,19 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         slider->setColour (juce::Slider::rotarySliderFillColourId,
                            juce::Colour (distortionAccent));
     }
+    for (auto* slider : { &grainSizeSlider, &grainShiftSlider,
+                          &grainFeedbackSlider, &grainMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (grainAccent));
+    }
+    for (auto* slider : { &compressorThresholdSlider, &compressorRatioSlider,
+                          &compressorAttackSlider, &compressorReleaseSlider,
+                          &compressorMakeupSlider, &compressorMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (compressorAccent));
+    }
     attackASlider.setColour (juce::Slider::rotarySliderFillColourId,
                              laneAColour);
     releaseASlider.setColour (juce::Slider::rotarySliderFillColourId,
@@ -2324,6 +2481,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "pitch_enabled", pitchFxButton->getEnableButton());
     distortionAttachment = std::make_unique<ButtonAttachment> (
         state, "distortion_enabled", distortionFxButton->getEnableButton());
+    grainAttachment = std::make_unique<ButtonAttachment> (
+        state, "grain_enabled", grainFxButton->getEnableButton());
+    compressorAttachment = std::make_unique<ButtonAttachment> (
+        state, "compressor_enabled", compressorFxButton->getEnableButton());
     phiBridgeAttachment = std::make_unique<ButtonAttachment> (
         state, "phi_bridge_enabled", phiFxButton->getEnableButton());
     noiseGateAttachment = std::make_unique<ButtonAttachment> (
@@ -2382,6 +2543,26 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "distortion_tone", distortionToneSlider);
     distortionMixAttachment = std::make_unique<SliderAttachment> (
         state, "distortion_mix", distortionMixSlider);
+    grainSizeAttachment = std::make_unique<SliderAttachment> (
+        state, "grain_size", grainSizeSlider);
+    grainShiftAttachment = std::make_unique<SliderAttachment> (
+        state, "grain_shift", grainShiftSlider);
+    grainFeedbackAttachment = std::make_unique<SliderAttachment> (
+        state, "grain_feedback", grainFeedbackSlider);
+    grainMixAttachment = std::make_unique<SliderAttachment> (
+        state, "grain_mix", grainMixSlider);
+    compressorThresholdAttachment = std::make_unique<SliderAttachment> (
+        state, "compressor_threshold", compressorThresholdSlider);
+    compressorRatioAttachment = std::make_unique<SliderAttachment> (
+        state, "compressor_ratio", compressorRatioSlider);
+    compressorAttackAttachment = std::make_unique<SliderAttachment> (
+        state, "compressor_attack", compressorAttackSlider);
+    compressorReleaseAttachment = std::make_unique<SliderAttachment> (
+        state, "compressor_release", compressorReleaseSlider);
+    compressorMakeupAttachment = std::make_unique<SliderAttachment> (
+        state, "compressor_makeup", compressorMakeupSlider);
+    compressorMixAttachment = std::make_unique<SliderAttachment> (
+        state, "compressor_mix", compressorMixSlider);
     panPositionSlider.textFromValueFunction = [] (double value)
     {
         if (std::abs (value) < 0.0005)
@@ -2409,6 +2590,41 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     distortionDriveSlider.textFromValueFunction = [] (double value)
     {
         return juce::String (value, 2) + " dB";
+    };
+    grainSizeSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, value < 100.0 ? 1 : 0) + " ms";
+    };
+    grainShiftSlider.textFromValueFunction = [] (double value)
+    {
+        if (std::abs (value) < 0.005)
+            return juce::String ("0.00 st");
+        return juce::String (value > 0.0 ? "+" : "")
+             + juce::String (value, 2) + " st";
+    };
+    grainFeedbackSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (std::lround (value * 100.0)) + "%";
+    };
+    compressorThresholdSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, 1) + " dB";
+    };
+    compressorRatioSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, 1) + ":1";
+    };
+    compressorAttackSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, 1) + " ms";
+    };
+    compressorReleaseSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, 0) + " ms";
+    };
+    compressorMakeupSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, 1) + " dB";
     };
     const auto gateLengthText = [] (double value)
     {
@@ -2694,6 +2910,10 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
             return "pitch_" + gateID;
         if (selectedFx == SelectedFx::distortion)
             return "distortion_" + gateID;
+        if (selectedFx == SelectedFx::grain)
+            return "grain_" + gateID;
+        if (selectedFx == SelectedFx::compressor)
+            return "compressor_" + gateID;
         return gateID;
     };
 
@@ -2743,6 +2963,10 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
                 ? seqwencer::SequencerEngine::pitch
             : selectedFx == SelectedFx::distortion
                 ? seqwencer::SequencerEngine::distortion
+            : selectedFx == SelectedFx::grain
+                ? seqwencer::SequencerEngine::grain
+            : selectedFx == SelectedFx::compressor
+                ? seqwencer::SequencerEngine::compressor
                 : seqwencer::SequencerEngine::gate;
     gridA->setEngine (engine);
     gridB->setEngine (engine);
@@ -2769,6 +2993,8 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     const auto filterSelected = selectedFx == SelectedFx::filter;
     const auto pitchSelected = selectedFx == SelectedFx::pitch;
     const auto distortionSelected = selectedFx == SelectedFx::distortion;
+    const auto grainSelected = selectedFx == SelectedFx::grain;
+    const auto compressorSelected = selectedFx == SelectedFx::compressor;
     const auto phiSelected = selectedFx == SelectedFx::phi;
     gateFxButton->setSelected (gateSelected);
     delayFxButton->setSelected (delaySelected);
@@ -2777,6 +3003,8 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     filterFxButton->setSelected (filterSelected);
     pitchFxButton->setSelected (pitchSelected);
     distortionFxButton->setSelected (distortionSelected);
+    grainFxButton->setSelected (grainSelected);
+    compressorFxButton->setSelected (compressorSelected);
     phiFxButton->setSelected (phiSelected);
     phiFxButton->setVisible (phiAvailable);
 
@@ -2849,6 +3077,30 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     distortionMixSlider.setVisible (distortionSelected);
     distortionTargetListA->setVisible (distortionSelected);
     distortionTargetListB->setVisible (distortionSelected);
+    grainSizeParameterLabel->setVisible (grainSelected);
+    grainSizeSlider.setVisible (grainSelected);
+    grainShiftParameterLabel->setVisible (grainSelected);
+    grainShiftSlider.setVisible (grainSelected);
+    grainFeedbackParameterLabel->setVisible (grainSelected);
+    grainFeedbackSlider.setVisible (grainSelected);
+    grainMixParameterLabel->setVisible (grainSelected);
+    grainMixSlider.setVisible (grainSelected);
+    grainTargetListA->setVisible (grainSelected);
+    grainTargetListB->setVisible (grainSelected);
+    compressorThresholdParameterLabel->setVisible (compressorSelected);
+    compressorThresholdSlider.setVisible (compressorSelected);
+    compressorRatioParameterLabel->setVisible (compressorSelected);
+    compressorRatioSlider.setVisible (compressorSelected);
+    compressorAttackParameterLabel->setVisible (compressorSelected);
+    compressorAttackSlider.setVisible (compressorSelected);
+    compressorReleaseParameterLabel->setVisible (compressorSelected);
+    compressorReleaseSlider.setVisible (compressorSelected);
+    compressorMakeupParameterLabel->setVisible (compressorSelected);
+    compressorMakeupSlider.setVisible (compressorSelected);
+    compressorMixParameterLabel->setVisible (compressorSelected);
+    compressorMixSlider.setVisible (compressorSelected);
+    compressorTargetListA->setVisible (compressorSelected);
+    compressorTargetListB->setVisible (compressorSelected);
     phiTargetButton.setVisible (phiAvailable && phiSelected);
 
     const auto laneColour = juce::Colour (gateSelected ? gateAccent
@@ -2857,14 +3109,18 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
         : panSelected ? panAccent
         : filterSelected ? filterAccent
         : pitchSelected ? pitchAccent
-        : distortionSelected ? distortionAccent : phiAccent);
+        : distortionSelected ? distortionAccent
+        : grainSelected ? grainAccent
+        : compressorSelected ? compressorAccent : phiAccent);
     const juce::String fxName = gateSelected ? "GATE"
                               : delaySelected ? "DELAY"
                               : reverbSelected ? "REVERB"
                               : panSelected ? "PAN"
                               : filterSelected ? "FILTER"
                               : pitchSelected ? "PITCH"
-                              : distortionSelected ? "DISTORTION" : "PHI";
+                              : distortionSelected ? "DISTORTION"
+                              : grainSelected ? "GRAIN"
+                              : compressorSelected ? "COMPRESSOR" : "PHI";
     laneATitle.setText (fxName + " A",
                         juce::dontSendNotification);
     laneBTitle.setText (fxName + " B",
@@ -2935,6 +3191,28 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
                                laneColour);
         }
     }
+    else if (grainSelected)
+    {
+        for (auto* slider : { &grainSizeSlider, &grainShiftSlider,
+                              &grainFeedbackSlider, &grainMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
+    else if (compressorSelected)
+    {
+        for (auto* slider : { &compressorThresholdSlider,
+                              &compressorRatioSlider,
+                              &compressorAttackSlider,
+                              &compressorReleaseSlider,
+                              &compressorMakeupSlider,
+                              &compressorMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
 
     if (lastPhiAvailability != phiAvailable)
     {
@@ -2966,6 +3244,10 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
     pitchTargetListB->setAccentColour (laneBColour);
     distortionTargetListA->setAccentColour (laneAColour);
     distortionTargetListB->setAccentColour (laneBColour);
+    grainTargetListA->setAccentColour (laneAColour);
+    grainTargetListB->setAccentColour (laneBColour);
+    compressorTargetListA->setAccentColour (laneAColour);
+    compressorTargetListB->setAccentColour (laneBColour);
 
     for (auto* button : { &enableAButton, &bipolarAButton })
         button->setColour (juce::ToggleButton::tickColourId, laneAColour);
@@ -3016,6 +3298,8 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
             : selectedFx == SelectedFx::filter ? "filter_enabled"
             : selectedFx == SelectedFx::pitch ? "pitch_enabled"
             : selectedFx == SelectedFx::distortion ? "distortion_enabled"
+            : selectedFx == SelectedFx::grain ? "grain_enabled"
+            : selectedFx == SelectedFx::compressor ? "compressor_enabled"
                                                : "phi_bridge_enabled");
     auto* noiseGateEnabledParameter =
         processor.getParameterState().getParameter ("noise_gate_enabled");
@@ -3086,6 +3370,26 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     distortionToneSlider.setAlpha (gateControlsAlpha);
     distortionMixParameterLabel->setAlpha (gateControlsAlpha);
     distortionMixSlider.setAlpha (gateControlsAlpha);
+    grainSizeParameterLabel->setAlpha (gateControlsAlpha);
+    grainSizeSlider.setAlpha (gateControlsAlpha);
+    grainShiftParameterLabel->setAlpha (gateControlsAlpha);
+    grainShiftSlider.setAlpha (gateControlsAlpha);
+    grainFeedbackParameterLabel->setAlpha (gateControlsAlpha);
+    grainFeedbackSlider.setAlpha (gateControlsAlpha);
+    grainMixParameterLabel->setAlpha (gateControlsAlpha);
+    grainMixSlider.setAlpha (gateControlsAlpha);
+    compressorThresholdParameterLabel->setAlpha (gateControlsAlpha);
+    compressorThresholdSlider.setAlpha (gateControlsAlpha);
+    compressorRatioParameterLabel->setAlpha (gateControlsAlpha);
+    compressorRatioSlider.setAlpha (gateControlsAlpha);
+    compressorAttackParameterLabel->setAlpha (gateControlsAlpha);
+    compressorAttackSlider.setAlpha (gateControlsAlpha);
+    compressorReleaseParameterLabel->setAlpha (gateControlsAlpha);
+    compressorReleaseSlider.setAlpha (gateControlsAlpha);
+    compressorMakeupParameterLabel->setAlpha (gateControlsAlpha);
+    compressorMakeupSlider.setAlpha (gateControlsAlpha);
+    compressorMixParameterLabel->setAlpha (gateControlsAlpha);
+    compressorMixSlider.setAlpha (gateControlsAlpha);
 
     enableAButton.setEnabled (true);
     enableBButton.setEnabled (true);
@@ -3126,6 +3430,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         pitchTargetListB->setAlpha (gateControlsAlpha);
         distortionTargetListA->setAlpha (gateControlsAlpha);
         distortionTargetListB->setAlpha (gateControlsAlpha);
+        grainTargetListA->setAlpha (gateControlsAlpha);
+        grainTargetListB->setAlpha (gateControlsAlpha);
+        compressorTargetListA->setAlpha (gateControlsAlpha);
+        compressorTargetListB->setAlpha (gateControlsAlpha);
         setControlAlpha (gateControlsAlpha * (profileB ? 0.30f : 1.0f),
                          attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
@@ -3163,6 +3471,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         pitchTargetListB->setAlpha (alphaB);
         distortionTargetListA->setAlpha (alphaA);
         distortionTargetListB->setAlpha (alphaB);
+        grainTargetListA->setAlpha (alphaA);
+        grainTargetListB->setAlpha (alphaB);
+        compressorTargetListA->setAlpha (alphaA);
+        compressorTargetListB->setAlpha (alphaB);
         setControlAlpha (alphaA, attackASlider, attackALabel,
                          releaseASlider, releaseALabel);
         setControlAlpha (alphaB, attackBSlider, attackBLabel,
@@ -3204,7 +3516,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.9.1",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  STAGE 3.11.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -3237,7 +3549,11 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                            : selectedFx == SelectedFx::pitch
                                ? "PITCH CONTROLS"
                            : selectedFx == SelectedFx::distortion
-                               ? "DISTORTION CONTROLS" : "PHI CONTROLS",
+                               ? "DISTORTION CONTROLS"
+                           : selectedFx == SelectedFx::grain
+                               ? "GRAIN CONTROLS"
+                           : selectedFx == SelectedFx::compressor
+                               ? "COMPRESSOR CONTROLS" : "PHI CONTROLS",
                        20, static_cast<int> (bottomPanelY) + 8,
                        92, 15, juce::Justification::centredLeft, false);
 
@@ -3279,7 +3595,11 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                 : selectedFx == SelectedFx::filter ? filterAccent
                 : selectedFx == SelectedFx::pitch ? pitchAccent
                 : selectedFx == SelectedFx::distortion
-                    ? distortionAccent : phiAccent);
+                    ? distortionAccent
+                : selectedFx == SelectedFx::grain
+                    ? grainAccent
+                : selectedFx == SelectedFx::compressor
+                    ? compressorAccent : phiAccent);
         graphics.setColour (moduleAccent.withAlpha (outlineAlpha));
         graphics.drawRoundedRectangle (bounds, 8.0f, 1.2f);
     }
@@ -3317,7 +3637,9 @@ void SeqwencerAudioProcessorEditor::resized()
     filterFxButton->setBounds (20, 338, 74, 31);
     pitchFxButton->setBounds (20, 377, 74, 31);
     distortionFxButton->setBounds (20, 416, 74, 31);
-    phiFxButton->setBounds (20, 455, 74, 31);
+    grainFxButton->setBounds (20, 455, 74, 31);
+    compressorFxButton->setBounds (20, 494, 74, 31);
+    phiFxButton->setBounds (20, 533, 74, 31);
     modeBox.setBounds (20, bottomPanelY + 28, 92, 28);
     rateLabel.setBounds (122, bottomPanelY + 4, 64, 14);
     rateSlider.setBounds (122, bottomPanelY + 15, 64, 59);
@@ -3395,6 +3717,33 @@ void SeqwencerAudioProcessorEditor::resized()
         744, bottomPanelY + 4, 88, 14);
     distortionMixSlider.setBounds (756, bottomPanelY + 15, 64, 59);
 
+    grainSizeParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
+    grainSizeSlider.setBounds (448, bottomPanelY + 15, 64, 59);
+    grainShiftParameterLabel->setBounds (526, bottomPanelY + 4, 88, 14);
+    grainShiftSlider.setBounds (538, bottomPanelY + 15, 64, 59);
+    grainFeedbackParameterLabel->setBounds (
+        616, bottomPanelY + 4, 88, 14);
+    grainFeedbackSlider.setBounds (628, bottomPanelY + 15, 64, 59);
+    grainMixParameterLabel->setBounds (706, bottomPanelY + 4, 88, 14);
+    grainMixSlider.setBounds (718, bottomPanelY + 15, 64, 59);
+
+    compressorThresholdParameterLabel->setBounds (
+        434, bottomPanelY + 4, 76, 14);
+    compressorThresholdSlider.setBounds (440, bottomPanelY + 15, 64, 59);
+    compressorRatioParameterLabel->setBounds (520, bottomPanelY + 4, 76, 14);
+    compressorRatioSlider.setBounds (526, bottomPanelY + 15, 64, 59);
+    compressorAttackParameterLabel->setBounds (
+        606, bottomPanelY + 4, 76, 14);
+    compressorAttackSlider.setBounds (612, bottomPanelY + 15, 64, 59);
+    compressorReleaseParameterLabel->setBounds (
+        692, bottomPanelY + 4, 76, 14);
+    compressorReleaseSlider.setBounds (698, bottomPanelY + 15, 64, 59);
+    compressorMakeupParameterLabel->setBounds (
+        778, bottomPanelY + 4, 76, 14);
+    compressorMakeupSlider.setBounds (784, bottomPanelY + 15, 64, 59);
+    compressorMixParameterLabel->setBounds (864, bottomPanelY + 4, 76, 14);
+    compressorMixSlider.setBounds (870, bottomPanelY + 15, 64, 59);
+
     constexpr int laneTop = 150;
     constexpr int laneGap = 10;
     const auto laneAreaBottom = bottomPanelY - laneGap;
@@ -3436,10 +3785,13 @@ void SeqwencerAudioProcessorEditor::resized()
         const auto filterSelected = selectedFx == SelectedFx::filter;
         const auto pitchSelected = selectedFx == SelectedFx::pitch;
         const auto distortionSelected = selectedFx == SelectedFx::distortion;
+        const auto grainSelected = selectedFx == SelectedFx::grain;
+        const auto compressorSelected = selectedFx == SelectedFx::compressor;
         const auto hasInternalTargets = gateSelected || delaySelected
                                      || reverbSelected || panSelected
                                      || filterSelected || pitchSelected
-                                     || distortionSelected;
+                                     || distortionSelected || grainSelected
+                                     || compressorSelected;
         const auto targetX = hasInternalTargets
             ? designWidth - 10 - innerMargin - targetWidth
             : designWidth - 10 - innerMargin;
@@ -3456,6 +3808,10 @@ void SeqwencerAudioProcessorEditor::resized()
             ? *pitchTargetListA : *pitchTargetListB;
         auto& selectedDistortionTargetList = lane == 0
             ? *distortionTargetListA : *distortionTargetListB;
+        auto& selectedGrainTargetList = lane == 0
+            ? *grainTargetListA : *grainTargetListB;
+        auto& selectedCompressorTargetList = lane == 0
+            ? *compressorTargetListA : *compressorTargetListB;
         gateTargetList.setBounds (targetX, y + innerMargin,
                                   gateSelected ? targetWidth : 0,
                                   laneHeight - 2 * innerMargin);
@@ -3477,6 +3833,14 @@ void SeqwencerAudioProcessorEditor::resized()
         selectedDistortionTargetList.setBounds (
             targetX, y + innerMargin,
             distortionSelected ? targetWidth : 0,
+            laneHeight - 2 * innerMargin);
+        selectedGrainTargetList.setBounds (
+            targetX, y + innerMargin,
+            grainSelected ? targetWidth : 0,
+            laneHeight - 2 * innerMargin);
+        selectedCompressorTargetList.setBounds (
+            targetX, y + innerMargin,
+            compressorSelected ? targetWidth : 0,
             laneHeight - 2 * innerMargin);
         const auto gridX = laneX + controlsWidth + innerMargin;
         grid.setBounds (gridX, y + innerMargin,
@@ -3520,6 +3884,16 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     distortionDriveParameterLabel->repaint();
     distortionToneParameterLabel->repaint();
     distortionMixParameterLabel->repaint();
+    grainSizeParameterLabel->repaint();
+    grainShiftParameterLabel->repaint();
+    grainFeedbackParameterLabel->repaint();
+    grainMixParameterLabel->repaint();
+    compressorThresholdParameterLabel->repaint();
+    compressorRatioParameterLabel->repaint();
+    compressorAttackParameterLabel->repaint();
+    compressorReleaseParameterLabel->repaint();
+    compressorMakeupParameterLabel->repaint();
+    compressorMixParameterLabel->repaint();
     targetListA->refresh();
     targetListB->refresh();
     delayTargetListA->refresh();
@@ -3534,6 +3908,10 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     pitchTargetListB->refresh();
     distortionTargetListA->refresh();
     distortionTargetListB->refresh();
+    grainTargetListA->refresh();
+    grainTargetListB->refresh();
+    compressorTargetListA->refresh();
+    compressorTargetListB->refresh();
     gridA->repaint();
     gridB->repaint();
 }

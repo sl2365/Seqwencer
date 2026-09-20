@@ -34,6 +34,8 @@ private:
         filter,
         pitch,
         distortion,
+        grain,
+        compressor,
         phi
     };
 
@@ -67,6 +69,8 @@ private:
     std::unique_ptr<FxSelectorButton> filterFxButton;
     std::unique_ptr<FxSelectorButton> pitchFxButton;
     std::unique_ptr<FxSelectorButton> distortionFxButton;
+    std::unique_ptr<FxSelectorButton> grainFxButton;
+    std::unique_ptr<FxSelectorButton> compressorFxButton;
     std::unique_ptr<FxSelectorButton> phiFxButton;
     std::unique_ptr<ModulationParameterLabel> baseParameterLabel;
     std::unique_ptr<ModulationParameterLabel> depthParameterLabel;
@@ -93,6 +97,16 @@ private:
     std::unique_ptr<ModulationParameterLabel> distortionDriveParameterLabel;
     std::unique_ptr<ModulationParameterLabel> distortionToneParameterLabel;
     std::unique_ptr<ModulationParameterLabel> distortionMixParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> grainSizeParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> grainShiftParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> grainFeedbackParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> grainMixParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> compressorThresholdParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> compressorRatioParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> compressorAttackParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> compressorReleaseParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> compressorMakeupParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> compressorMixParameterLabel;
     std::unique_ptr<TargetList> targetListA;
     std::unique_ptr<TargetList> targetListB;
     std::unique_ptr<TargetList> delayTargetListA;
@@ -107,6 +121,10 @@ private:
     std::unique_ptr<TargetList> pitchTargetListB;
     std::unique_ptr<TargetList> distortionTargetListA;
     std::unique_ptr<TargetList> distortionTargetListB;
+    std::unique_ptr<TargetList> grainTargetListA;
+    std::unique_ptr<TargetList> grainTargetListB;
+    std::unique_ptr<TargetList> compressorTargetListA;
+    std::unique_ptr<TargetList> compressorTargetListB;
     juce::Component::SafePointer<juce::DialogWindow> presetWindow;
     juce::RangedAudioParameter* seqAEnabledParameter = nullptr;
     juce::RangedAudioParameter* seqBEnabledParameter = nullptr;
@@ -159,6 +177,16 @@ private:
     juce::Slider distortionDriveSlider;
     juce::Slider distortionToneSlider;
     juce::Slider distortionMixSlider;
+    juce::Slider grainSizeSlider;
+    juce::Slider grainShiftSlider;
+    juce::Slider grainFeedbackSlider;
+    juce::Slider grainMixSlider;
+    juce::Slider compressorThresholdSlider;
+    juce::Slider compressorRatioSlider;
+    juce::Slider compressorAttackSlider;
+    juce::Slider compressorReleaseSlider;
+    juce::Slider compressorMakeupSlider;
+    juce::Slider compressorMixSlider;
     juce::Slider attackASlider;
     juce::Slider releaseASlider;
     juce::Slider attackBSlider;
@@ -196,6 +224,8 @@ private:
     std::unique_ptr<ButtonAttachment> filterAttachment;
     std::unique_ptr<ButtonAttachment> pitchAttachment;
     std::unique_ptr<ButtonAttachment> distortionAttachment;
+    std::unique_ptr<ButtonAttachment> grainAttachment;
+    std::unique_ptr<ButtonAttachment> compressorAttachment;
     std::unique_ptr<ButtonAttachment> phiBridgeAttachment;
     std::unique_ptr<ButtonAttachment> noiseGateAttachment;
     std::unique_ptr<ComboAttachment> modeAttachment;
@@ -228,6 +258,16 @@ private:
     std::unique_ptr<SliderAttachment> distortionDriveAttachment;
     std::unique_ptr<SliderAttachment> distortionToneAttachment;
     std::unique_ptr<SliderAttachment> distortionMixAttachment;
+    std::unique_ptr<SliderAttachment> grainSizeAttachment;
+    std::unique_ptr<SliderAttachment> grainShiftAttachment;
+    std::unique_ptr<SliderAttachment> grainFeedbackAttachment;
+    std::unique_ptr<SliderAttachment> grainMixAttachment;
+    std::unique_ptr<SliderAttachment> compressorThresholdAttachment;
+    std::unique_ptr<SliderAttachment> compressorRatioAttachment;
+    std::unique_ptr<SliderAttachment> compressorAttackAttachment;
+    std::unique_ptr<SliderAttachment> compressorReleaseAttachment;
+    std::unique_ptr<SliderAttachment> compressorMakeupAttachment;
+    std::unique_ptr<SliderAttachment> compressorMixAttachment;
     std::unique_ptr<SliderAttachment> attackAAttachment;
     std::unique_ptr<SliderAttachment> releaseAAttachment;
     std::unique_ptr<SliderAttachment> attackBAttachment;

@@ -62,6 +62,10 @@ public:
             return pitchActiveStepA.load();
         if (engine == seqwencer::SequencerEngine::distortion)
             return distortionActiveStepA.load();
+        if (engine == seqwencer::SequencerEngine::grain)
+            return grainActiveStepA.load();
+        if (engine == seqwencer::SequencerEngine::compressor)
+            return compressorActiveStepA.load();
         return gateActiveStepA.load();
     }
     int getActiveStepB (
@@ -81,6 +85,10 @@ public:
             return pitchActiveStepB.load();
         if (engine == seqwencer::SequencerEngine::distortion)
             return distortionActiveStepB.load();
+        if (engine == seqwencer::SequencerEngine::grain)
+            return grainActiveStepB.load();
+        if (engine == seqwencer::SequencerEngine::compressor)
+            return compressorActiveStepB.load();
         return gateActiveStepB.load();
     }
     bool isPhiHostPresent() const noexcept
@@ -100,6 +108,8 @@ public:
     static juce::String filterStepParameterID (int bank, int step);
     static juce::String pitchStepParameterID (int bank, int step);
     static juce::String distortionStepParameterID (int bank, int step);
+    static juce::String grainStepParameterID (int bank, int step);
+    static juce::String compressorStepParameterID (int bank, int step);
     static juce::String gateModeParameterID (int bank, int step);
     static juce::String targetAssignedParameterID (
         int bank, seqwencer::ModulationTarget target);
@@ -139,6 +149,10 @@ private:
     seqwencer::Pattern readPitchPattern (int bank,
                                          bool bipolar) const noexcept;
     seqwencer::Pattern readDistortionPattern (int bank,
+                                              bool bipolar) const noexcept;
+    seqwencer::Pattern readGrainPattern (int bank,
+                                         bool bipolar) const noexcept;
+    seqwencer::Pattern readCompressorPattern (int bank,
                                               bool bipolar) const noexcept;
     seqwencer::GateModePattern readGateModes (int bank) const noexcept;
     void migrateStepStorageIfNeeded();
@@ -292,6 +306,46 @@ private:
     std::atomic<float>* distortionSeqBBipolar = nullptr;
     std::atomic<float>* distortionSeqBAttack = nullptr;
     std::atomic<float>* distortionSeqBRelease = nullptr;
+    std::atomic<float>* grainEnabled = nullptr;
+    std::atomic<float>* grainSize = nullptr;
+    std::atomic<float>* grainShift = nullptr;
+    std::atomic<float>* grainFeedback = nullptr;
+    std::atomic<float>* grainMix = nullptr;
+    std::atomic<float>* grainPlaybackMode = nullptr;
+    std::atomic<float>* grainSerialProfile = nullptr;
+    std::atomic<float>* grainStartStep = nullptr;
+    std::atomic<float>* grainEndStep = nullptr;
+    std::atomic<float>* grainRate = nullptr;
+    std::atomic<float>* grainSequenceMode = nullptr;
+    std::atomic<float>* grainSeqAEnabled = nullptr;
+    std::atomic<float>* grainSeqABipolar = nullptr;
+    std::atomic<float>* grainSeqAAttack = nullptr;
+    std::atomic<float>* grainSeqARelease = nullptr;
+    std::atomic<float>* grainSeqBEnabled = nullptr;
+    std::atomic<float>* grainSeqBBipolar = nullptr;
+    std::atomic<float>* grainSeqBAttack = nullptr;
+    std::atomic<float>* grainSeqBRelease = nullptr;
+    std::atomic<float>* compressorEnabled = nullptr;
+    std::atomic<float>* compressorThreshold = nullptr;
+    std::atomic<float>* compressorRatio = nullptr;
+    std::atomic<float>* compressorAttack = nullptr;
+    std::atomic<float>* compressorRelease = nullptr;
+    std::atomic<float>* compressorMakeup = nullptr;
+    std::atomic<float>* compressorMix = nullptr;
+    std::atomic<float>* compressorPlaybackMode = nullptr;
+    std::atomic<float>* compressorSerialProfile = nullptr;
+    std::atomic<float>* compressorStartStep = nullptr;
+    std::atomic<float>* compressorEndStep = nullptr;
+    std::atomic<float>* compressorRate = nullptr;
+    std::atomic<float>* compressorSequenceMode = nullptr;
+    std::atomic<float>* compressorSeqAEnabled = nullptr;
+    std::atomic<float>* compressorSeqABipolar = nullptr;
+    std::atomic<float>* compressorSeqAAttack = nullptr;
+    std::atomic<float>* compressorSeqARelease = nullptr;
+    std::atomic<float>* compressorSeqBEnabled = nullptr;
+    std::atomic<float>* compressorSeqBBipolar = nullptr;
+    std::atomic<float>* compressorSeqBAttack = nullptr;
+    std::atomic<float>* compressorSeqBRelease = nullptr;
     std::atomic<float>* seqAEnabled = nullptr;
     std::atomic<float>* seqATarget = nullptr;
     std::atomic<float>* seqATargetEnabled = nullptr;
@@ -328,6 +382,10 @@ private:
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> pitchStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> distortionStepsA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> distortionStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> grainStepsA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> grainStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> compressorStepsA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> compressorStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesB {};
 
@@ -340,6 +398,8 @@ private:
     double filterFreeRunningPhase = 0.0;
     double pitchFreeRunningPhase = 0.0;
     double distortionFreeRunningPhase = 0.0;
+    double grainFreeRunningPhase = 0.0;
+    double compressorFreeRunningPhase = 0.0;
     double previousHostPpq = 0.0;
     juce::int64 previousHostTimeInSamples = 0;
     bool previousHostPpqValid = false;
@@ -365,6 +425,10 @@ private:
     std::atomic<int> pitchActiveStepB { -1 };
     std::atomic<int> distortionActiveStepA { 0 };
     std::atomic<int> distortionActiveStepB { -1 };
+    std::atomic<int> grainActiveStepA { 0 };
+    std::atomic<int> grainActiveStepB { -1 };
+    std::atomic<int> compressorActiveStepA { 0 };
+    std::atomic<int> compressorActiveStepB { -1 };
     juce::AudioBuffer<float> delayBuffer;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>
         smoothedDelaySamples;
@@ -380,6 +444,13 @@ private:
     bool pitchWasActive = false;
     std::array<float, 2> distortionToneStates {};
     bool distortionWasActive = false;
+    juce::AudioBuffer<float> grainBuffer;
+    int grainWritePosition = 0;
+    double grainReadPhase = 0.0;
+    std::array<float, 2> grainFeedbackStates {};
+    bool grainWasActive = false;
+    float compressorGain = 1.0f;
+    bool compressorWasActive = false;
     std::atomic<bool> phiHostPresent { false };
     std::atomic<bool> phiTargetBrowserRequestPending { false };
 

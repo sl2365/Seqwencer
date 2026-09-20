@@ -35,10 +35,12 @@ The current development build includes:
 - Filter
 - Pitch
 - Distortion
+- Grain Shifter
+- Compressor
 
-GrainShifter is the remaining planned addition. Reverb is included
-because sequenced Mix can create useful rhythmic effects even when sequencing
-its tail parameters is less suitable.
+The FX rail's next planned upgrade is drag-to-reorder routing so audio can flow
+from top to bottom in a user-selected order such as Gate into Compressor or
+Compressor into Gate.
 
 ## Sequencers
 
@@ -113,6 +115,31 @@ with the dry input. Drive, Tone and Mix can each be sequenced from A, B or both
 lanes. Distortion has its own patterns, timing, range, direction and envelopes;
 disabling it bypasses processing, resets its Tone filter and pauses its private
 sequencer.
+
+## Grain Shifter
+
+Grain Shifter uses two overlapping, windowed grains for continuous pitch
+movement. Grain covers 10-250 ms, Shift covers -24 to +24 semitones, Feedback
+runs from 0-90%, and Mix blends dry and shifted audio. All four controls can be
+sequenced from A, B or both lanes. Grain Shifter has independent patterns,
+timing, range, direction and envelopes; disabling it clears its working buffer,
+bypasses processing and pauses its private sequencer.
+
+## Compressor
+
+Compressor uses a stereo-linked peak detector so both channels receive the
+same gain reduction and the stereo image remains stable. Threshold covers
+-60-0 dB, Ratio covers 1:1-20:1, Attack covers 0.1-100 ms, Release covers
+10-1000 ms, Makeup covers 0-24 dB, and Mix blends dry and compressed audio.
+All six controls can be sequenced from A, B or both lanes.
+
+Sequencing Threshold or Mix can create rhythmic, sidechain-style pumping when
+used with Gate, even though the Compressor does not require an external
+sidechain input. Compressor has independent patterns, timing, range, direction
+and envelopes; disabling it bypasses processing, resets its detector gain and
+pauses its private sequencer. It currently processes after Grain Shifter in the
+fixed FX chain; planned drag-to-reorder routing will make positions such as
+Gate into Compressor and Compressor into Gate selectable.
 
 ## PHI parameter control
 

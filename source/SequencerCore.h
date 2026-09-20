@@ -36,7 +36,9 @@ enum class SequencerEngine
     pan,
     filter,
     pitch,
-    distortion
+    distortion,
+    grain,
+    compressor
 };
 
 enum class WaveformPreset
@@ -206,7 +208,17 @@ enum class ModulationTarget
     pitchMix = 22,
     distortionDrive = 23,
     distortionTone = 24,
-    distortionMix = 25
+    distortionMix = 25,
+    grainSize = 26,
+    grainShift = 27,
+    grainFeedback = 28,
+    grainMix = 29,
+    compressorThreshold = 30,
+    compressorRatio = 31,
+    compressorAttack = 32,
+    compressorRelease = 33,
+    compressorMakeup = 34,
+    compressorMix = 35
 };
 
 constexpr int gateModulationTargetCount = 9;
@@ -216,13 +228,15 @@ constexpr int panModulationTargetCount = 1;
 constexpr int filterModulationTargetCount = 3;
 constexpr int pitchModulationTargetCount = 2;
 constexpr int distortionModulationTargetCount = 3;
-constexpr int modulationTargetCount = 25;
+constexpr int grainModulationTargetCount = 4;
+constexpr int compressorModulationTargetCount = 6;
+constexpr int modulationTargetCount = 35;
 
 inline ModulationTarget targetFromChoice (float choice) noexcept
 {
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
-            && target <= static_cast<int> (ModulationTarget::distortionMix)
+            && target <= static_cast<int> (ModulationTarget::compressorMix)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -746,6 +760,16 @@ inline bool targetSupportsBipolar (ModulationTarget target) noexcept
         case ModulationTarget::distortionDrive:
         case ModulationTarget::distortionTone:
         case ModulationTarget::distortionMix:
+        case ModulationTarget::grainSize:
+        case ModulationTarget::grainShift:
+        case ModulationTarget::grainFeedback:
+        case ModulationTarget::grainMix:
+        case ModulationTarget::compressorThreshold:
+        case ModulationTarget::compressorRatio:
+        case ModulationTarget::compressorAttack:
+        case ModulationTarget::compressorRelease:
+        case ModulationTarget::compressorMakeup:
+        case ModulationTarget::compressorMix:
             return true;
         case ModulationTarget::none:
         case ModulationTarget::gateLevel:

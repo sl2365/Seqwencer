@@ -678,6 +678,42 @@ int main()
                  static_cast<int> (seqwencer::targetFromChoice (25.0f)),
                  static_cast<int> (
                      seqwencer::ModulationTarget::distortionMix));
+    expectEqual ("Grain Size target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (26.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::grainSize));
+    expectEqual ("Grain Shift target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (27.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::grainShift));
+    expectEqual ("Grain Feedback target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (28.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::grainFeedback));
+    expectEqual ("Grain Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (29.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::grainMix));
+    expectEqual ("Compressor Threshold target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (30.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::compressorThreshold));
+    expectEqual ("Compressor Ratio target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (31.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::compressorRatio));
+    expectEqual ("Compressor Attack target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (32.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::compressorAttack));
+    expectEqual ("Compressor Release target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (33.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::compressorRelease));
+    expectEqual ("Compressor Makeup target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (34.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::compressorMakeup));
+    expectEqual ("Compressor Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (35.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::compressorMix));
     expectEqual ("Gate Volume remains a unipolar destination",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::gateLevel) ? 1 : 0,
@@ -709,6 +745,14 @@ int main()
     expectEqual ("Distortion targets accept bipolar movement",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::distortionDrive) ? 1 : 0,
+                 1);
+    expectEqual ("Grain Shifter targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::grainShift) ? 1 : 0,
+                 1);
+    expectEqual ("Compressor targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::compressorThreshold) ? 1 : 0,
                  1);
     expectNear ("Depth target scales from zero to its knob ceiling",
                 seqwencer::modulatedCeiling (0.8f, 0.25f), 0.2f);

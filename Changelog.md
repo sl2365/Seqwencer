@@ -2,6 +2,44 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## Stage 3.11.0 features
+
+- Added a periwinkle Compressor selector with its own independent A/B
+  sequencer page
+- Threshold covers -60-0 dB, Ratio covers 1:1-20:1, Attack covers 0.1-100 ms,
+  Release covers 10-1000 ms, Makeup covers 0-24 dB, and Mix blends dry and wet
+- A stereo-linked peak detector applies identical gain reduction to both
+  channels so the stereo image does not move during compression
+- Threshold, Ratio, Attack, Release, Makeup and Mix can each be dragged to A,
+  B or both Compressor target lists
+- Compressor has independent Mode, Rate, Start, End, Direction, patterns,
+  Attack/Release, Bipolar state and SERIAL control profile
+- Compressor is disabled by default; disabling it bypasses audio processing,
+  resets gain reduction and pauses its private sequencer phase
+- Compressor state is stored in its own `[Compressor]` section in portable
+  presets
+- The release probe verifies all six controls and targets, independent timing
+  and pattern data, stereo-linked gain reduction and clean disabled pass-through
+
+## Stage 3.10.0 features
+
+- Added a lime-green Grain Shifter selector with its own independent A/B
+  sequencer page
+- Grain covers 10-250 ms, Shift covers -24 to +24 semitones, Feedback covers
+  0-90%, and Mix blends dry and shifted audio
+- Two overlapping Hann-windowed read heads keep the granular transposition
+  continuous while the circular buffer supports controlled feedback
+- Grain, Shift, Feedback and Mix can each be dragged to A, B or both Grain
+  Shifter target lists
+- Grain Shifter has independent Mode, Rate, Start, End, Direction, patterns,
+  Attack/Release, Bipolar state and SERIAL control profile
+- Grain Shifter is disabled by default; disabling it bypasses audio processing,
+  clears its working buffer and pauses its private sequencer phase
+- Grain Shifter state is stored in its own `[GrainShifter]` section in portable
+  presets
+- The release probe uses realistic 480-sample host blocks to verify octave-up
+  Grain Shift processing, target independence and clean disabled pass-through
+
 ## Stage 3.9.1 fixes
 
 - Shortened the Distortion selector label from DISTORT to DIST
@@ -497,7 +535,6 @@ the final Gate result always stays inside its valid range.
 
 ## Planned development
 
-The remaining planned internal effect is GrainShifter. It will be added as a
-controlled stage so the effect
-can receive the correct DSP, parameter ranges, bipolar/unipolar behaviour,
-target routing and regression tests without destabilising the existing engines.
+The left rail will gain drag-to-reorder routing so the audio-processing order
+can be chosen from top to bottom (for example Gate into Compressor or
+Compressor into Gate).

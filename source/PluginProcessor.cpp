@@ -203,6 +203,72 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
         "distortion_seq_b_attack");
     distortionSeqBRelease = parameters.getRawParameterValue (
         "distortion_seq_b_release");
+    grainEnabled = parameters.getRawParameterValue ("grain_enabled");
+    grainSize = parameters.getRawParameterValue ("grain_size");
+    grainShift = parameters.getRawParameterValue ("grain_shift");
+    grainFeedback = parameters.getRawParameterValue ("grain_feedback");
+    grainMix = parameters.getRawParameterValue ("grain_mix");
+    grainPlaybackMode = parameters.getRawParameterValue (
+        "grain_playback_mode");
+    grainSerialProfile = parameters.getRawParameterValue (
+        "grain_serial_profile");
+    grainStartStep = parameters.getRawParameterValue ("grain_start_step");
+    grainEndStep = parameters.getRawParameterValue ("grain_end_step");
+    grainRate = parameters.getRawParameterValue ("grain_rate");
+    grainSequenceMode = parameters.getRawParameterValue (
+        "grain_sequence_mode");
+    grainSeqAEnabled = parameters.getRawParameterValue (
+        "grain_seq_a_enabled");
+    grainSeqABipolar = parameters.getRawParameterValue (
+        "grain_seq_a_bipolar");
+    grainSeqAAttack = parameters.getRawParameterValue (
+        "grain_seq_a_attack");
+    grainSeqARelease = parameters.getRawParameterValue (
+        "grain_seq_a_release");
+    grainSeqBEnabled = parameters.getRawParameterValue (
+        "grain_seq_b_enabled");
+    grainSeqBBipolar = parameters.getRawParameterValue (
+        "grain_seq_b_bipolar");
+    grainSeqBAttack = parameters.getRawParameterValue (
+        "grain_seq_b_attack");
+    grainSeqBRelease = parameters.getRawParameterValue (
+        "grain_seq_b_release");
+    compressorEnabled = parameters.getRawParameterValue ("compressor_enabled");
+    compressorThreshold = parameters.getRawParameterValue (
+        "compressor_threshold");
+    compressorRatio = parameters.getRawParameterValue ("compressor_ratio");
+    compressorAttack = parameters.getRawParameterValue ("compressor_attack");
+    compressorRelease = parameters.getRawParameterValue (
+        "compressor_release");
+    compressorMakeup = parameters.getRawParameterValue ("compressor_makeup");
+    compressorMix = parameters.getRawParameterValue ("compressor_mix");
+    compressorPlaybackMode = parameters.getRawParameterValue (
+        "compressor_playback_mode");
+    compressorSerialProfile = parameters.getRawParameterValue (
+        "compressor_serial_profile");
+    compressorStartStep = parameters.getRawParameterValue (
+        "compressor_start_step");
+    compressorEndStep = parameters.getRawParameterValue (
+        "compressor_end_step");
+    compressorRate = parameters.getRawParameterValue ("compressor_rate");
+    compressorSequenceMode = parameters.getRawParameterValue (
+        "compressor_sequence_mode");
+    compressorSeqAEnabled = parameters.getRawParameterValue (
+        "compressor_seq_a_enabled");
+    compressorSeqABipolar = parameters.getRawParameterValue (
+        "compressor_seq_a_bipolar");
+    compressorSeqAAttack = parameters.getRawParameterValue (
+        "compressor_seq_a_attack");
+    compressorSeqARelease = parameters.getRawParameterValue (
+        "compressor_seq_a_release");
+    compressorSeqBEnabled = parameters.getRawParameterValue (
+        "compressor_seq_b_enabled");
+    compressorSeqBBipolar = parameters.getRawParameterValue (
+        "compressor_seq_b_bipolar");
+    compressorSeqBAttack = parameters.getRawParameterValue (
+        "compressor_seq_b_attack");
+    compressorSeqBRelease = parameters.getRawParameterValue (
+        "compressor_seq_b_release");
     seqAEnabled = parameters.getRawParameterValue ("seq_a_enabled");
     seqATarget = parameters.getRawParameterValue ("seq_a_target");
     seqATargetEnabled = parameters.getRawParameterValue ("seq_a_target_enabled");
@@ -263,6 +329,14 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
             parameters.getRawParameterValue (distortionStepParameterID (0, step));
         distortionStepsB[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (distortionStepParameterID (1, step));
+        grainStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (grainStepParameterID (0, step));
+        grainStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (grainStepParameterID (1, step));
+        compressorStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (compressorStepParameterID (0, step));
+        compressorStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (compressorStepParameterID (1, step));
         gateModesA[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (gateModeParameterID (0, step));
         gateModesB[static_cast<std::size_t> (step)] =
@@ -327,6 +401,24 @@ juce::String SeqwencerAudioProcessor::distortionStepParameterID (
     int bank, int step)
 {
     return "distortion_seq_" + juce::String (bank == 0 ? "a" : "b")
+         + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::grainStepParameterID (
+    int bank, int step)
+{
+    return "grain_seq_" + juce::String (bank == 0 ? "a" : "b")
+         + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::compressorStepParameterID (
+    int bank, int step)
+{
+    return "compressor_seq_" + juce::String (bank == 0 ? "a" : "b")
          + "_step_"
          + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
                .paddedLeft ('0', 2);
@@ -411,6 +503,38 @@ juce::String SeqwencerAudioProcessor::targetAssignedParameterID (
         case seqwencer::ModulationTarget::distortionMix:
             return juce::String (bank == 0 ? "distortion_seq_a_mix_target"
                                            : "distortion_seq_b_mix_target");
+        case seqwencer::ModulationTarget::grainSize:
+            return juce::String (bank == 0 ? "grain_seq_a_size_target"
+                                           : "grain_seq_b_size_target");
+        case seqwencer::ModulationTarget::grainShift:
+            return juce::String (bank == 0 ? "grain_seq_a_shift_target"
+                                           : "grain_seq_b_shift_target");
+        case seqwencer::ModulationTarget::grainFeedback:
+            return juce::String (bank == 0 ? "grain_seq_a_feedback_target"
+                                           : "grain_seq_b_feedback_target");
+        case seqwencer::ModulationTarget::grainMix:
+            return juce::String (bank == 0 ? "grain_seq_a_mix_target"
+                                           : "grain_seq_b_mix_target");
+        case seqwencer::ModulationTarget::compressorThreshold:
+            return juce::String (
+                bank == 0 ? "compressor_seq_a_threshold_target"
+                          : "compressor_seq_b_threshold_target");
+        case seqwencer::ModulationTarget::compressorRatio:
+            return juce::String (bank == 0 ? "compressor_seq_a_ratio_target"
+                                           : "compressor_seq_b_ratio_target");
+        case seqwencer::ModulationTarget::compressorAttack:
+            return juce::String (bank == 0 ? "compressor_seq_a_attack_target"
+                                           : "compressor_seq_b_attack_target");
+        case seqwencer::ModulationTarget::compressorRelease:
+            return juce::String (
+                bank == 0 ? "compressor_seq_a_release_target"
+                          : "compressor_seq_b_release_target");
+        case seqwencer::ModulationTarget::compressorMakeup:
+            return juce::String (bank == 0 ? "compressor_seq_a_makeup_target"
+                                           : "compressor_seq_b_makeup_target");
+        case seqwencer::ModulationTarget::compressorMix:
+            return juce::String (bank == 0 ? "compressor_seq_a_mix_target"
+                                           : "compressor_seq_b_mix_target");
         case seqwencer::ModulationTarget::none:
             break;
     }
@@ -492,6 +616,46 @@ juce::String SeqwencerAudioProcessor::targetEnabledParameterID (
             return juce::String (
                 bank == 0 ? "distortion_seq_a_mix_target_enabled"
                           : "distortion_seq_b_mix_target_enabled");
+        case seqwencer::ModulationTarget::grainSize:
+            return juce::String (
+                bank == 0 ? "grain_seq_a_size_target_enabled"
+                          : "grain_seq_b_size_target_enabled");
+        case seqwencer::ModulationTarget::grainShift:
+            return juce::String (
+                bank == 0 ? "grain_seq_a_shift_target_enabled"
+                          : "grain_seq_b_shift_target_enabled");
+        case seqwencer::ModulationTarget::grainFeedback:
+            return juce::String (
+                bank == 0 ? "grain_seq_a_feedback_target_enabled"
+                          : "grain_seq_b_feedback_target_enabled");
+        case seqwencer::ModulationTarget::grainMix:
+            return juce::String (
+                bank == 0 ? "grain_seq_a_mix_target_enabled"
+                          : "grain_seq_b_mix_target_enabled");
+        case seqwencer::ModulationTarget::compressorThreshold:
+            return juce::String (
+                bank == 0 ? "compressor_seq_a_threshold_target_enabled"
+                          : "compressor_seq_b_threshold_target_enabled");
+        case seqwencer::ModulationTarget::compressorRatio:
+            return juce::String (
+                bank == 0 ? "compressor_seq_a_ratio_target_enabled"
+                          : "compressor_seq_b_ratio_target_enabled");
+        case seqwencer::ModulationTarget::compressorAttack:
+            return juce::String (
+                bank == 0 ? "compressor_seq_a_attack_target_enabled"
+                          : "compressor_seq_b_attack_target_enabled");
+        case seqwencer::ModulationTarget::compressorRelease:
+            return juce::String (
+                bank == 0 ? "compressor_seq_a_release_target_enabled"
+                          : "compressor_seq_b_release_target_enabled");
+        case seqwencer::ModulationTarget::compressorMakeup:
+            return juce::String (
+                bank == 0 ? "compressor_seq_a_makeup_target_enabled"
+                          : "compressor_seq_b_makeup_target_enabled");
+        case seqwencer::ModulationTarget::compressorMix:
+            return juce::String (
+                bank == 0 ? "compressor_seq_a_mix_target_enabled"
+                          : "compressor_seq_b_mix_target_enabled");
         case seqwencer::ModulationTarget::none:
             break;
     }
@@ -528,6 +692,16 @@ juce::String SeqwencerAudioProcessor::targetDisplayName (
         case seqwencer::ModulationTarget::distortionDrive: return "DRIVE";
         case seqwencer::ModulationTarget::distortionTone: return "TONE";
         case seqwencer::ModulationTarget::distortionMix: return "MIX";
+        case seqwencer::ModulationTarget::grainSize: return "GRAIN";
+        case seqwencer::ModulationTarget::grainShift: return "SHIFT";
+        case seqwencer::ModulationTarget::grainFeedback: return "FEEDBACK";
+        case seqwencer::ModulationTarget::grainMix: return "MIX";
+        case seqwencer::ModulationTarget::compressorThreshold: return "THRESHOLD";
+        case seqwencer::ModulationTarget::compressorRatio: return "RATIO";
+        case seqwencer::ModulationTarget::compressorAttack: return "ATTACK";
+        case seqwencer::ModulationTarget::compressorRelease: return "RELEASE";
+        case seqwencer::ModulationTarget::compressorMakeup: return "MAKEUP";
+        case seqwencer::ModulationTarget::compressorMix: return "MIX";
         case seqwencer::ModulationTarget::none:            break;
     }
     return {};
@@ -589,6 +763,8 @@ bool SeqwencerAudioProcessor::savePortablePreset (
     juce::String filterParameterLines;
     juce::String pitchParameterLines;
     juce::String distortionParameterLines;
+    juce::String grainParameterLines;
+    juce::String compressorParameterLines;
     auto parameterCount = 0;
     for (auto* baseParameter : getParameters())
     {
@@ -611,6 +787,10 @@ bool SeqwencerAudioProcessor::savePortablePreset (
                 destination = &pitchParameterLines;
             else if (parameterID.startsWith ("distortion_"))
                 destination = &distortionParameterLines;
+            else if (parameterID.startsWith ("grain_"))
+                destination = &grainParameterLines;
+            else if (parameterID.startsWith ("compressor_"))
+                destination = &compressorParameterLines;
             else if (parameterID == "bypass" || parameterID == "sync_to_host")
                 destination = &globalParameterLines;
 
@@ -631,7 +811,9 @@ bool SeqwencerAudioProcessor::savePortablePreset (
              << "\r\n[Pan]\r\n" << panParameterLines
              << "\r\n[Filter]\r\n" << filterParameterLines
              << "\r\n[Pitch]\r\n" << pitchParameterLines
-             << "\r\n[Distortion]\r\n" << distortionParameterLines;
+             << "\r\n[Distortion]\r\n" << distortionParameterLines
+             << "\r\n[GrainShifter]\r\n" << grainParameterLines
+             << "\r\n[Compressor]\r\n" << compressorParameterLines;
     if (! file.replaceWithText (contents))
     {
         errorMessage = "Seqwencer could not write:\n" + file.getFullPathName();
@@ -670,7 +852,8 @@ bool SeqwencerAudioProcessor::loadPortablePreset (
         if (line == "[Parameters]" || line == "[Global]"
             || line == "[Gate]" || line == "[PHI]" || line == "[Delay]"
             || line == "[Reverb]" || line == "[Pan]" || line == "[Filter]"
-            || line == "[Pitch]" || line == "[Distortion]")
+            || line == "[Pitch]" || line == "[Distortion]"
+            || line == "[GrainShifter]" || line == "[Compressor]")
         {
             inParameters = true;
             continue;
@@ -1450,6 +1633,201 @@ SeqwencerAudioProcessor::createParameterLayout()
         }
     }
 
+    // Grain Shifter owns a ninth complete sequencer engine and four targets.
+    layout.add (std::make_unique<Bool> (
+        ID { "grain_enabled", 1 }, "Grain Shifter Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "grain_size", 1 }, "Grain Size",
+        juce::NormalisableRange<float> { 10.0f, 250.0f, 0.1f }, 80.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "grain_shift", 1 }, "Grain Shift",
+        juce::NormalisableRange<float> { -24.0f, 24.0f, 0.01f }, 12.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "grain_feedback", 1 }, "Grain Feedback",
+        juce::NormalisableRange<float> { 0.0f, 0.90f, 0.001f }, 0.20f));
+    layout.add (std::make_unique<Float> (
+        ID { "grain_mix", 1 }, "Grain Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 0.35f));
+    layout.add (std::make_unique<Choice> (
+        ID { "grain_playback_mode", 1 }, "Grain Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "grain_rate", 1 }, "Grain Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "grain_seq_a_enabled", 1 },
+        "Grain Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "grain_seq_a_attack", 1 },
+        "Grain Sequencer A Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "grain_seq_a_release", 1 },
+        "Grain Sequencer A Release", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "grain_seq_b_enabled", 1 },
+        "Grain Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "grain_seq_b_attack", 1 },
+        "Grain Sequencer B Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "grain_seq_b_release", 1 },
+        "Grain Sequencer B Release", 0.0f, 1.0f, 0.0f));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto bankName = bank == 0 ? "A" : "B";
+            layout.add (std::make_unique<Float> (
+                ID { grainStepParameterID (bank, step), 1 },
+                "Grain Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+
+    layout.add (std::make_unique<Choice> (
+        ID { "grain_serial_profile", 1 },
+        "Grain Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "grain_start_step", 1 }, "Grain Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "grain_end_step", 1 }, "Grain End Step", 2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "grain_seq_a_bipolar", 1 },
+        "Grain Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "grain_seq_b_bipolar", 1 },
+        "Grain Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "grain_sequence_mode", 1 }, "Grain Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played" }, 0));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Grain Sequencer A " : "Grain Sequencer B ";
+        for (int index = static_cast<int> (
+                 seqwencer::ModulationTarget::grainSize);
+             index <= static_cast<int> (seqwencer::ModulationTarget::grainMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
+    // Compressor owns a tenth complete sequencer engine and six targets.
+    layout.add (std::make_unique<Bool> (
+        ID { "compressor_enabled", 1 }, "Compressor Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_threshold", 1 }, "Compressor Threshold",
+        juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, -18.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_ratio", 1 }, "Compressor Ratio",
+        juce::NormalisableRange<float> { 1.0f, 20.0f, 0.1f }, 4.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_attack", 1 }, "Compressor Attack",
+        juce::NormalisableRange<float> { 0.1f, 100.0f, 0.1f }, 10.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_release", 1 }, "Compressor Release",
+        juce::NormalisableRange<float> { 10.0f, 1000.0f, 1.0f }, 100.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_makeup", 1 }, "Compressor Makeup",
+        juce::NormalisableRange<float> { 0.0f, 24.0f, 0.1f }, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_mix", 1 }, "Compressor Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Choice> (
+        ID { "compressor_playback_mode", 1 }, "Compressor Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "compressor_rate", 1 }, "Compressor Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "compressor_seq_a_enabled", 1 },
+        "Compressor Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_seq_a_attack", 1 },
+        "Compressor Sequencer A Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_seq_a_release", 1 },
+        "Compressor Sequencer A Release", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "compressor_seq_b_enabled", 1 },
+        "Compressor Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_seq_b_attack", 1 },
+        "Compressor Sequencer B Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "compressor_seq_b_release", 1 },
+        "Compressor Sequencer B Release", 0.0f, 1.0f, 0.0f));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto bankName = bank == 0 ? "A" : "B";
+            layout.add (std::make_unique<Float> (
+                ID { compressorStepParameterID (bank, step), 1 },
+                "Compressor Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+
+    layout.add (std::make_unique<Choice> (
+        ID { "compressor_serial_profile", 1 },
+        "Compressor Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "compressor_start_step", 1 }, "Compressor Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "compressor_end_step", 1 }, "Compressor End Step", 2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "compressor_seq_a_bipolar", 1 },
+        "Compressor Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "compressor_seq_b_bipolar", 1 },
+        "Compressor Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "compressor_sequence_mode", 1 }, "Compressor Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played" }, 0));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Compressor Sequencer A " : "Compressor Sequencer B ";
+        for (int index = static_cast<int> (
+                 seqwencer::ModulationTarget::compressorThreshold);
+             index <= static_cast<int> (
+                 seqwencer::ModulationTarget::compressorMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
     return layout;
 }
 
@@ -1464,6 +1842,8 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     filterFreeRunningPhase = 0.0;
     pitchFreeRunningPhase = 0.0;
     distortionFreeRunningPhase = 0.0;
+    grainFreeRunningPhase = 0.0;
+    compressorFreeRunningPhase = 0.0;
     previousHostPpq = 0.0;
     previousHostTimeInSamples = 0;
     previousHostPpqValid = false;
@@ -1489,6 +1869,10 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     pitchActiveStepB.store (-1);
     distortionActiveStepA.store (0);
     distortionActiveStepB.store (-1);
+    grainActiveStepA.store (0);
+    grainActiveStepB.store (-1);
+    compressorActiveStepA.store (0);
+    compressorActiveStepB.store (-1);
     const auto delayBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 2.05)) + 4;
     delayBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
@@ -1515,6 +1899,17 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     pitchWasActive = false;
     distortionToneStates.fill (0.0f);
     distortionWasActive = false;
+    const auto grainBufferLength = static_cast<int> (
+        std::ceil (currentSampleRate * 0.30)) + 8;
+    grainBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
+                         grainBufferLength, false, true, false);
+    grainBuffer.clear();
+    grainWritePosition = 0;
+    grainReadPhase = 0.0;
+    grainFeedbackStates.fill (0.0f);
+    grainWasActive = false;
+    compressorGain = 1.0f;
+    compressorWasActive = false;
 }
 
 void SeqwencerAudioProcessor::releaseResources()
@@ -1533,6 +1928,13 @@ void SeqwencerAudioProcessor::releaseResources()
     pitchWasActive = false;
     distortionToneStates.fill (0.0f);
     distortionWasActive = false;
+    grainBuffer.clear();
+    grainWritePosition = 0;
+    grainReadPhase = 0.0;
+    grainFeedbackStates.fill (0.0f);
+    grainWasActive = false;
+    compressorGain = 1.0f;
+    compressorWasActive = false;
 }
 
 void SeqwencerAudioProcessor::resetFilterProcessor() noexcept
@@ -1699,6 +2101,36 @@ seqwencer::Pattern SeqwencerAudioProcessor::readDistortionPattern (
 {
     seqwencer::Pattern result {};
     const auto& source = bank == 0 ? distortionStepsA : distortionStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readGrainPattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? grainStepsA : grainStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readCompressorPattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? compressorStepsA : compressorStepsB;
 
     for (std::size_t i = 0; i < result.size(); ++i)
     {
@@ -2082,6 +2514,88 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         distortionSequenceMode != nullptr ? distortionSequenceMode->load() : 0.0f);
     const auto distortionRetriggersFromPlayedNotes =
         distortionTraversalMode == seqwencer::SequenceMode::played;
+
+    const auto grainAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        grainSeqAAttack != nullptr ? grainSeqAAttack->load() : 0.0f);
+    const auto grainReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        grainSeqARelease != nullptr ? grainSeqARelease->load() : 0.0f);
+    const auto grainAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        grainSeqBAttack != nullptr ? grainSeqBAttack->load() : 0.0f);
+    const auto grainReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        grainSeqBRelease != nullptr ? grainSeqBRelease->load() : 0.0f);
+    const auto grainLinked = grainPlaybackMode != nullptr
+                          && grainPlaybackMode->load() >= 0.5f;
+    const auto grainUsesProfileB = grainSerialProfile != nullptr
+                                && grainSerialProfile->load() >= 0.5f;
+    const auto grainSerialAttack = grainUsesProfileB
+        ? grainAttackBValue : grainAttackAValue;
+    const auto grainSerialRelease = grainUsesProfileB
+        ? grainReleaseBValue : grainReleaseAValue;
+    const auto grainBipolarAValue = grainSeqABipolar != nullptr
+                                 && grainSeqABipolar->load() >= 0.5f;
+    const auto grainBipolarBValue = grainSeqBBipolar != nullptr
+                                 && grainSeqBBipolar->load() >= 0.5f;
+    const auto grainSerialBipolar = grainUsesProfileB
+        ? grainBipolarBValue : grainBipolarAValue;
+    const auto grainUnipolarPatternA = readGrainPattern (0, false);
+    const auto grainUnipolarPatternB = readGrainPattern (1, false);
+    const auto grainCanonicalPatternA = readGrainPattern (0, true);
+    const auto grainCanonicalPatternB = readGrainPattern (1, true);
+    const auto grainRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            grainRate != nullptr ? grainRate->load() : 6.0f)));
+    const auto grainStepBeats = seqwencer::beatsForRate (grainRateIndex);
+    const auto grainTraversalMode = seqwencer::sequenceModeFromChoice (
+        grainSequenceMode != nullptr ? grainSequenceMode->load() : 0.0f);
+    const auto grainRetriggersFromPlayedNotes =
+        grainTraversalMode == seqwencer::SequenceMode::played;
+
+    const auto compressorAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        compressorSeqAAttack != nullptr ? compressorSeqAAttack->load() : 0.0f);
+    const auto compressorReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        compressorSeqARelease != nullptr ? compressorSeqARelease->load() : 0.0f);
+    const auto compressorAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        compressorSeqBAttack != nullptr ? compressorSeqBAttack->load() : 0.0f);
+    const auto compressorReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        compressorSeqBRelease != nullptr ? compressorSeqBRelease->load() : 0.0f);
+    const auto compressorLinked = compressorPlaybackMode != nullptr
+                               && compressorPlaybackMode->load() >= 0.5f;
+    const auto compressorUsesProfileB = compressorSerialProfile != nullptr
+                                     && compressorSerialProfile->load() >= 0.5f;
+    const auto compressorSerialAttack = compressorUsesProfileB
+        ? compressorAttackBValue : compressorAttackAValue;
+    const auto compressorSerialRelease = compressorUsesProfileB
+        ? compressorReleaseBValue : compressorReleaseAValue;
+    const auto compressorBipolarAValue = compressorSeqABipolar != nullptr
+                                      && compressorSeqABipolar->load() >= 0.5f;
+    const auto compressorBipolarBValue = compressorSeqBBipolar != nullptr
+                                      && compressorSeqBBipolar->load() >= 0.5f;
+    const auto compressorSerialBipolar = compressorUsesProfileB
+        ? compressorBipolarBValue : compressorBipolarAValue;
+    const auto compressorUnipolarPatternA = readCompressorPattern (0, false);
+    const auto compressorUnipolarPatternB = readCompressorPattern (1, false);
+    const auto compressorCanonicalPatternA = readCompressorPattern (0, true);
+    const auto compressorCanonicalPatternB = readCompressorPattern (1, true);
+    const auto compressorRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            compressorRate != nullptr ? compressorRate->load() : 6.0f)));
+    const auto compressorStepBeats = seqwencer::beatsForRate (
+        compressorRateIndex);
+    const auto compressorTraversalMode = seqwencer::sequenceModeFromChoice (
+        compressorSequenceMode != nullptr
+            ? compressorSequenceMode->load() : 0.0f);
+    const auto compressorRetriggersFromPlayedNotes =
+        compressorTraversalMode == seqwencer::SequenceMode::played;
     auto hostBpm = 120.0;
     auto hostPpq = 0.0;
     auto hostPositionAvailable = false;
@@ -2190,6 +2704,14 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                         && hostPositionAvailable
                                         && ! phiTimelineNeedsFreeRun
                                         && ! distortionRetriggersFromPlayedNotes;
+    const auto grainUseHostPosition = hostSyncEnabled
+                                   && hostPositionAvailable
+                                   && ! phiTimelineNeedsFreeRun
+                                   && ! grainRetriggersFromPlayedNotes;
+    const auto compressorUseHostPosition = hostSyncEnabled
+                                        && hostPositionAvailable
+                                        && ! phiTimelineNeedsFreeRun
+                                        && ! compressorRetriggersFromPlayedNotes;
     const auto gateRange = seqwencer::makeStepRange (
         static_cast<int> (std::lround (startStep != nullptr ? startStep->load() : 1.0f)),
         static_cast<int> (std::lround (endStep != nullptr ? endStep->load() : 64.0f)),
@@ -2236,6 +2758,19 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         static_cast<int> (std::lround (
             distortionEndStep != nullptr ? distortionEndStep->load() : 64.0f)),
         distortionLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
+    const auto grainRange = seqwencer::makeStepRange (
+        static_cast<int> (std::lround (
+            grainStartStep != nullptr ? grainStartStep->load() : 1.0f)),
+        static_cast<int> (std::lround (
+            grainEndStep != nullptr ? grainEndStep->load() : 64.0f)),
+        grainLinked ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
+    const auto compressorRange = seqwencer::makeStepRange (
+        static_cast<int> (std::lround (
+            compressorStartStep != nullptr ? compressorStartStep->load() : 1.0f)),
+        static_cast<int> (std::lround (
+            compressorEndStep != nullptr ? compressorEndStep->load() : 64.0f)),
+        compressorLinked
+            ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
     const auto gateCycleLength = seqwencer::sequenceCycleLength (
         gateRange.length(), gateTraversalMode);
     const auto phiCycleLength = seqwencer::sequenceCycleLength (
@@ -2252,6 +2787,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         pitchRange.length(), pitchTraversalMode);
     const auto distortionCycleLength = seqwencer::sequenceCycleLength (
         distortionRange.length(), distortionTraversalMode);
+    const auto grainCycleLength = seqwencer::sequenceCycleLength (
+        grainRange.length(), grainTraversalMode);
+    const auto compressorCycleLength = seqwencer::sequenceCycleLength (
+        compressorRange.length(), compressorTraversalMode);
     const auto gatePhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * gateStepBeats * currentSampleRate / hostBpm);
     const auto phiPhaseIncrement = 1.0 / juce::jmax (
@@ -2268,6 +2807,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         1.0, 60.0 * pitchStepBeats * currentSampleRate / hostBpm);
     const auto distortionPhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * distortionStepBeats * currentSampleRate / hostBpm);
+    const auto grainPhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * grainStepBeats * currentSampleRate / hostBpm);
+    const auto compressorPhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * compressorStepBeats * currentSampleRate / hostBpm);
     const auto shouldBypass = bypass != nullptr && bypass->load() >= 0.5f;
     const auto shouldGate = gateEnabled != nullptr && gateEnabled->load() >= 0.5f;
     const auto base = juce::jlimit (
@@ -2355,6 +2898,37 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const auto baseDistortionMix = juce::jlimit (
         0.0f, 1.0f,
         distortionMix != nullptr ? distortionMix->load() : 1.0f);
+    const auto shouldGrain = grainEnabled != nullptr
+                          && grainEnabled->load() >= 0.5f;
+    const auto baseGrainSizeMs = juce::jlimit (
+        10.0f, 250.0f, grainSize != nullptr ? grainSize->load() : 80.0f);
+    const auto baseGrainShift = juce::jlimit (
+        -24.0f, 24.0f, grainShift != nullptr ? grainShift->load() : 12.0f);
+    const auto baseGrainFeedback = juce::jlimit (
+        0.0f, 0.90f,
+        grainFeedback != nullptr ? grainFeedback->load() : 0.20f);
+    const auto baseGrainMix = juce::jlimit (
+        0.0f, 1.0f, grainMix != nullptr ? grainMix->load() : 0.35f);
+    const auto shouldCompressor = compressorEnabled != nullptr
+                               && compressorEnabled->load() >= 0.5f;
+    const auto baseCompressorThreshold = juce::jlimit (
+        -60.0f, 0.0f,
+        compressorThreshold != nullptr ? compressorThreshold->load() : -18.0f);
+    const auto baseCompressorRatio = juce::jlimit (
+        1.0f, 20.0f,
+        compressorRatio != nullptr ? compressorRatio->load() : 4.0f);
+    const auto baseCompressorAttack = juce::jlimit (
+        0.1f, 100.0f,
+        compressorAttack != nullptr ? compressorAttack->load() : 10.0f);
+    const auto baseCompressorRelease = juce::jlimit (
+        10.0f, 1000.0f,
+        compressorRelease != nullptr ? compressorRelease->load() : 100.0f);
+    const auto baseCompressorMakeup = juce::jlimit (
+        0.0f, 24.0f,
+        compressorMakeup != nullptr ? compressorMakeup->load() : 0.0f);
+    const auto baseCompressorMix = juce::jlimit (
+        0.0f, 1.0f,
+        compressorMix != nullptr ? compressorMix->load() : 1.0f);
     const auto gateAIsEnabled = seqAEnabled == nullptr
                              || seqAEnabled->load() >= 0.5f;
     const auto gateBIsEnabled = seqBEnabled != nullptr
@@ -2387,6 +2961,14 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                    || distortionSeqAEnabled->load() >= 0.5f;
     const auto distortionBIsEnabled = distortionSeqBEnabled != nullptr
                                    && distortionSeqBEnabled->load() >= 0.5f;
+    const auto grainAIsEnabled = grainSeqAEnabled == nullptr
+                              || grainSeqAEnabled->load() >= 0.5f;
+    const auto grainBIsEnabled = grainSeqBEnabled != nullptr
+                              && grainSeqBEnabled->load() >= 0.5f;
+    const auto compressorAIsEnabled = compressorSeqAEnabled == nullptr
+                                   || compressorSeqAEnabled->load() >= 0.5f;
+    const auto compressorBIsEnabled = compressorSeqBEnabled != nullptr
+                                   && compressorSeqBEnabled->load() >= 0.5f;
     const auto targetIsActive = [this] (
         int bank, seqwencer::ModulationTarget target)
     {
@@ -2466,6 +3048,20 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     if (distortionIsProcessing != distortionWasActive)
         distortionToneStates.fill (0.0f);
     distortionWasActive = distortionIsProcessing;
+    const auto grainIsProcessing = shouldGrain && ! shouldBypass
+                                && grainBuffer.getNumSamples() > 8;
+    if (grainIsProcessing != grainWasActive)
+    {
+        grainBuffer.clear();
+        grainWritePosition = 0;
+        grainReadPhase = 0.0;
+        grainFeedbackStates.fill (0.0f);
+    }
+    grainWasActive = grainIsProcessing;
+    const auto compressorIsProcessing = shouldCompressor && ! shouldBypass;
+    if (compressorIsProcessing != compressorWasActive)
+        compressorGain = 1.0f;
+    compressorWasActive = compressorIsProcessing;
     if (! gateIsProcessing)
     {
         gateActiveStepA.store (-1);
@@ -2501,6 +3097,16 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         distortionActiveStepA.store (-1);
         distortionActiveStepB.store (-1);
     }
+    if (! grainIsProcessing)
+    {
+        grainActiveStepA.store (-1);
+        grainActiveStepB.store (-1);
+    }
+    if (! compressorIsProcessing)
+    {
+        compressorActiveStepA.store (-1);
+        compressorActiveStepB.store (-1);
+    }
     std::size_t nextPhraseStart = 0;
 
     for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
@@ -2524,6 +3130,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 pitchFreeRunningPhase = 0.0;
             if (distortionRetriggersFromPlayedNotes)
                 distortionFreeRunningPhase = 0.0;
+            if (grainRetriggersFromPlayedNotes)
+                grainFreeRunningPhase = 0.0;
+            if (compressorRetriggersFromPlayedNotes)
+                compressorFreeRunningPhase = 0.0;
             ++nextPhraseStart;
         }
 
@@ -2613,6 +3223,28 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                        : 0.0);
             distortionPhase = seqwencer::phaseFromQuarterNotes (
                 ppq, distortionStepBeats, distortionCycleLength);
+        }
+
+        auto grainPhase = grainFreeRunningPhase;
+        if (grainUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            grainPhase = seqwencer::phaseFromQuarterNotes (
+                ppq, grainStepBeats, grainCycleLength);
+        }
+
+        auto compressorPhase = compressorFreeRunningPhase;
+        if (compressorUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            compressorPhase = seqwencer::phaseFromQuarterNotes (
+                ppq, compressorStepBeats, compressorCycleLength);
         }
 
         auto gateUnipolarA = 1.0f;
@@ -3230,6 +3862,158 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 distortionBipolarBValue, assigned);
         };
 
+        auto grainUnipolarA = 1.0f;
+        auto grainUnipolarB = 1.0f;
+        auto grainCanonicalA = 1.0f;
+        auto grainCanonicalB = 1.0f;
+        auto grainSerialUnipolar = 1.0f;
+        auto grainSerialCanonical = 1.0f;
+        if (grainIsProcessing && grainLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            grainSerialUnipolar = seqwencer::evaluateLinkedRange (
+                grainUnipolarPatternA, grainUnipolarPatternB,
+                grainPhase, grainRange,
+                grainSerialAttack, grainSerialRelease,
+                grainSerialAttack, grainSerialRelease,
+                &activeBank, &activeStep, grainTraversalMode);
+            grainSerialCanonical = seqwencer::evaluateLinkedRange (
+                grainCanonicalPatternA, grainCanonicalPatternB,
+                grainPhase, grainRange,
+                grainSerialAttack, grainSerialRelease,
+                grainSerialAttack, grainSerialRelease,
+                nullptr, nullptr, grainTraversalMode);
+            grainActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            grainActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else if (grainIsProcessing)
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            grainUnipolarA = seqwencer::evaluateBankRange (
+                grainUnipolarPatternA, grainPhase, grainRange,
+                grainAttackAValue, grainReleaseAValue,
+                &stepA, grainTraversalMode);
+            grainUnipolarB = seqwencer::evaluateBankRange (
+                grainUnipolarPatternB, grainPhase, grainRange,
+                grainAttackBValue, grainReleaseBValue,
+                &stepB, grainTraversalMode);
+            grainCanonicalA = seqwencer::evaluateBankRange (
+                grainCanonicalPatternA, grainPhase, grainRange,
+                grainAttackAValue, grainReleaseAValue,
+                nullptr, grainTraversalMode);
+            grainCanonicalB = seqwencer::evaluateBankRange (
+                grainCanonicalPatternB, grainPhase, grainRange,
+                grainAttackBValue, grainReleaseBValue,
+                nullptr, grainTraversalMode);
+            grainActiveStepA.store (grainAIsEnabled ? stepA : -1);
+            grainActiveStepB.store (grainBIsEnabled ? stepB : -1);
+        }
+
+        const auto grainTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (grainLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return grainSerialBipolar
+                    ? 2.0f * grainSerialCanonical - 1.0f
+                    : grainSerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                grainBipolarAValue ? grainCanonicalA : grainUnipolarA,
+                grainAIsEnabled && targetIsActive (0, target), target,
+                grainBipolarAValue,
+                grainBipolarBValue ? grainCanonicalB : grainUnipolarB,
+                grainBIsEnabled && targetIsActive (1, target), target,
+                grainBipolarBValue, assigned);
+        };
+
+        auto compressorUnipolarA = 1.0f;
+        auto compressorUnipolarB = 1.0f;
+        auto compressorCanonicalA = 1.0f;
+        auto compressorCanonicalB = 1.0f;
+        auto compressorSerialUnipolar = 1.0f;
+        auto compressorSerialCanonical = 1.0f;
+        if (compressorIsProcessing && compressorLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            compressorSerialUnipolar = seqwencer::evaluateLinkedRange (
+                compressorUnipolarPatternA, compressorUnipolarPatternB,
+                compressorPhase, compressorRange,
+                compressorSerialAttack, compressorSerialRelease,
+                compressorSerialAttack, compressorSerialRelease,
+                &activeBank, &activeStep, compressorTraversalMode);
+            compressorSerialCanonical = seqwencer::evaluateLinkedRange (
+                compressorCanonicalPatternA, compressorCanonicalPatternB,
+                compressorPhase, compressorRange,
+                compressorSerialAttack, compressorSerialRelease,
+                compressorSerialAttack, compressorSerialRelease,
+                nullptr, nullptr, compressorTraversalMode);
+            compressorActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            compressorActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else if (compressorIsProcessing)
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            compressorUnipolarA = seqwencer::evaluateBankRange (
+                compressorUnipolarPatternA, compressorPhase, compressorRange,
+                compressorAttackAValue, compressorReleaseAValue,
+                &stepA, compressorTraversalMode);
+            compressorUnipolarB = seqwencer::evaluateBankRange (
+                compressorUnipolarPatternB, compressorPhase, compressorRange,
+                compressorAttackBValue, compressorReleaseBValue,
+                &stepB, compressorTraversalMode);
+            compressorCanonicalA = seqwencer::evaluateBankRange (
+                compressorCanonicalPatternA, compressorPhase, compressorRange,
+                compressorAttackAValue, compressorReleaseAValue,
+                nullptr, compressorTraversalMode);
+            compressorCanonicalB = seqwencer::evaluateBankRange (
+                compressorCanonicalPatternB, compressorPhase, compressorRange,
+                compressorAttackBValue, compressorReleaseBValue,
+                nullptr, compressorTraversalMode);
+            compressorActiveStepA.store (
+                compressorAIsEnabled ? stepA : -1);
+            compressorActiveStepB.store (
+                compressorBIsEnabled ? stepB : -1);
+        }
+
+        const auto compressorTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (compressorLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return compressorSerialBipolar
+                    ? 2.0f * compressorSerialCanonical - 1.0f
+                    : compressorSerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                compressorBipolarAValue
+                    ? compressorCanonicalA : compressorUnipolarA,
+                compressorAIsEnabled && targetIsActive (0, target), target,
+                compressorBipolarAValue,
+                compressorBipolarBValue
+                    ? compressorCanonicalB : compressorUnipolarB,
+                compressorBIsEnabled && targetIsActive (1, target), target,
+                compressorBipolarBValue, assigned);
+        };
+
         if (shouldGate && shouldNoiseGate && ! shouldBypass)
         {
             const auto modulatedActual = [&] (
@@ -3663,6 +4447,163 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         }
 
+        if (grainIsProcessing)
+        {
+            const auto modulatedGrainNormalised = [&] (
+                float baseNormalised, seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = grainTargetDeviation (target, &assigned);
+                return assigned
+                    ? seqwencer::applyModulationDepth (
+                        baseNormalised, deviation, 1.0f)
+                    : baseNormalised;
+            };
+
+            const auto sizeNormalised = modulatedGrainNormalised (
+                (baseGrainSizeMs - 10.0f) / 240.0f,
+                seqwencer::ModulationTarget::grainSize);
+            const auto sizeMs = 10.0f + 240.0f * sizeNormalised;
+            const auto shiftNormalised = modulatedGrainNormalised (
+                (baseGrainShift + 24.0f) / 48.0f,
+                seqwencer::ModulationTarget::grainShift);
+            const auto semitones = -24.0f + 48.0f * shiftNormalised;
+            const auto feedbackValue = 0.90f * modulatedGrainNormalised (
+                baseGrainFeedback / 0.90f,
+                seqwencer::ModulationTarget::grainFeedback);
+            const auto mixValue = modulatedGrainNormalised (
+                baseGrainMix, seqwencer::ModulationTarget::grainMix);
+            const auto ratio = std::pow (
+                2.0, static_cast<double> (semitones) / 12.0);
+            const auto windowSamples = juce::jlimit (
+                64,
+                grainBuffer.getNumSamples() - 8,
+                static_cast<int> (std::lround (
+                    currentSampleRate * 0.001 * sizeMs)));
+            const auto windowSpan = static_cast<double> (windowSamples - 1);
+            const auto phaseA = grainReadPhase;
+            const auto phaseB = std::fmod (grainReadPhase + 0.5, 1.0);
+            const auto weightA = 0.5 - 0.5 * std::cos (
+                juce::MathConstants<double>::twoPi * phaseA);
+            const auto weightB = 0.5 - 0.5 * std::cos (
+                juce::MathConstants<double>::twoPi * phaseB);
+            const auto weightTotal = juce::jmax (1.0e-9, weightA + weightB);
+            const auto channels = juce::jmin (
+                buffer.getNumChannels(), grainBuffer.getNumChannels());
+
+            const auto readGrainSample = [&] (int channel, double phase)
+            {
+                const auto delaySamples = 4.0 + phase * windowSpan;
+                auto readPosition = static_cast<double> (grainWritePosition)
+                                  - delaySamples;
+                const auto bufferLength = grainBuffer.getNumSamples();
+                while (readPosition < 0.0)
+                    readPosition += static_cast<double> (bufferLength);
+                while (readPosition >= static_cast<double> (bufferLength))
+                    readPosition -= static_cast<double> (bufferLength);
+                const auto index0 = static_cast<int> (std::floor (readPosition));
+                const auto index1 = (index0 + 1) % bufferLength;
+                const auto fraction = static_cast<float> (
+                    readPosition - std::floor (readPosition));
+                const auto sample0 = grainBuffer.getSample (channel, index0);
+                const auto sample1 = grainBuffer.getSample (channel, index1);
+                return sample0 + fraction * (sample1 - sample0);
+            };
+
+            for (int channel = 0; channel < channels; ++channel)
+            {
+                const auto stateIndex = static_cast<std::size_t> (channel);
+                const auto drySample = buffer.getSample (channel, sample);
+                const auto feedbackSample = juce::jlimit (
+                    -4.0f, 4.0f,
+                    drySample + feedbackValue * grainFeedbackStates[stateIndex]);
+                grainBuffer.setSample (
+                    channel, grainWritePosition, feedbackSample);
+                const auto wetSample = static_cast<float> ((
+                    weightA * readGrainSample (channel, phaseA)
+                    + weightB * readGrainSample (channel, phaseB))
+                    / weightTotal);
+                grainFeedbackStates[stateIndex] = wetSample;
+                buffer.setSample (
+                    channel, sample,
+                    drySample + mixValue * (wetSample - drySample));
+            }
+
+            grainWritePosition = (grainWritePosition + 1)
+                               % grainBuffer.getNumSamples();
+            grainReadPhase = std::fmod (
+                grainReadPhase + (1.0 - ratio) / windowSpan + 1.0, 1.0);
+        }
+
+        if (compressorIsProcessing)
+        {
+            const auto modulatedCompressorActual = [&] (
+                float baseValue, float minimumValue, float maximumValue,
+                seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = compressorTargetDeviation (
+                    target, &assigned);
+                if (! assigned)
+                    return baseValue;
+                const auto normalised = (baseValue - minimumValue)
+                                      / (maximumValue - minimumValue);
+                return minimumValue + (maximumValue - minimumValue)
+                    * seqwencer::applyModulationDepth (
+                        normalised, deviation, 1.0f);
+            };
+
+            const auto thresholdDb = modulatedCompressorActual (
+                baseCompressorThreshold, -60.0f, 0.0f,
+                seqwencer::ModulationTarget::compressorThreshold);
+            const auto ratioValue = modulatedCompressorActual (
+                baseCompressorRatio, 1.0f, 20.0f,
+                seqwencer::ModulationTarget::compressorRatio);
+            const auto attackMs = modulatedCompressorActual (
+                baseCompressorAttack, 0.1f, 100.0f,
+                seqwencer::ModulationTarget::compressorAttack);
+            const auto releaseMs = modulatedCompressorActual (
+                baseCompressorRelease, 10.0f, 1000.0f,
+                seqwencer::ModulationTarget::compressorRelease);
+            const auto makeupDb = modulatedCompressorActual (
+                baseCompressorMakeup, 0.0f, 24.0f,
+                seqwencer::ModulationTarget::compressorMakeup);
+            const auto mixValue = modulatedCompressorActual (
+                baseCompressorMix, 0.0f, 1.0f,
+                seqwencer::ModulationTarget::compressorMix);
+
+            auto detectorPeak = 0.0f;
+            for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+                detectorPeak = juce::jmax (
+                    detectorPeak,
+                    std::abs (buffer.getSample (channel, sample)));
+            const auto inputDb = juce::Decibels::gainToDecibels (
+                detectorPeak, -100.0f);
+            const auto overThreshold = juce::jmax (0.0f, inputDb - thresholdDb);
+            const auto gainReductionDb = -overThreshold
+                * (1.0f - 1.0f / juce::jmax (1.0f, ratioValue));
+            const auto targetGain = juce::Decibels::decibelsToGain (
+                gainReductionDb);
+            const auto timeMs = targetGain < compressorGain
+                ? attackMs : releaseMs;
+            const auto coefficient = static_cast<float> (std::exp (
+                -1.0 / juce::jmax (
+                    1.0, 0.001 * static_cast<double> (timeMs)
+                         * currentSampleRate)));
+            compressorGain = coefficient * compressorGain
+                           + (1.0f - coefficient) * targetGain;
+            const auto makeupGain = juce::Decibels::decibelsToGain (makeupDb);
+            const auto wetGain = compressorGain * makeupGain;
+            for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+            {
+                const auto drySample = buffer.getSample (channel, sample);
+                const auto wetSample = drySample * wetGain;
+                buffer.setSample (
+                    channel, sample,
+                    drySample + mixValue * (wetSample - drySample));
+            }
+        }
+
         const auto mayAdvance = ! hostSyncEnabled || hostTimelineAdvancing;
         if (gateIsProcessing && ! gateUseHostPosition
             && (mayAdvance || gateRetriggersFromPlayedNotes))
@@ -3716,6 +4657,20 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 distortionFreeRunningPhase + distortionPhaseIncrement,
                 distortionCycleLength);
         }
+        if (grainIsProcessing && ! grainUseHostPosition
+            && (mayAdvance || grainRetriggersFromPlayedNotes))
+        {
+            grainFreeRunningPhase = seqwencer::wrapPhase (
+                grainFreeRunningPhase + grainPhaseIncrement,
+                grainCycleLength);
+        }
+        if (compressorIsProcessing && ! compressorUseHostPosition
+            && (mayAdvance || compressorRetriggersFromPlayedNotes))
+        {
+            compressorFreeRunningPhase = seqwencer::wrapPhase (
+                compressorFreeRunningPhase + compressorPhaseIncrement,
+                compressorCycleLength);
+        }
     }
 
     if (gateIsProcessing && gateUseHostPosition && hostTimelineAdvancing)
@@ -3766,6 +4721,19 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         distortionFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
             hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
             distortionStepBeats, distortionCycleLength);
+    }
+    if (grainIsProcessing && grainUseHostPosition && hostTimelineAdvancing)
+    {
+        grainFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            grainStepBeats, grainCycleLength);
+    }
+    if (compressorIsProcessing && compressorUseHostPosition
+        && hostTimelineAdvancing)
+    {
+        compressorFreeRunningPhase = seqwencer::phaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            compressorStepBeats, compressorCycleLength);
     }
 
     if (shouldSendPhiBridge && buffer.getNumSamples() > 0)
