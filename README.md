@@ -11,8 +11,8 @@
 
 ![Seqwencer](Resources/Seqwencer1.jpg)
 
-Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in by
-**sl23**, designed for fast drawing, flexible modulation and simple routing.
+Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in,
+designed for fast drawing, flexible modulation and simple routing.
 Each internal effect owns an independent pair of 32-step sequencers, so its
 pattern, speed, range and direction do not have to match the other effects.
 
