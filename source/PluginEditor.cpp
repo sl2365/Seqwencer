@@ -717,7 +717,7 @@ public:
         }
 
         const auto subdivisionRow = getSubdivisionBounds();
-        graphics.setFont (juce::FontOptions { 9.0f, juce::Font::bold });
+        graphics.setFont (juce::FontOptions { 10.0f, juce::Font::bold });
         for (int step = 0; step < seqwencer::stepsPerBank; ++step)
         {
             const auto left = subdivisionRow.getX()
@@ -730,7 +730,7 @@ public:
             const auto mode = subdivisions[static_cast<std::size_t> (step)].mode;
             const auto label = mode == seqwencer::StepDivisionMode::half ? "H"
                 : mode == seqwencer::StepDivisionMode::two ? "2"
-                : mode == seqwencer::StepDivisionMode::three ? "3" : "•";
+                : mode == seqwencer::StepDivisionMode::three ? "3" : "";
             const auto inRange = isStepInPlaybackRange (step);
             graphics.setColour (juce::Colour (0xff111820));
             graphics.fillRoundedRectangle (cell, 2.0f);
@@ -738,8 +738,19 @@ public:
                                       ? juce::Colour (mutedText)
                                       : accent.brighter (0.20f))
                                     .withMultipliedAlpha (inRange ? 0.90f : 0.25f));
-            graphics.drawText (label, cell.toNearestInt(),
-                               juce::Justification::centred, false);
+            if (mode == seqwencer::StepDivisionMode::normal)
+            {
+                const auto dotSize = juce::jlimit (
+                    2.5f, 4.0f, juce::jmin (cell.getWidth(), cell.getHeight()) * 0.30f);
+                graphics.fillEllipse (cell.getCentreX() - dotSize * 0.5f,
+                                      cell.getCentreY() - dotSize * 0.5f,
+                                      dotSize, dotSize);
+            }
+            else
+            {
+                graphics.drawText (label, cell.toNearestInt(),
+                                   juce::Justification::centred, false);
+            }
             graphics.setColour (juce::Colour (panelOutline)
                                     .withMultipliedAlpha (inRange ? 0.85f : 0.28f));
             graphics.drawRoundedRectangle (cell, 2.0f, 0.8f);
@@ -898,7 +909,9 @@ public:
         const auto step = stepAtPosition (event.position);
         if (inSubdivisionRow)
         {
-            if (event.mods.isLeftButtonDown())
+            if (event.mods.isRightButtonDown())
+                showSubdivisionMenu();
+            else if (event.mods.isLeftButtonDown())
                 cycleDivisionMode (step);
             return;
         }
@@ -997,7 +1010,11 @@ private:
         gateRandom,
         gateReset,
         gateCopy,
-        gatePaste
+        gatePaste,
+        subdivisionOff = 201,
+        subdivisionHalf,
+        subdivisionTwo,
+        subdivisionThree
     };
 
     juce::Rectangle<float> getGateModeBounds() const
@@ -1434,6 +1451,24 @@ private:
             });
     }
 
+    void showSubdivisionMenu()
+    {
+        endGestures();
+        juce::PopupMenu menu;
+        menu.addItem (subdivisionOff, "Off");
+        menu.addItem (subdivisionHalf, "H");
+        menu.addItem (subdivisionTwo, "2");
+        menu.addItem (subdivisionThree, "3");
+        juce::Component::SafePointer<StepGrid> safeThis (this);
+        menu.showMenuAsync (
+            juce::PopupMenu::Options().withTargetComponent (this),
+            [safeThis] (int result)
+            {
+                if (safeThis != nullptr && result != 0)
+                    safeThis->performSubdivisionMenuCommand (result);
+            });
+    }
+
     void performStepMenuCommand (int command)
     {
         if (command == stepCopy)
@@ -1532,6 +1567,43 @@ private:
                 : seqwencer::GateStepMode::longStep);
         }
         setGateModes (modes);
+    }
+
+    void performSubdivisionMenuCommand (int command)
+    {
+        const auto targetMode = command == subdivisionHalf
+            ? seqwencer::StepDivisionMode::half
+            : command == subdivisionTwo
+                ? seqwencer::StepDivisionMode::two
+                : command == subdivisionThree
+                    ? seqwencer::StepDivisionMode::three
+                    : seqwencer::StepDivisionMode::normal;
+        auto subdivisions = processor.getStepSubdivisions (engine, bank);
+        for (std::size_t step = 0; step < subdivisions.size(); ++step)
+        {
+            auto& subdivision = subdivisions[step];
+            const auto previousMode = subdivision.mode;
+            const auto mainValue = readParameter (stepParameters[step], 1.0f);
+            if (targetMode == seqwencer::StepDivisionMode::two
+                && previousMode != seqwencer::StepDivisionMode::two
+                && previousMode != seqwencer::StepDivisionMode::three)
+            {
+                subdivision.extraValues[0] = mainValue;
+            }
+            else if (targetMode == seqwencer::StepDivisionMode::three)
+            {
+                if (previousMode == seqwencer::StepDivisionMode::two)
+                {
+                    subdivision.extraValues[1] = subdivision.extraValues[0];
+                }
+                else if (previousMode != seqwencer::StepDivisionMode::three)
+                {
+                    subdivision.extraValues.fill (mainValue);
+                }
+            }
+            subdivision.mode = targetMode;
+        }
+        setSubdivisions (subdivisions);
     }
 
     void restoreFromPreset (bool gateModesOnly)
@@ -4565,7 +4637,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.18.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.18.1",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 

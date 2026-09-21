@@ -112,6 +112,10 @@ through:
 - `2`: two equal-width segments with separately drawable heights
 - `3`: three equal-width segments with separately drawable heights
 
+Right-click any button in this row to set all 32 steps in that lane to Off,
+H, 2 or 3. Newly activated segment heights begin at the matching main step's
+height, while segment heights already in use are preserved.
+
 All active segments use that lane's existing Attack and Release controls. Rate,
 Start, End and Length continue to count the original main steps, so dividing a
 step adds detail inside its existing duration without changing the playback

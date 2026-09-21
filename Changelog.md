@@ -2,6 +2,16 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.18.1 fixes and features
+
+- Replaced the subdivision Off character with a directly drawn centred dot so
+  it renders correctly and consistently at every GUI scale
+- Increased the `H`, `2` and `3` subdivision labels from 9 to 10 pixels
+- Added a right-click menu to the subdivision row with Off, H, 2 and 3 commands
+  that set all 32 steps in the selected lane
+- Newly activated subdivision segments inherit their main step's current
+  height, while heights belonging to segments already in use are preserved
+
 ## v1.3.18.0 features
 
 - Added a compact subdivision button beneath every main step on every FX and
