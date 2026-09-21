@@ -73,7 +73,11 @@ presets that contain no routing order use the original Gate-to-Compressor order.
 
 Random uses repeatable shuffled passes: every selected step is visited once per
 pass, the order changes between passes, and saved projects recall the same
-sequence reliably.
+sequence reliably. Every FX and PHI A/B lane has its own deterministic Random
+stream, so Parallel lanes do not follow an identical shuffled order. As with
+independent random sequences, two lanes may still occasionally land on the
+same step by chance. Serial treats A and B as one combined 64-step sequencer
+and therefore uses one Random stream.
 
 ## Basic use
 

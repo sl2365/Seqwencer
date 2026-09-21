@@ -4101,6 +4101,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             bool linkedBoundaries,
             const std::array<seqwencer::ModulationTarget,
                              seqwencer::sequencerRangeTargetCount>& targets,
+            seqwencer::SequencerEngine sequencerEngine,
             int maximumStep)
         {
             if (! engineIsProcessing)
@@ -4127,6 +4128,12 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             auto rawCanonicalB = 1.0f;
             auto rawSerialUnipolar = 1.0f;
             auto rawSerialCanonical = 1.0f;
+            const auto randomStreamA = seqwencer::sequencerRandomStream (
+                sequencerEngine, 0);
+            const auto randomStreamB = seqwencer::sequencerRandomStream (
+                sequencerEngine, 1);
+            const auto randomStreamSerial = seqwencer::sequencerRandomStream (
+                sequencerEngine, 2);
             if (serialPlayback)
             {
                 rawSerialUnipolar = seqwencer::evaluateSubdividedLinkedRange (
@@ -4134,32 +4141,36 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     unipolarSubdivisionsA, unipolarSubdivisionsB,
                     phase, baseRange,
                     0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr,
-                    traversalMode);
+                    traversalMode, 0.0f, randomStreamSerial);
                 rawSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                     canonicalPatternA, canonicalPatternB,
                     canonicalSubdivisionsA, canonicalSubdivisionsB,
                     phase, baseRange,
                     0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr,
-                    traversalMode, 0.5f);
+                    traversalMode, 0.5f, randomStreamSerial);
             }
             else
             {
                 rawUnipolarA = seqwencer::evaluateSubdividedBankRange (
                     unipolarPatternA, unipolarSubdivisionsA,
                     phase, baseRange,
-                    0.0f, 0.0f, nullptr, traversalMode);
+                    0.0f, 0.0f, nullptr, traversalMode,
+                    0.0f, randomStreamA);
                 rawUnipolarB = seqwencer::evaluateSubdividedBankRange (
                     unipolarPatternB, unipolarSubdivisionsB,
                     phase, baseRange,
-                    0.0f, 0.0f, nullptr, traversalMode);
+                    0.0f, 0.0f, nullptr, traversalMode,
+                    0.0f, randomStreamB);
                 rawCanonicalA = seqwencer::evaluateSubdividedBankRange (
                     canonicalPatternA, canonicalSubdivisionsA,
                     phase, baseRange,
-                    0.0f, 0.0f, nullptr, traversalMode, 0.5f);
+                    0.0f, 0.0f, nullptr, traversalMode,
+                    0.5f, randomStreamA);
                 rawCanonicalB = seqwencer::evaluateSubdividedBankRange (
                     canonicalPatternB, canonicalSubdivisionsB,
                     phase, baseRange,
-                    0.0f, 0.0f, nullptr, traversalMode, 0.5f);
+                    0.0f, 0.0f, nullptr, traversalMode,
+                    0.5f, randomStreamB);
             }
 
             const auto modulationDeviation = [&] (
@@ -4244,6 +4255,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             gateAIsEnabled, gateBIsEnabled, gateRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::gate),
+            seqwencer::SequencerEngine::gate,
             gateMaximumStep);
         const auto delaySampleRange = modulatedSequenceRange (
             delayIsProcessing,
@@ -4257,6 +4269,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             delayAIsEnabled, delayBIsEnabled, delayRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::delay),
+            seqwencer::SequencerEngine::delay,
             delayMaximumStep);
         const auto reverbSampleRange = modulatedSequenceRange (
             reverbIsProcessing,
@@ -4270,6 +4283,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             reverbAIsEnabled, reverbBIsEnabled, reverbRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::reverb),
+            seqwencer::SequencerEngine::reverb,
             reverbMaximumStep);
         const auto panSampleRange = modulatedSequenceRange (
             panIsProcessing,
@@ -4283,6 +4297,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             panAIsEnabled, panBIsEnabled, panRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::pan),
+            seqwencer::SequencerEngine::pan,
             panMaximumStep);
         const auto filterSampleRange = modulatedSequenceRange (
             filterIsProcessing,
@@ -4296,6 +4311,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             filterAIsEnabled, filterBIsEnabled, filterRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::filter),
+            seqwencer::SequencerEngine::filter,
             filterMaximumStep);
         const auto pitchSampleRange = modulatedSequenceRange (
             pitchIsProcessing,
@@ -4309,6 +4325,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             pitchAIsEnabled, pitchBIsEnabled, pitchRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::pitch),
+            seqwencer::SequencerEngine::pitch,
             pitchMaximumStep);
         const auto distortionSampleRange = modulatedSequenceRange (
             distortionIsProcessing,
@@ -4325,6 +4342,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             distortionRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::distortion),
+            seqwencer::SequencerEngine::distortion,
             distortionMaximumStep);
         const auto grainSampleRange = modulatedSequenceRange (
             grainIsProcessing,
@@ -4338,6 +4356,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             grainAIsEnabled, grainBIsEnabled, grainRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::grain),
+            seqwencer::SequencerEngine::grain,
             grainMaximumStep);
         const auto compressorSampleRange = modulatedSequenceRange (
             compressorIsProcessing,
@@ -4354,6 +4373,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             compressorRangeIsLinked,
             seqwencer::sequencerRangeTargets (
                 seqwencer::SequencerEngine::compressor),
+            seqwencer::SequencerEngine::compressor,
             compressorMaximumStep);
 
         const auto modulatedEnvelopeValues = [&] (
@@ -4375,6 +4395,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             bool bipolarB,
             bool laneAEnabled,
             bool laneBEnabled,
+            seqwencer::SequencerEngine sequencerEngine,
             const std::array<seqwencer::ModulationTarget,
                              seqwencer::sequencerEnvelopeTargetCount>& targets,
             std::array<float,
@@ -4399,6 +4420,12 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             auto rawCanonicalB = 1.0f;
             auto rawSerialUnipolar = 1.0f;
             auto rawSerialCanonical = 1.0f;
+            const auto randomStreamA = seqwencer::sequencerRandomStream (
+                sequencerEngine, 0);
+            const auto randomStreamB = seqwencer::sequencerRandomStream (
+                sequencerEngine, 1);
+            const auto randomStreamSerial = seqwencer::sequencerRandomStream (
+                sequencerEngine, 2);
             if (linked)
             {
                 rawSerialUnipolar = seqwencer::evaluateSubdividedLinkedRange (
@@ -4406,32 +4433,36 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     unipolarSubdivisionsA, unipolarSubdivisionsB,
                     phase, range,
                     0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr,
-                    traversalMode);
+                    traversalMode, 0.0f, randomStreamSerial);
                 rawSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                     canonicalPatternA, canonicalPatternB,
                     canonicalSubdivisionsA, canonicalSubdivisionsB,
                     phase, range,
                     0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr,
-                    traversalMode, 0.5f);
+                    traversalMode, 0.5f, randomStreamSerial);
             }
             else
             {
                 rawUnipolarA = seqwencer::evaluateSubdividedBankRange (
                     unipolarPatternA, unipolarSubdivisionsA,
                     phase, range,
-                    0.0f, 0.0f, nullptr, traversalMode);
+                    0.0f, 0.0f, nullptr, traversalMode,
+                    0.0f, randomStreamA);
                 rawUnipolarB = seqwencer::evaluateSubdividedBankRange (
                     unipolarPatternB, unipolarSubdivisionsB,
                     phase, range,
-                    0.0f, 0.0f, nullptr, traversalMode);
+                    0.0f, 0.0f, nullptr, traversalMode,
+                    0.0f, randomStreamB);
                 rawCanonicalA = seqwencer::evaluateSubdividedBankRange (
                     canonicalPatternA, canonicalSubdivisionsA,
                     phase, range,
-                    0.0f, 0.0f, nullptr, traversalMode, 0.5f);
+                    0.0f, 0.0f, nullptr, traversalMode,
+                    0.5f, randomStreamA);
                 rawCanonicalB = seqwencer::evaluateSubdividedBankRange (
                     canonicalPatternB, canonicalSubdivisionsB,
                     phase, range,
-                    0.0f, 0.0f, nullptr, traversalMode, 0.5f);
+                    0.0f, 0.0f, nullptr, traversalMode,
+                    0.5f, randomStreamB);
             }
 
             for (std::size_t index = 0; index < targets.size(); ++index)
@@ -4487,6 +4518,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             gatePhase, gateSampleRange, gateTraversalMode,
             gateLinked, gateSerialBipolar, gateBipolarA, gateBipolarB,
             gateAIsEnabled, gateBIsEnabled,
+            seqwencer::SequencerEngine::gate,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::gate),
             { gateAttackA, gateReleaseA, gateAttackB, gateReleaseB });
@@ -4507,14 +4539,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 gatePhase, gateSampleRange,
                 effectiveGateSerialAttack, effectiveGateSerialRelease,
                 effectiveGateSerialAttack, effectiveGateSerialRelease,
-                nullptr, nullptr, gateTraversalMode);
+                nullptr, nullptr, gateTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 2));
             gateSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 gateCanonicalPatternA, gateCanonicalPatternB,
                 gateCanonicalSubdivisionsA, gateCanonicalSubdivisionsB,
                 gatePhase, gateSampleRange,
                 effectiveGateSerialAttack, effectiveGateSerialRelease,
                 effectiveGateSerialAttack, effectiveGateSerialRelease,
-                nullptr, nullptr, gateTraversalMode, 0.5f);
+                nullptr, nullptr, gateTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 2));
         }
         else if (gateIsProcessing)
         {
@@ -4522,22 +4558,30 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 gatePatternA, gateUnipolarSubdivisionsA,
                 gatePhase, gateSampleRange,
                 effectiveGateAttackA, effectiveGateReleaseA,
-                nullptr, gateTraversalMode);
+                nullptr, gateTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 0));
             gateUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 gatePatternB, gateUnipolarSubdivisionsB,
                 gatePhase, gateSampleRange,
                 effectiveGateAttackB, effectiveGateReleaseB,
-                nullptr, gateTraversalMode);
+                nullptr, gateTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 1));
             gateCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 gateCanonicalPatternA, gateCanonicalSubdivisionsA,
                 gatePhase, gateSampleRange,
                 effectiveGateAttackA, effectiveGateReleaseA,
-                nullptr, gateTraversalMode, 0.5f);
+                nullptr, gateTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 0));
             gateCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 gateCanonicalPatternB, gateCanonicalSubdivisionsB,
                 gatePhase, gateSampleRange,
                 effectiveGateAttackB, effectiveGateReleaseB,
-                nullptr, gateTraversalMode, 0.5f);
+                nullptr, gateTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 1));
         }
 
         const auto gateTargetDeviation = [&] (
@@ -4605,7 +4649,9 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 effectiveGateSerialAttack, effectiveGateSerialRelease,
                 effectiveGateSerialAttack, effectiveGateSerialRelease,
                 &activeBank, &activeStep, shortLength, longLength,
-                gateTraversalMode);
+                gateTraversalMode,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 2));
             gateActiveStepA.store (activeBank == 0 ? activeStep : -1);
             gateActiveStepB.store (activeBank == 1 ? activeStep : -1);
             const auto targetGain = shouldGate && ! shouldBypass
@@ -4623,13 +4669,17 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 gatePhase, gateSampleRange,
                 effectiveGateAttackA, effectiveGateReleaseA,
                 &stepA, shortLength, longLength,
-                gateTraversalMode);
+                gateTraversalMode,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 0));
             const auto valueB = seqwencer::evaluateSubdividedGateBankRange (
                 gateLevelPatternB, gateModesForB, gateUnipolarSubdivisionsB,
                 gatePhase, gateSampleRange,
                 effectiveGateAttackB, effectiveGateReleaseB,
                 &stepB, shortLength, longLength,
-                gateTraversalMode);
+                gateTraversalMode,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::gate, 1));
             gateActiveStepA.store (gateAIsEnabled ? stepA : -1);
             gateActiveStepB.store (gateBIsEnabled ? stepB : -1);
 
@@ -4660,7 +4710,9 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 phiSerialAttack, phiSerialRelease,
                 phiSerialAttack, phiSerialRelease,
                 &activeBank, &activeStep, phiTraversalMode,
-                phiSerialBipolar ? 0.5f : 0.0f);
+                phiSerialBipolar ? 0.5f : 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::phi, 2));
             phiActiveStepA.store (activeBank == 0 ? activeStep : -1);
             phiActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -4672,12 +4724,16 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 phiPatternA, phiSubdivisionsA, phiPhase, phiRange,
                 phiAttackAValue, phiReleaseAValue,
                 &stepA, phiTraversalMode,
-                phiBipolarAValue ? 0.5f : 0.0f);
+                phiBipolarAValue ? 0.5f : 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::phi, 0));
             lastBridgeValueB = seqwencer::evaluateSubdividedBankRange (
                 phiPatternB, phiSubdivisionsB, phiPhase, phiRange,
                 phiAttackBValue, phiReleaseBValue,
                 &stepB, phiTraversalMode,
-                phiBipolarBValue ? 0.5f : 0.0f);
+                phiBipolarBValue ? 0.5f : 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::phi, 1));
             phiActiveStepA.store (phiAIsEnabled ? stepA : -1);
             phiActiveStepB.store (phiBIsEnabled ? stepB : -1);
         }
@@ -4698,6 +4754,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             delayLinked, delaySerialBipolar,
             delayBipolarAValue, delayBipolarBValue,
             delayAIsEnabled, delayBIsEnabled,
+            seqwencer::SequencerEngine::delay,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::delay),
             { delayAttackAValue, delayReleaseAValue,
@@ -4720,14 +4777,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 delayPhase, delaySampleRange,
                 effectiveDelaySerialAttack, effectiveDelaySerialRelease,
                 effectiveDelaySerialAttack, effectiveDelaySerialRelease,
-                &activeBank, &activeStep, delayTraversalMode);
+                &activeBank, &activeStep, delayTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::delay, 2));
             delaySerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 delayCanonicalPatternA, delayCanonicalPatternB,
                 delayCanonicalSubdivisionsA, delayCanonicalSubdivisionsB,
                 delayPhase, delaySampleRange,
                 effectiveDelaySerialAttack, effectiveDelaySerialRelease,
                 effectiveDelaySerialAttack, effectiveDelaySerialRelease,
-                nullptr, nullptr, delayTraversalMode, 0.5f);
+                nullptr, nullptr, delayTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::delay, 2));
             delayActiveStepA.store (activeBank == 0 ? activeStep : -1);
             delayActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -4739,22 +4800,30 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 delayUnipolarPatternA, delayUnipolarSubdivisionsA,
                 delayPhase, delaySampleRange,
                 effectiveDelayAttackA, effectiveDelayReleaseA,
-                &stepA, delayTraversalMode);
+                &stepA, delayTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::delay, 0));
             delayUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 delayUnipolarPatternB, delayUnipolarSubdivisionsB,
                 delayPhase, delaySampleRange,
                 effectiveDelayAttackB, effectiveDelayReleaseB,
-                &stepB, delayTraversalMode);
+                &stepB, delayTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::delay, 1));
             delayCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 delayCanonicalPatternA, delayCanonicalSubdivisionsA,
                 delayPhase, delaySampleRange,
                 effectiveDelayAttackA, effectiveDelayReleaseA,
-                nullptr, delayTraversalMode, 0.5f);
+                nullptr, delayTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::delay, 0));
             delayCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 delayCanonicalPatternB, delayCanonicalSubdivisionsB,
                 delayPhase, delaySampleRange,
                 effectiveDelayAttackB, effectiveDelayReleaseB,
-                nullptr, delayTraversalMode, 0.5f);
+                nullptr, delayTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::delay, 1));
             delayActiveStepA.store (delayAIsEnabled ? stepA : -1);
             delayActiveStepB.store (delayBIsEnabled ? stepB : -1);
         }
@@ -4800,6 +4869,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             reverbLinked, reverbSerialBipolar,
             reverbBipolarAValue, reverbBipolarBValue,
             reverbAIsEnabled, reverbBIsEnabled,
+            seqwencer::SequencerEngine::reverb,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::reverb),
             { reverbAttackAValue, reverbReleaseAValue,
@@ -4822,14 +4892,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 reverbPhase, reverbSampleRange,
                 effectiveReverbSerialAttack, effectiveReverbSerialRelease,
                 effectiveReverbSerialAttack, effectiveReverbSerialRelease,
-                &activeBank, &activeStep, reverbTraversalMode);
+                &activeBank, &activeStep, reverbTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverb, 2));
             reverbSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 reverbCanonicalPatternA, reverbCanonicalPatternB,
                 reverbCanonicalSubdivisionsA, reverbCanonicalSubdivisionsB,
                 reverbPhase, reverbSampleRange,
                 effectiveReverbSerialAttack, effectiveReverbSerialRelease,
                 effectiveReverbSerialAttack, effectiveReverbSerialRelease,
-                nullptr, nullptr, reverbTraversalMode, 0.5f);
+                nullptr, nullptr, reverbTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverb, 2));
             reverbActiveStepA.store (activeBank == 0 ? activeStep : -1);
             reverbActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -4841,22 +4915,30 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 reverbUnipolarPatternA, reverbUnipolarSubdivisionsA,
                 reverbPhase, reverbSampleRange,
                 effectiveReverbAttackA, effectiveReverbReleaseA,
-                &stepA, reverbTraversalMode);
+                &stepA, reverbTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverb, 0));
             reverbUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 reverbUnipolarPatternB, reverbUnipolarSubdivisionsB,
                 reverbPhase, reverbSampleRange,
                 effectiveReverbAttackB, effectiveReverbReleaseB,
-                &stepB, reverbTraversalMode);
+                &stepB, reverbTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverb, 1));
             reverbCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 reverbCanonicalPatternA, reverbCanonicalSubdivisionsA,
                 reverbPhase, reverbSampleRange,
                 effectiveReverbAttackA, effectiveReverbReleaseA,
-                nullptr, reverbTraversalMode, 0.5f);
+                nullptr, reverbTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverb, 0));
             reverbCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 reverbCanonicalPatternB, reverbCanonicalSubdivisionsB,
                 reverbPhase, reverbSampleRange,
                 effectiveReverbAttackB, effectiveReverbReleaseB,
-                nullptr, reverbTraversalMode, 0.5f);
+                nullptr, reverbTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverb, 1));
             reverbActiveStepA.store (reverbAIsEnabled ? stepA : -1);
             reverbActiveStepB.store (reverbBIsEnabled ? stepB : -1);
         }
@@ -4902,6 +4984,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             panLinked, panSerialBipolar,
             panBipolarAValue, panBipolarBValue,
             panAIsEnabled, panBIsEnabled,
+            seqwencer::SequencerEngine::pan,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::pan),
             { panAttackAValue, panReleaseAValue,
@@ -4924,14 +5007,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 panPhase, panSampleRange,
                 effectivePanSerialAttack, effectivePanSerialRelease,
                 effectivePanSerialAttack, effectivePanSerialRelease,
-                &activeBank, &activeStep, panTraversalMode);
+                &activeBank, &activeStep, panTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pan, 2));
             panSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 panCanonicalPatternA, panCanonicalPatternB,
                 panCanonicalSubdivisionsA, panCanonicalSubdivisionsB,
                 panPhase, panSampleRange,
                 effectivePanSerialAttack, effectivePanSerialRelease,
                 effectivePanSerialAttack, effectivePanSerialRelease,
-                nullptr, nullptr, panTraversalMode, 0.5f);
+                nullptr, nullptr, panTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pan, 2));
             panActiveStepA.store (activeBank == 0 ? activeStep : -1);
             panActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -4943,22 +5030,30 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 panUnipolarPatternA, panUnipolarSubdivisionsA,
                 panPhase, panSampleRange,
                 effectivePanAttackA, effectivePanReleaseA,
-                &stepA, panTraversalMode);
+                &stepA, panTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pan, 0));
             panUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 panUnipolarPatternB, panUnipolarSubdivisionsB,
                 panPhase, panSampleRange,
                 effectivePanAttackB, effectivePanReleaseB,
-                &stepB, panTraversalMode);
+                &stepB, panTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pan, 1));
             panCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 panCanonicalPatternA, panCanonicalSubdivisionsA,
                 panPhase, panSampleRange,
                 effectivePanAttackA, effectivePanReleaseA,
-                nullptr, panTraversalMode, 0.5f);
+                nullptr, panTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pan, 0));
             panCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 panCanonicalPatternB, panCanonicalSubdivisionsB,
                 panPhase, panSampleRange,
                 effectivePanAttackB, effectivePanReleaseB,
-                nullptr, panTraversalMode, 0.5f);
+                nullptr, panTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pan, 1));
             panActiveStepA.store (panAIsEnabled ? stepA : -1);
             panActiveStepB.store (panBIsEnabled ? stepB : -1);
         }
@@ -5004,6 +5099,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             filterLinked, filterSerialBipolar,
             filterBipolarAValue, filterBipolarBValue,
             filterAIsEnabled, filterBIsEnabled,
+            seqwencer::SequencerEngine::filter,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::filter),
             { filterAttackAValue, filterReleaseAValue,
@@ -5026,14 +5122,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 filterPhase, filterSampleRange,
                 effectiveFilterSerialAttack, effectiveFilterSerialRelease,
                 effectiveFilterSerialAttack, effectiveFilterSerialRelease,
-                &activeBank, &activeStep, filterTraversalMode);
+                &activeBank, &activeStep, filterTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::filter, 2));
             filterSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 filterCanonicalPatternA, filterCanonicalPatternB,
                 filterCanonicalSubdivisionsA, filterCanonicalSubdivisionsB,
                 filterPhase, filterSampleRange,
                 effectiveFilterSerialAttack, effectiveFilterSerialRelease,
                 effectiveFilterSerialAttack, effectiveFilterSerialRelease,
-                nullptr, nullptr, filterTraversalMode, 0.5f);
+                nullptr, nullptr, filterTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::filter, 2));
             filterActiveStepA.store (activeBank == 0 ? activeStep : -1);
             filterActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -5045,22 +5145,30 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 filterUnipolarPatternA, filterUnipolarSubdivisionsA,
                 filterPhase, filterSampleRange,
                 effectiveFilterAttackA, effectiveFilterReleaseA,
-                &stepA, filterTraversalMode);
+                &stepA, filterTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::filter, 0));
             filterUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 filterUnipolarPatternB, filterUnipolarSubdivisionsB,
                 filterPhase, filterSampleRange,
                 effectiveFilterAttackB, effectiveFilterReleaseB,
-                &stepB, filterTraversalMode);
+                &stepB, filterTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::filter, 1));
             filterCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 filterCanonicalPatternA, filterCanonicalSubdivisionsA,
                 filterPhase, filterSampleRange,
                 effectiveFilterAttackA, effectiveFilterReleaseA,
-                nullptr, filterTraversalMode, 0.5f);
+                nullptr, filterTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::filter, 0));
             filterCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 filterCanonicalPatternB, filterCanonicalSubdivisionsB,
                 filterPhase, filterSampleRange,
                 effectiveFilterAttackB, effectiveFilterReleaseB,
-                nullptr, filterTraversalMode, 0.5f);
+                nullptr, filterTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::filter, 1));
             filterActiveStepA.store (filterAIsEnabled ? stepA : -1);
             filterActiveStepB.store (filterBIsEnabled ? stepB : -1);
         }
@@ -5106,6 +5214,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             pitchLinked, pitchSerialBipolar,
             pitchBipolarAValue, pitchBipolarBValue,
             pitchAIsEnabled, pitchBIsEnabled,
+            seqwencer::SequencerEngine::pitch,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::pitch),
             { pitchAttackAValue, pitchReleaseAValue,
@@ -5128,14 +5237,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 pitchPhase, pitchSampleRange,
                 effectivePitchSerialAttack, effectivePitchSerialRelease,
                 effectivePitchSerialAttack, effectivePitchSerialRelease,
-                &activeBank, &activeStep, pitchTraversalMode);
+                &activeBank, &activeStep, pitchTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pitch, 2));
             pitchSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 pitchCanonicalPatternA, pitchCanonicalPatternB,
                 pitchCanonicalSubdivisionsA, pitchCanonicalSubdivisionsB,
                 pitchPhase, pitchSampleRange,
                 effectivePitchSerialAttack, effectivePitchSerialRelease,
                 effectivePitchSerialAttack, effectivePitchSerialRelease,
-                nullptr, nullptr, pitchTraversalMode, 0.5f);
+                nullptr, nullptr, pitchTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pitch, 2));
             pitchActiveStepA.store (activeBank == 0 ? activeStep : -1);
             pitchActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -5147,22 +5260,30 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 pitchUnipolarPatternA, pitchUnipolarSubdivisionsA,
                 pitchPhase, pitchSampleRange,
                 effectivePitchAttackA, effectivePitchReleaseA,
-                &stepA, pitchTraversalMode);
+                &stepA, pitchTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pitch, 0));
             pitchUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 pitchUnipolarPatternB, pitchUnipolarSubdivisionsB,
                 pitchPhase, pitchSampleRange,
                 effectivePitchAttackB, effectivePitchReleaseB,
-                &stepB, pitchTraversalMode);
+                &stepB, pitchTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pitch, 1));
             pitchCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 pitchCanonicalPatternA, pitchCanonicalSubdivisionsA,
                 pitchPhase, pitchSampleRange,
                 effectivePitchAttackA, effectivePitchReleaseA,
-                nullptr, pitchTraversalMode, 0.5f);
+                nullptr, pitchTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pitch, 0));
             pitchCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 pitchCanonicalPatternB, pitchCanonicalSubdivisionsB,
                 pitchPhase, pitchSampleRange,
                 effectivePitchAttackB, effectivePitchReleaseB,
-                nullptr, pitchTraversalMode, 0.5f);
+                nullptr, pitchTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::pitch, 1));
             pitchActiveStepA.store (pitchAIsEnabled ? stepA : -1);
             pitchActiveStepB.store (pitchBIsEnabled ? stepB : -1);
         }
@@ -5210,6 +5331,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             distortionLinked, distortionSerialBipolar,
             distortionBipolarAValue, distortionBipolarBValue,
             distortionAIsEnabled, distortionBIsEnabled,
+            seqwencer::SequencerEngine::distortion,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::distortion),
             { distortionAttackAValue, distortionReleaseAValue,
@@ -5235,7 +5357,9 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 effectiveDistortionSerialRelease,
                 effectiveDistortionSerialAttack,
                 effectiveDistortionSerialRelease,
-                &activeBank, &activeStep, distortionTraversalMode);
+                &activeBank, &activeStep, distortionTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::distortion, 2));
             distortionSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 distortionCanonicalPatternA, distortionCanonicalPatternB,
                 distortionCanonicalSubdivisionsA,
@@ -5245,7 +5369,9 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 effectiveDistortionSerialRelease,
                 effectiveDistortionSerialAttack,
                 effectiveDistortionSerialRelease,
-                nullptr, nullptr, distortionTraversalMode, 0.5f);
+                nullptr, nullptr, distortionTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::distortion, 2));
             distortionActiveStepA.store (activeBank == 0 ? activeStep : -1);
             distortionActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -5258,25 +5384,33 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 distortionPhase,
                 distortionSampleRange,
                 effectiveDistortionAttackA, effectiveDistortionReleaseA,
-                &stepA, distortionTraversalMode);
+                &stepA, distortionTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::distortion, 0));
             distortionUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 distortionUnipolarPatternB, distortionUnipolarSubdivisionsB,
                 distortionPhase,
                 distortionSampleRange,
                 effectiveDistortionAttackB, effectiveDistortionReleaseB,
-                &stepB, distortionTraversalMode);
+                &stepB, distortionTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::distortion, 1));
             distortionCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 distortionCanonicalPatternA, distortionCanonicalSubdivisionsA,
                 distortionPhase,
                 distortionSampleRange,
                 effectiveDistortionAttackA, effectiveDistortionReleaseA,
-                nullptr, distortionTraversalMode, 0.5f);
+                nullptr, distortionTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::distortion, 0));
             distortionCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 distortionCanonicalPatternB, distortionCanonicalSubdivisionsB,
                 distortionPhase,
                 distortionSampleRange,
                 effectiveDistortionAttackB, effectiveDistortionReleaseB,
-                nullptr, distortionTraversalMode, 0.5f);
+                nullptr, distortionTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::distortion, 1));
             distortionActiveStepA.store (distortionAIsEnabled ? stepA : -1);
             distortionActiveStepB.store (distortionBIsEnabled ? stepB : -1);
         }
@@ -5324,6 +5458,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             grainLinked, grainSerialBipolar,
             grainBipolarAValue, grainBipolarBValue,
             grainAIsEnabled, grainBIsEnabled,
+            seqwencer::SequencerEngine::grain,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::grain),
             { grainAttackAValue, grainReleaseAValue,
@@ -5346,14 +5481,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 grainPhase, grainSampleRange,
                 effectiveGrainSerialAttack, effectiveGrainSerialRelease,
                 effectiveGrainSerialAttack, effectiveGrainSerialRelease,
-                &activeBank, &activeStep, grainTraversalMode);
+                &activeBank, &activeStep, grainTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::grain, 2));
             grainSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 grainCanonicalPatternA, grainCanonicalPatternB,
                 grainCanonicalSubdivisionsA, grainCanonicalSubdivisionsB,
                 grainPhase, grainSampleRange,
                 effectiveGrainSerialAttack, effectiveGrainSerialRelease,
                 effectiveGrainSerialAttack, effectiveGrainSerialRelease,
-                nullptr, nullptr, grainTraversalMode, 0.5f);
+                nullptr, nullptr, grainTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::grain, 2));
             grainActiveStepA.store (activeBank == 0 ? activeStep : -1);
             grainActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -5365,22 +5504,30 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 grainUnipolarPatternA, grainUnipolarSubdivisionsA,
                 grainPhase, grainSampleRange,
                 effectiveGrainAttackA, effectiveGrainReleaseA,
-                &stepA, grainTraversalMode);
+                &stepA, grainTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::grain, 0));
             grainUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 grainUnipolarPatternB, grainUnipolarSubdivisionsB,
                 grainPhase, grainSampleRange,
                 effectiveGrainAttackB, effectiveGrainReleaseB,
-                &stepB, grainTraversalMode);
+                &stepB, grainTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::grain, 1));
             grainCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 grainCanonicalPatternA, grainCanonicalSubdivisionsA,
                 grainPhase, grainSampleRange,
                 effectiveGrainAttackA, effectiveGrainReleaseA,
-                nullptr, grainTraversalMode, 0.5f);
+                nullptr, grainTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::grain, 0));
             grainCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 grainCanonicalPatternB, grainCanonicalSubdivisionsB,
                 grainPhase, grainSampleRange,
                 effectiveGrainAttackB, effectiveGrainReleaseB,
-                nullptr, grainTraversalMode, 0.5f);
+                nullptr, grainTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::grain, 1));
             grainActiveStepA.store (grainAIsEnabled ? stepA : -1);
             grainActiveStepB.store (grainBIsEnabled ? stepB : -1);
         }
@@ -5428,6 +5575,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             compressorLinked, compressorSerialBipolar,
             compressorBipolarAValue, compressorBipolarBValue,
             compressorAIsEnabled, compressorBIsEnabled,
+            seqwencer::SequencerEngine::compressor,
             seqwencer::sequencerEnvelopeTargets (
                 seqwencer::SequencerEngine::compressor),
             { compressorAttackAValue, compressorReleaseAValue,
@@ -5453,7 +5601,9 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 effectiveCompressorSerialRelease,
                 effectiveCompressorSerialAttack,
                 effectiveCompressorSerialRelease,
-                &activeBank, &activeStep, compressorTraversalMode);
+                &activeBank, &activeStep, compressorTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::compressor, 2));
             compressorSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
                 compressorCanonicalPatternA, compressorCanonicalPatternB,
                 compressorCanonicalSubdivisionsA,
@@ -5463,7 +5613,9 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 effectiveCompressorSerialRelease,
                 effectiveCompressorSerialAttack,
                 effectiveCompressorSerialRelease,
-                nullptr, nullptr, compressorTraversalMode, 0.5f);
+                nullptr, nullptr, compressorTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::compressor, 2));
             compressorActiveStepA.store (activeBank == 0 ? activeStep : -1);
             compressorActiveStepB.store (activeBank == 1 ? activeStep : -1);
         }
@@ -5476,25 +5628,33 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 compressorPhase,
                 compressorSampleRange,
                 effectiveCompressorAttackA, effectiveCompressorReleaseA,
-                &stepA, compressorTraversalMode);
+                &stepA, compressorTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::compressor, 0));
             compressorUnipolarB = seqwencer::evaluateSubdividedBankRange (
                 compressorUnipolarPatternB, compressorUnipolarSubdivisionsB,
                 compressorPhase,
                 compressorSampleRange,
                 effectiveCompressorAttackB, effectiveCompressorReleaseB,
-                &stepB, compressorTraversalMode);
+                &stepB, compressorTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::compressor, 1));
             compressorCanonicalA = seqwencer::evaluateSubdividedBankRange (
                 compressorCanonicalPatternA, compressorCanonicalSubdivisionsA,
                 compressorPhase,
                 compressorSampleRange,
                 effectiveCompressorAttackA, effectiveCompressorReleaseA,
-                nullptr, compressorTraversalMode, 0.5f);
+                nullptr, compressorTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::compressor, 0));
             compressorCanonicalB = seqwencer::evaluateSubdividedBankRange (
                 compressorCanonicalPatternB, compressorCanonicalSubdivisionsB,
                 compressorPhase,
                 compressorSampleRange,
                 effectiveCompressorAttackB, effectiveCompressorReleaseB,
-                nullptr, compressorTraversalMode, 0.5f);
+                nullptr, compressorTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::compressor, 1));
             compressorActiveStepA.store (
                 compressorAIsEnabled ? stepA : -1);
             compressorActiveStepB.store (

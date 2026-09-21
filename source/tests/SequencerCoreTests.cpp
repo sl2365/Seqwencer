@@ -418,6 +418,77 @@ int main()
                  seqwencer::sequencePositionForPhase (
                      51.0, 4, seqwencer::SequenceMode::random).currentOffset);
 
+    const auto gateRandomStreamA = seqwencer::sequencerRandomStream (
+        seqwencer::SequencerEngine::gate, 0);
+    const auto gateRandomStreamB = seqwencer::sequencerRandomStream (
+        seqwencer::SequencerEngine::gate, 1);
+    expectEqual ("Sequencer A and B receive different Random streams",
+                 gateRandomStreamA != gateRandomStreamB ? 1 : 0, 1);
+    std::array<bool, 8> randomStreamAVisits {};
+    std::array<bool, 8> randomStreamBVisits {};
+    auto independentRandomOrdersDiffer = false;
+    for (int phase = 0; phase < 8; ++phase)
+    {
+        const auto offsetA = seqwencer::sequencePositionForPhase (
+            static_cast<double> (phase), 8,
+            seqwencer::SequenceMode::random,
+            gateRandomStreamA).currentOffset;
+        const auto offsetB = seqwencer::sequencePositionForPhase (
+            static_cast<double> (phase), 8,
+            seqwencer::SequenceMode::random,
+            gateRandomStreamB).currentOffset;
+        randomStreamAVisits[static_cast<std::size_t> (offsetA)] = true;
+        randomStreamBVisits[static_cast<std::size_t> (offsetB)] = true;
+        independentRandomOrdersDiffer = independentRandomOrdersDiffer
+                                     || offsetA != offsetB;
+    }
+    expectEqual ("independent Random streams use different orders",
+                 independentRandomOrdersDiffer ? 1 : 0, 1);
+    expectEqual ("Random stream A still visits every selected step",
+                 static_cast<int> (std::count (
+                     randomStreamAVisits.begin(), randomStreamAVisits.end(),
+                     true)),
+                 8);
+    expectEqual ("Random stream B still visits every selected step",
+                 static_cast<int> (std::count (
+                     randomStreamBVisits.begin(), randomStreamBVisits.end(),
+                     true)),
+                 8);
+    expectEqual ("a named Random stream remains repeatable",
+                 seqwencer::sequencePositionForPhase (
+                     13.0, 8, seqwencer::SequenceMode::random,
+                     gateRandomStreamA).currentOffset,
+                 seqwencer::sequencePositionForPhase (
+                     77.0, 8, seqwencer::SequenceMode::random,
+                     gateRandomStreamA).currentOffset);
+    auto allParallelRandomOrdersDiffer = true;
+    for (int engine = 0; engine < seqwencer::sequencerEngineCount; ++engine)
+    {
+        const auto streamA = seqwencer::sequencerRandomStream (
+            static_cast<seqwencer::SequencerEngine> (engine), 0);
+        const auto streamB = seqwencer::sequencerRandomStream (
+            static_cast<seqwencer::SequencerEngine> (engine), 1);
+        for (int stepCount = 2; stepCount <= seqwencer::stepsPerBank;
+             ++stepCount)
+        {
+            auto ordersDiffer = false;
+            for (int phase = 0; phase < stepCount; ++phase)
+            {
+                const auto offsetA = seqwencer::sequencePositionForPhase (
+                    static_cast<double> (phase), stepCount,
+                    seqwencer::SequenceMode::random, streamA).currentOffset;
+                const auto offsetB = seqwencer::sequencePositionForPhase (
+                    static_cast<double> (phase), stepCount,
+                    seqwencer::SequenceMode::random, streamB).currentOffset;
+                ordersDiffer = ordersDiffer || offsetA != offsetB;
+            }
+            allParallelRandomOrdersDiffer = allParallelRandomOrdersDiffer
+                                          && ordersDiffer;
+        }
+    }
+    expectEqual ("every FX keeps A and B Random orders independent",
+                 allParallelRandomOrdersDiffer ? 1 : 0, 1);
+
     seqwencer::NotePhraseTracker phraseTracker;
     expectEqual ("first played note starts a phrase",
                  phraseTracker.noteOn (1, 60) ? 1 : 0, 1);

@@ -2,6 +2,21 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.19.0 features
+
+- Added a separate deterministic Random stream for every FX and PHI A/B lane
+- Parallel sequencers no longer follow the same complete shuffled step order;
+  an occasional matching step can still occur naturally between independent
+  streams
+- Serial retains one shuffled stream because A and B form one combined
+  64-step sequencer in that mode
+- Every stream still visits each selected step exactly once per shuffled pass,
+  changes order between passes and recalls consistently after reopening
+- The extra stream mixing is a few integer operations only and adds no memory
+  allocation, audio buffer processing or meaningful CPU cost
+- Added regression coverage for distinct A/B streams, complete shuffled passes,
+  repeatability and every FX range length from 2 to 32 steps
+
 ## v1.3.18.1 fixes and features
 
 - Replaced the subdivision Off character with a directly drawn centred dot so

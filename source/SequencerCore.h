@@ -55,6 +55,15 @@ enum class SequencerEngine
     compressor
 };
 
+inline unsigned sequencerRandomStream (SequencerEngine engine,
+                                       int lane) noexcept
+{
+    const auto engineIndex = std::clamp (
+        static_cast<int> (engine), 0, sequencerEngineCount - 1);
+    return 1U + static_cast<unsigned> (engineIndex * 3
+        + std::clamp (lane, 0, 2));
+}
+
 enum class StepDivisionMode
 {
     normal = 0,
@@ -822,23 +831,27 @@ inline int greatestCommonDivisor (int left, int right) noexcept
     return left;
 }
 
-inline int randomDirectionOffset (int cycleTick, int stepCount) noexcept
+inline int randomDirectionOffset (int cycleTick,
+                                  int stepCount,
+                                  unsigned randomStream = 0U) noexcept
 {
     if (stepCount <= 1)
         return 0;
 
     const auto shuffle = cycleTick / stepCount;
     const auto position = cycleTick % stepCount;
+    const auto streamSalt = randomStream * 0x9e3779b9U;
     const auto seed = randomDirectionHash (
-        static_cast<unsigned> (stepCount * 131 + shuffle * 977));
+        static_cast<unsigned> (stepCount * 131 + shuffle * 977)
+        ^ streamSalt);
     auto stride = 1 + static_cast<int> (seed
         % static_cast<unsigned> (stepCount - 1));
     while (greatestCommonDivisor (stride, stepCount) != 1)
         stride = stride % (stepCount - 1) + 1;
 
     const auto baseOffset = static_cast<int> (
-        randomDirectionHash (static_cast<unsigned> (stepCount)
-                             ^ 0x9e3779b9U)
+        (randomDirectionHash (static_cast<unsigned> (stepCount)
+                             ^ 0x9e3779b9U) + randomStream)
         % static_cast<unsigned> (stepCount));
     const auto offset = (baseOffset + (shuffle & 1)) % stepCount;
     return (offset + position * stride) % stepCount;
@@ -852,7 +865,10 @@ struct SequencePosition
 };
 
 inline SequencePosition sequencePositionForPhase (
-    double phase, int stepCount, SequenceMode mode) noexcept
+    double phase,
+    int stepCount,
+    SequenceMode mode,
+    unsigned randomStream = 0U) noexcept
 {
     stepCount = std::max (1, stepCount);
     const auto cycleLength = sequenceCycleLength (stepCount, mode);
@@ -860,7 +876,8 @@ inline SequencePosition sequencePositionForPhase (
     const auto tick = std::clamp (
         static_cast<int> (std::floor (wrapped)), 0, cycleLength - 1);
 
-    const auto offsetAt = [stepCount, cycleLength, mode] (int cycleTick)
+    const auto offsetAt = [stepCount, cycleLength, mode, randomStream] (
+        int cycleTick)
     {
         cycleTick = (cycleTick % cycleLength + cycleLength) % cycleLength;
         if (mode == SequenceMode::reverse)
@@ -868,7 +885,8 @@ inline SequencePosition sequencePositionForPhase (
         if (mode == SequenceMode::bounce && cycleTick >= stepCount)
             return cycleLength - cycleTick;
         if (mode == SequenceMode::random)
-            return randomDirectionOffset (cycleTick, stepCount);
+            return randomDirectionOffset (
+                cycleTick, stepCount, randomStream);
         return cycleTick;
     };
 
@@ -982,12 +1000,13 @@ inline float evaluateSubdividedBankRange (
     float releaseFraction,
     int* activeStep = nullptr,
     SequenceMode mode = SequenceMode::loop,
-    float neutralValue = 0.0f) noexcept
+    float neutralValue = 0.0f,
+    unsigned randomStream = 0U) noexcept
 {
     range.first = std::clamp (range.first, 0, stepsPerBank - 1);
     range.last = std::clamp (range.last, range.first, stepsPerBank - 1);
     const auto position = sequencePositionForPhase (
-        phase, range.length(), mode);
+        phase, range.length(), mode, randomStream);
     const auto step = range.first + position.currentOffset;
     const auto previousStep = range.first + position.previousOffset;
     if (activeStep != nullptr)
@@ -1011,12 +1030,13 @@ inline float evaluateSubdividedLinkedRange (
     int* activeBank,
     int* activeStep,
     SequenceMode mode = SequenceMode::loop,
-    float neutralValue = 0.0f) noexcept
+    float neutralValue = 0.0f,
+    unsigned randomStream = 0U) noexcept
 {
     range.first = std::clamp (range.first, 0, linkedStepCount - 1);
     range.last = std::clamp (range.last, range.first, linkedStepCount - 1);
     const auto position = sequencePositionForPhase (
-        phase, range.length(), mode);
+        phase, range.length(), mode, randomStream);
     const auto globalStep = range.first + position.currentOffset;
     const auto previousGlobalStep = range.first + position.previousOffset;
     const auto bank = globalStep < stepsPerBank ? 0 : 1;
@@ -1117,12 +1137,13 @@ inline float evaluateSubdividedGateBankRange (
     int* activeStep = nullptr,
     float shortOpenFraction = shortGateOpenFraction,
     float longOpenFraction = longGateOpenFraction,
-    SequenceMode mode = SequenceMode::loop) noexcept
+    SequenceMode mode = SequenceMode::loop,
+    unsigned randomStream = 0U) noexcept
 {
     range.first = std::clamp (range.first, 0, stepsPerBank - 1);
     range.last = std::clamp (range.last, range.first, stepsPerBank - 1);
     const auto position = sequencePositionForPhase (
-        phase, range.length(), mode);
+        phase, range.length(), mode, randomStream);
     const auto step = range.first + position.currentOffset;
     const auto previousStep = range.first + position.previousOffset;
     if (activeStep != nullptr)
@@ -1178,12 +1199,13 @@ inline float evaluateSubdividedGateLinkedRange (
     int* activeStep,
     float shortOpenFraction = shortGateOpenFraction,
     float longOpenFraction = longGateOpenFraction,
-    SequenceMode mode = SequenceMode::loop) noexcept
+    SequenceMode mode = SequenceMode::loop,
+    unsigned randomStream = 0U) noexcept
 {
     range.first = std::clamp (range.first, 0, linkedStepCount - 1);
     range.last = std::clamp (range.last, range.first, linkedStepCount - 1);
     const auto position = sequencePositionForPhase (
-        phase, range.length(), mode);
+        phase, range.length(), mode, randomStream);
     const auto globalStep = range.first + position.currentOffset;
     const auto previousGlobalStep = range.first + position.previousOffset;
     const auto bank = globalStep < stepsPerBank ? 0 : 1;
@@ -1268,12 +1290,13 @@ inline float evaluateBankRange (const Pattern& pattern,
                                 float attackFraction,
                                 float releaseFraction,
                                 int* activeStep = nullptr,
-                                SequenceMode mode = SequenceMode::loop) noexcept
+                                SequenceMode mode = SequenceMode::loop,
+                                unsigned randomStream = 0U) noexcept
 {
     range.first = std::clamp (range.first, 0, stepsPerBank - 1);
     range.last = std::clamp (range.last, range.first, stepsPerBank - 1);
     const auto position = sequencePositionForPhase (
-        phase, range.length(), mode);
+        phase, range.length(), mode, randomStream);
     const auto step = range.first + position.currentOffset;
     const auto previousStep = range.first + position.previousOffset;
 
@@ -1296,12 +1319,13 @@ inline float evaluateGateBankRange (const Pattern& pattern,
                                     int* activeStep = nullptr,
                                     float shortOpenFraction = shortGateOpenFraction,
                                     float longOpenFraction = longGateOpenFraction,
-                                    SequenceMode mode = SequenceMode::loop) noexcept
+                                    SequenceMode mode = SequenceMode::loop,
+                                    unsigned randomStream = 0U) noexcept
 {
     range.first = std::clamp (range.first, 0, stepsPerBank - 1);
     range.last = std::clamp (range.last, range.first, stepsPerBank - 1);
     const auto position = sequencePositionForPhase (
-        phase, range.length(), mode);
+        phase, range.length(), mode, randomStream);
     const auto step = range.first + position.currentOffset;
     const auto previousStep = range.first + position.previousOffset;
 
@@ -1366,12 +1390,13 @@ inline float evaluateLinkedRange (const Pattern& a,
                                   float releaseB,
                                   int* activeBank,
                                   int* activeStep,
-                                  SequenceMode mode = SequenceMode::loop) noexcept
+                                  SequenceMode mode = SequenceMode::loop,
+                                  unsigned randomStream = 0U) noexcept
 {
     range.first = std::clamp (range.first, 0, linkedStepCount - 1);
     range.last = std::clamp (range.last, range.first, linkedStepCount - 1);
     const auto position = sequencePositionForPhase (
-        phase, range.length(), mode);
+        phase, range.length(), mode, randomStream);
     const auto globalStep = range.first + position.currentOffset;
     const auto previousGlobalStep = range.first + position.previousOffset;
 
@@ -1411,12 +1436,13 @@ inline float evaluateGateLinkedRange (const Pattern& a,
                                       int* activeStep,
                                       float shortOpenFraction = shortGateOpenFraction,
                                       float longOpenFraction = longGateOpenFraction,
-                                      SequenceMode mode = SequenceMode::loop) noexcept
+                                      SequenceMode mode = SequenceMode::loop,
+                                      unsigned randomStream = 0U) noexcept
 {
     range.first = std::clamp (range.first, 0, linkedStepCount - 1);
     range.last = std::clamp (range.last, range.first, linkedStepCount - 1);
     const auto position = sequencePositionForPhase (
-        phase, range.length(), mode);
+        phase, range.length(), mode, randomStream);
     const auto globalStep = range.first + position.currentOffset;
     const auto previousGlobalStep = range.first + position.previousOffset;
 
