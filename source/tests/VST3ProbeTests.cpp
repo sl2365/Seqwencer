@@ -364,6 +364,27 @@ int main (int argumentCount, char* arguments[])
         return 1;
     }
 
+    const std::array<juce::String, 10> rangeParameterPrefixes {
+        juce::String {}, "PHI ", "Delay ", "Reverb ", "Pan ",
+        "Filter ", "Pitch ", "Distortion ", "Grain ", "Compressor "
+    };
+    for (const auto& prefix : rangeParameterPrefixes)
+    {
+        const auto linkName = prefix + "Range Link";
+        const auto lengthName = prefix + "Range Length";
+        if (findParameterByName (linkName) == nullptr
+            || findParameterByName (lengthName) == nullptr)
+        {
+            std::cout << "FAIL: missing linked range parameter: "
+                      << (findParameterByName (linkName) == nullptr
+                              ? linkName : lengthName).toStdString()
+                      << "\n";
+            return 1;
+        }
+    }
+    std::cout << "PASS: every FX exposes an independent Link and Length state"
+              << std::endl;
+
     const std::array<juce::String, 9> internalEngineNames {
         "Gate", "Delay", "Reverb", "Pan", "Filter", "Pitch",
         "Distortion", "Grain", "Compressor"
@@ -391,10 +412,25 @@ int main (int argumentCount, char* arguments[])
                     }
                 }
             }
+            for (const auto& rangeControl : {
+                     juce::String ("START"), juce::String ("END"),
+                     juce::String ("LENGTH") })
+            {
+                const auto baseName = engineName + " Sequencer "
+                    + sourceBank + " " + rangeControl + " Target";
+                if (findParameterByName (baseName) == nullptr
+                    || findParameterByName (baseName + " Enabled") == nullptr)
+                {
+                    std::cout << "FAIL: missing sequencer range target: "
+                              << baseName.toStdString() << "\n";
+                    return 1;
+                }
+            }
         }
     }
     std::cout << "PASS: every internal FX exposes A/B Attack and Release "
-                 "targets to both sequencers" << std::endl;
+                 "plus Start, End and Length targets to both sequencers"
+              << std::endl;
 
     bipolarA->setValueNotifyingHost (1.0f);
     bipolarB->setValueNotifyingHost (0.0f);

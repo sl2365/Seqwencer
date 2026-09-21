@@ -2,6 +2,37 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.17.1 fixes
+
+- Increased the gap between Direction and Type on the Filter and Distortion
+  pages to match the spacing used by PHI's adjacent control
+- Shifted the remaining Filter and Distortion controls by the same amount so
+  their established internal spacing is preserved
+- Renamed PHI's `TARGET` button to `TARGETS` to better describe the list it
+  opens
+
+## v1.3.17.0 features
+
+- Added a chain-link control between the existing Start and End knobs without
+  changing either knob's position
+- Link off preserves the original independent Start/End range workflow
+- Link on changes the second knob and caption from End to Length; moving Start
+  then slides the same inclusive step count through the available range
+- Enabling Link converts the current Start/End span into its matching Length,
+  while disabling Link converts Start/Length back into the matching End point
+- Every Gate, Delay, Reverb, Pan, Filter, Pitch, Distortion, Grain Shifter and
+  Compressor sequencer now exposes separate Start, End and Length targets to
+  both source lanes
+- Start targets remain active in both range modes; End targets apply with Link
+  off and Length targets apply with Link on
+- PHI receives the same saved manual Link/Length workflow but keeps its range
+  captions non-draggable because PHI destinations are selected externally
+- Host-synchronised and free-running phase now retain the unwrapped timeline so
+  a modulated range length can change without resetting to the old cycle length
+- Core tests cover linked movement, conversion helpers, Start/End/Length target
+  identity and modulated range clamping; the VST3 probe verifies all Link,
+  Length and range-target parameters
+
 ## v1.3.16.0 features
 
 - Draggable parameter captions assigned to Sequencer A now use the live colour
@@ -629,5 +660,4 @@ the final Gate result always stays inside its valid range.
 
 ## Planned development
 
-Further requested sequencer workflow work includes sequencer Attack/Release
-targets and target-caption colour feedback.
+Further requested sequencer workflow work will continue in subsequent builds.

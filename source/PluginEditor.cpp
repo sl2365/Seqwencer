@@ -51,7 +51,10 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::gateSequencerAAttack,
     seqwencer::ModulationTarget::gateSequencerARelease,
     seqwencer::ModulationTarget::gateSequencerBAttack,
-    seqwencer::ModulationTarget::gateSequencerBRelease
+    seqwencer::ModulationTarget::gateSequencerBRelease,
+    seqwencer::ModulationTarget::gateSequencerStart,
+    seqwencer::ModulationTarget::gateSequencerEnd,
+    seqwencer::ModulationTarget::gateSequencerLength
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -62,7 +65,10 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::delaySequencerAAttack,
     seqwencer::ModulationTarget::delaySequencerARelease,
     seqwencer::ModulationTarget::delaySequencerBAttack,
-    seqwencer::ModulationTarget::delaySequencerBRelease
+    seqwencer::ModulationTarget::delaySequencerBRelease,
+    seqwencer::ModulationTarget::delaySequencerStart,
+    seqwencer::ModulationTarget::delaySequencerEnd,
+    seqwencer::ModulationTarget::delaySequencerLength
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -74,7 +80,10 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::reverbSequencerAAttack,
     seqwencer::ModulationTarget::reverbSequencerARelease,
     seqwencer::ModulationTarget::reverbSequencerBAttack,
-    seqwencer::ModulationTarget::reverbSequencerBRelease
+    seqwencer::ModulationTarget::reverbSequencerBRelease,
+    seqwencer::ModulationTarget::reverbSequencerStart,
+    seqwencer::ModulationTarget::reverbSequencerEnd,
+    seqwencer::ModulationTarget::reverbSequencerLength
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -83,7 +92,10 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::panSequencerAAttack,
     seqwencer::ModulationTarget::panSequencerARelease,
     seqwencer::ModulationTarget::panSequencerBAttack,
-    seqwencer::ModulationTarget::panSequencerBRelease
+    seqwencer::ModulationTarget::panSequencerBRelease,
+    seqwencer::ModulationTarget::panSequencerStart,
+    seqwencer::ModulationTarget::panSequencerEnd,
+    seqwencer::ModulationTarget::panSequencerLength
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -94,7 +106,10 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::filterSequencerAAttack,
     seqwencer::ModulationTarget::filterSequencerARelease,
     seqwencer::ModulationTarget::filterSequencerBAttack,
-    seqwencer::ModulationTarget::filterSequencerBRelease
+    seqwencer::ModulationTarget::filterSequencerBRelease,
+    seqwencer::ModulationTarget::filterSequencerStart,
+    seqwencer::ModulationTarget::filterSequencerEnd,
+    seqwencer::ModulationTarget::filterSequencerLength
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -104,7 +119,10 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::pitchSequencerAAttack,
     seqwencer::ModulationTarget::pitchSequencerARelease,
     seqwencer::ModulationTarget::pitchSequencerBAttack,
-    seqwencer::ModulationTarget::pitchSequencerBRelease
+    seqwencer::ModulationTarget::pitchSequencerBRelease,
+    seqwencer::ModulationTarget::pitchSequencerStart,
+    seqwencer::ModulationTarget::pitchSequencerEnd,
+    seqwencer::ModulationTarget::pitchSequencerLength
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -115,7 +133,10 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::distortionSequencerAAttack,
     seqwencer::ModulationTarget::distortionSequencerARelease,
     seqwencer::ModulationTarget::distortionSequencerBAttack,
-    seqwencer::ModulationTarget::distortionSequencerBRelease
+    seqwencer::ModulationTarget::distortionSequencerBRelease,
+    seqwencer::ModulationTarget::distortionSequencerStart,
+    seqwencer::ModulationTarget::distortionSequencerEnd,
+    seqwencer::ModulationTarget::distortionSequencerLength
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -127,7 +148,10 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::grainSequencerAAttack,
     seqwencer::ModulationTarget::grainSequencerARelease,
     seqwencer::ModulationTarget::grainSequencerBAttack,
-    seqwencer::ModulationTarget::grainSequencerBRelease
+    seqwencer::ModulationTarget::grainSequencerBRelease,
+    seqwencer::ModulationTarget::grainSequencerStart,
+    seqwencer::ModulationTarget::grainSequencerEnd,
+    seqwencer::ModulationTarget::grainSequencerLength
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -142,7 +166,10 @@ constexpr std::array<seqwencer::ModulationTarget,
         seqwencer::ModulationTarget::compressorSequencerAAttack,
         seqwencer::ModulationTarget::compressorSequencerARelease,
         seqwencer::ModulationTarget::compressorSequencerBAttack,
-        seqwencer::ModulationTarget::compressorSequencerBRelease
+        seqwencer::ModulationTarget::compressorSequencerBRelease,
+        seqwencer::ModulationTarget::compressorSequencerStart,
+        seqwencer::ModulationTarget::compressorSequencerEnd,
+        seqwencer::ModulationTarget::compressorSequencerLength
     };
 
 juce::String targetDragID (seqwencer::ModulationTarget target)
@@ -587,6 +614,9 @@ public:
             parameterID ("serial_profile"));
         startStepParameter = state.getParameter (parameterID ("start_step"));
         endStepParameter = state.getParameter (parameterID ("end_step"));
+        rangeLengthParameter = state.getParameter (
+            parameterID ("range_length"));
+        rangeLinkParameter = state.getParameter (parameterID ("range_link"));
         bipolarAParameter = state.getParameter (parameterID ("seq_a_bipolar"));
         bipolarBParameter = state.getParameter (parameterID ("seq_b_bipolar"));
         repaint();
@@ -943,10 +973,21 @@ private:
 
     seqwencer::StepRange getPlaybackRange() const
     {
+        const auto maximumStep = isSerial() ? seqwencer::linkedStepCount
+                                            : seqwencer::stepsPerBank;
+        if (readParameter (rangeLinkParameter) >= 0.5f)
+        {
+            return seqwencer::makeLengthStepRange (
+                static_cast<int> (std::lround (
+                    readParameter (startStepParameter, 1.0f))),
+                static_cast<int> (std::lround (
+                    readParameter (rangeLengthParameter, 64.0f))),
+                maximumStep);
+        }
         return seqwencer::makeStepRange (
             static_cast<int> (std::lround (readParameter (startStepParameter, 1.0f))),
             static_cast<int> (std::lround (readParameter (endStepParameter, 64.0f))),
-            isSerial() ? seqwencer::linkedStepCount : seqwencer::stepsPerBank);
+            maximumStep);
     }
 
     bool usesBipolarDisplay() const
@@ -1329,6 +1370,8 @@ private:
     juce::RangedAudioParameter* serialProfileParameter = nullptr;
     juce::RangedAudioParameter* startStepParameter = nullptr;
     juce::RangedAudioParameter* endStepParameter = nullptr;
+    juce::RangedAudioParameter* rangeLengthParameter = nullptr;
+    juce::RangedAudioParameter* rangeLinkParameter = nullptr;
     juce::RangedAudioParameter* bipolarAParameter = nullptr;
     juce::RangedAudioParameter* bipolarBParameter = nullptr;
     juce::RangedAudioParameter* gateEnabledParameter = nullptr;
@@ -1420,6 +1463,52 @@ private:
     juce::TextButton gateRight { ">" };
     juce::TextButton stepsLeft { "<" };
     juce::TextButton stepsRight { ">" };
+};
+
+class SeqwencerAudioProcessorEditor::RangeLinkButton final
+    : public juce::Button
+{
+public:
+    RangeLinkButton()
+        : juce::Button ("Sequence range link")
+    {
+        setClickingTogglesState (true);
+        setTooltip (
+            "Link Start to a sequence Length; the End knob becomes Length");
+    }
+
+    void setAccentColour (juce::Colour newAccent)
+    {
+        accent = newAccent;
+        repaint();
+    }
+
+    void paintButton (juce::Graphics& graphics,
+                      bool highlighted,
+                      bool down) override
+    {
+        const auto active = getToggleState();
+        const auto iconColour = active
+            ? accent.brighter (highlighted ? 0.25f : 0.10f)
+            : juce::Colour (mutedText).withAlpha (highlighted ? 0.95f : 0.62f);
+        if (active || down)
+        {
+            graphics.setColour (accent.withAlpha (down ? 0.30f : 0.18f));
+            graphics.fillRoundedRectangle (
+                getLocalBounds().toFloat().reduced (1.0f), 5.0f);
+        }
+
+        graphics.setColour (iconColour);
+        const auto stroke = active ? 1.8f : 1.4f;
+        graphics.drawRoundedRectangle ({ 2.0f, 4.0f, 10.0f, 7.0f },
+                                       3.5f, stroke);
+        graphics.drawRoundedRectangle ({ 10.0f, 9.0f, 10.0f, 7.0f },
+                                       3.5f, stroke);
+        graphics.drawLine (8.0f, 9.0f, 14.0f, 11.0f, stroke);
+    }
+
+private:
+    juce::Colour accent { gateAccent };
 };
 
 class SeqwencerAudioProcessorEditor::ModulationParameterLabel final
@@ -2281,6 +2370,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         *gridA, laneAColour);
     nudgeControlsB = std::make_unique<PatternNudgeControls> (
         *gridB, laneBColour);
+    rangeLinkButton = std::make_unique<RangeLinkButton>();
     content.addAndMakeVisible (*gridA);
     content.addAndMakeVisible (*gridB);
     content.addAndMakeVisible (*nudgeControlsA);
@@ -2375,6 +2465,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     releaseBParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::gateSequencerBRelease,
         "RELEASE");
+    startParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::gateSequencerStart,
+        "START");
+    endParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::gateSequencerEnd,
+        "END");
     targetListA = std::make_unique<TargetList> (
         processor, 0, laneAColour,
         std::vector<seqwencer::ModulationTarget> (
@@ -2519,6 +2615,9 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*releaseAParameterLabel);
     content.addAndMakeVisible (*attackBParameterLabel);
     content.addAndMakeVisible (*releaseBParameterLabel);
+    content.addAndMakeVisible (*startParameterLabel);
+    content.addAndMakeVisible (*endParameterLabel);
+    content.addAndMakeVisible (*rangeLinkButton);
     content.addAndMakeVisible (*targetListA);
     content.addAndMakeVisible (*targetListB);
     content.addAndMakeVisible (*delayTargetListA);
@@ -2688,6 +2787,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     enableBButton.setClickingTogglesState (true);
     bipolarAButton.setClickingTogglesState (true);
     bipolarBButton.setClickingTogglesState (true);
+    rangeLinkButton->onClick = [this] { handleRangeLinkButton(); };
 
     configureStepKnob (startSlider);
     configureStepKnob (endSlider);
@@ -2904,8 +3004,6 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
 
     configureLabel (rateLabel, "RATE");
     configureLabel (sequenceModeLabel, "DIRECTION");
-    configureLabel (startLabel, "START");
-    configureLabel (endLabel, "END");
     configureLabel (laneATitle, "GATE A");
     configureLabel (laneBTitle, "GATE B");
     configureLabel (colourALabel, "A COLOUR");
@@ -3109,12 +3207,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     startSlider.onValueChange = [this]
     {
         if (startStepParameter != nullptr)
-            handleRangeControl (startSlider, *startStepParameter);
+            handleRangeControl (true);
     };
     endSlider.onValueChange = [this]
     {
-        if (endStepParameter != nullptr)
-            handleRangeControl (endSlider, *endStepParameter);
+        if (endStepParameter != nullptr && rangeLengthParameter != nullptr)
+            handleRangeControl (false);
     };
     startSlider.onDragStart = [this]
     {
@@ -3128,13 +3226,17 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     };
     endSlider.onDragStart = [this]
     {
-        if (endStepParameter != nullptr)
-            endStepParameter->beginChangeGesture();
+        auto* parameter = rangeLinkButton->getToggleState()
+            ? rangeLengthParameter : endStepParameter;
+        if (parameter != nullptr)
+            parameter->beginChangeGesture();
     };
     endSlider.onDragEnd = [this]
     {
-        if (endStepParameter != nullptr)
-            endStepParameter->endChangeGesture();
+        auto* parameter = rangeLinkButton->getToggleState()
+            ? rangeLengthParameter : endStepParameter;
+        if (parameter != nullptr)
+            parameter->endChangeGesture();
     };
 
     setResizable (true, true);
@@ -3241,15 +3343,67 @@ void SeqwencerAudioProcessorEditor::configureLabel (juce::Label& label,
     content.addAndMakeVisible (label);
 }
 
-void SeqwencerAudioProcessorEditor::handleRangeControl (
-    juce::Slider& slider,
-    juce::RangedAudioParameter& parameter)
+void SeqwencerAudioProcessorEditor::handleRangeControl (bool movingStart)
 {
     if (updatingRangeControls)
         return;
 
-    parameter.setValueNotifyingHost (parameter.convertTo0to1 (
-        static_cast<float> (std::lround (slider.getValue()))));
+    auto* parameter = movingStart
+        ? startStepParameter
+        : (rangeLinkButton->getToggleState()
+               ? rangeLengthParameter : endStepParameter);
+    if (parameter == nullptr)
+        return;
+
+    const auto value = movingStart ? startSlider.getValue()
+                                   : endSlider.getValue();
+    parameter->setValueNotifyingHost (parameter->convertTo0to1 (
+        static_cast<float> (std::lround (value))));
+    updateRangeControls();
+}
+
+void SeqwencerAudioProcessorEditor::handleRangeLinkButton()
+{
+    const auto readActual = [] (const juce::RangedAudioParameter* parameter,
+                                float fallback)
+    {
+        return parameter != nullptr
+            ? parameter->convertFrom0to1 (parameter->getValue()) : fallback;
+    };
+    const auto setActual = [] (juce::RangedAudioParameter* parameter,
+                               float value)
+    {
+        if (parameter == nullptr)
+            return;
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost (parameter->convertTo0to1 (value));
+        parameter->endChangeGesture();
+    };
+
+    const auto serial = readActual (modeParameter, 0.0f) >= 0.5f;
+    const auto maximumStep = serial ? seqwencer::linkedStepCount
+                                    : seqwencer::stepsPerBank;
+    const auto start = static_cast<int> (std::lround (
+        readActual (startStepParameter, 1.0f)));
+
+    if (rangeLinkButton->getToggleState())
+    {
+        const auto range = seqwencer::makeStepRange (
+            start,
+            static_cast<int> (std::lround (
+                readActual (endStepParameter, 64.0f))),
+            maximumStep);
+        setActual (rangeLengthParameter, static_cast<float> (range.length()));
+    }
+    else
+    {
+        const auto range = seqwencer::makeLengthStepRange (
+            start,
+            static_cast<int> (std::lround (
+                readActual (rangeLengthParameter, 64.0f))),
+            maximumStep);
+        setActual (endStepParameter, static_cast<float> (range.last + 1));
+    }
     updateRangeControls();
 }
 
@@ -3265,22 +3419,46 @@ void SeqwencerAudioProcessorEditor::updateRangeControls()
     const auto serial = readActual (modeParameter, 0.0f) >= 0.5f;
     const auto maximumStep = serial ? seqwencer::linkedStepCount
                                     : seqwencer::stepsPerBank;
-    const auto range = seqwencer::makeStepRange (
-        static_cast<int> (std::lround (readActual (startStepParameter, 1.0f))),
-        static_cast<int> (std::lround (readActual (endStepParameter, 64.0f))),
-        maximumStep);
+    const auto linked = rangeLinkButton != nullptr
+                     && rangeLinkButton->getToggleState();
+    const auto start = static_cast<int> (std::lround (
+        readActual (startStepParameter, 1.0f)));
+    const auto range = linked
+        ? seqwencer::makeLengthStepRange (
+            start,
+            static_cast<int> (std::lround (
+                readActual (rangeLengthParameter, 64.0f))),
+            maximumStep)
+        : seqwencer::makeStepRange (
+            start,
+            static_cast<int> (std::lround (
+                readActual (endStepParameter, 64.0f))),
+            maximumStep);
 
     const juce::ScopedValueSetter<bool> guard (updatingRangeControls, true);
-    startSlider.setRange (1.0,
-                          static_cast<double> (juce::jmin (
-                              range.last + 1, maximumStep - 1)),
-                          1.0);
-    endSlider.setRange (static_cast<double> (juce::jmax (2, range.first + 1)),
-                        static_cast<double> (maximumStep), 1.0);
+    startSlider.setRange (
+        1.0,
+        static_cast<double> (linked
+            ? juce::jmax (1, maximumStep - range.length() + 1)
+            : juce::jmin (range.last + 1, maximumStep - 1)),
+        1.0);
+    endSlider.setRange (
+        static_cast<double> (linked ? 2 : juce::jmax (2, range.first + 1)),
+        static_cast<double> (linked ? maximumStep - range.first : maximumStep),
+        1.0);
     startSlider.setValue (static_cast<double> (range.first + 1),
                           juce::dontSendNotification);
-    endSlider.setValue (static_cast<double> (range.last + 1),
+    endSlider.setValue (static_cast<double> (
+                            linked ? range.length() : range.last + 1),
                         juce::dontSendNotification);
+
+    if (rangeLabelShowsLength != linked)
+    {
+        rangeLabelShowsLength = linked;
+        endParameterLabel->setTarget (
+            boundRangeTargets[static_cast<std::size_t> (linked ? 2 : 1)],
+            linked ? "LENGTH" : "END");
+    }
 }
 
 void SeqwencerAudioProcessorEditor::handleLaneButton (int lane)
@@ -3475,6 +3653,7 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
     modeAttachment.reset();
     sequenceModeAttachment.reset();
     rateAttachment.reset();
+    rangeLinkAttachment.reset();
     attackAAttachment.reset();
     releaseAAttachment.reset();
     attackBAttachment.reset();
@@ -3486,6 +3665,8 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
     serialProfileParameter = state.getParameter (parameterID ("serial_profile"));
     startStepParameter = state.getParameter (parameterID ("start_step"));
     endStepParameter = state.getParameter (parameterID ("end_step"));
+    rangeLengthParameter = state.getParameter (parameterID ("range_length"));
+    rangeLinkParameter = state.getParameter (parameterID ("range_link"));
     bipolarAParameter = state.getParameter (parameterID ("seq_a_bipolar"));
     bipolarBParameter = state.getParameter (parameterID ("seq_b_bipolar"));
 
@@ -3495,6 +3676,8 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
         state, parameterID ("sequence_mode"), sequenceModeBox);
     rateAttachment = std::make_unique<SliderAttachment> (
         state, parameterID ("rate"), rateSlider);
+    rangeLinkAttachment = std::make_unique<ButtonAttachment> (
+        state, parameterID ("range_link"), *rangeLinkButton);
     attackAAttachment = std::make_unique<SliderAttachment> (
         state, parameterID ("seq_a_attack"), attackASlider);
     releaseAAttachment = std::make_unique<SliderAttachment> (
@@ -3524,10 +3707,17 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
                 ? seqwencer::SequencerEngine::compressor
                 : seqwencer::SequencerEngine::gate;
     const auto envelopeTargets = seqwencer::sequencerEnvelopeTargets (engine);
+    boundRangeTargets = seqwencer::sequencerRangeTargets (engine);
     attackAParameterLabel->setTarget (envelopeTargets[0], "ATTACK");
     releaseAParameterLabel->setTarget (envelopeTargets[1], "RELEASE");
     attackBParameterLabel->setTarget (envelopeTargets[2], "ATTACK");
     releaseBParameterLabel->setTarget (envelopeTargets[3], "RELEASE");
+    startParameterLabel->setTarget (boundRangeTargets[0], "START");
+    rangeLabelShowsLength = rangeLinkButton->getToggleState();
+    endParameterLabel->setTarget (
+        boundRangeTargets[static_cast<std::size_t> (
+            rangeLabelShowsLength ? 2 : 1)],
+        rangeLabelShowsLength ? "LENGTH" : "END");
     gridA->setEngine (engine);
     gridB->setEngine (engine);
     boundFx = selectedFx;
@@ -3674,6 +3864,7 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
         : distortionSelected ? distortionAccent
         : grainSelected ? grainAccent
         : compressorSelected ? compressorAccent : phiAccent);
+    rangeLinkButton->setAccentColour (laneColour);
     const juce::String fxName = gateSelected ? "GATE"
                               : delaySelected ? "DELAY"
                               : reverbSelected ? "REVERB"
@@ -3827,7 +4018,8 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
              compressorMakeupParameterLabel.get(),
              compressorMixParameterLabel.get(), attackAParameterLabel.get(),
              releaseAParameterLabel.get(), attackBParameterLabel.get(),
-             releaseBParameterLabel.get() })
+             releaseBParameterLabel.get(), startParameterLabel.get(),
+             endParameterLabel.get() })
     {
         label->setAssignmentColours (
             laneAColour, laneBColour, combinedTargetColour);
@@ -4127,7 +4319,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.16.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.17.1",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -4253,10 +4445,12 @@ void SeqwencerAudioProcessorEditor::resized()
     modeBox.setBounds (20, bottomPanelY + 28, 92, 28);
     rateLabel.setBounds (122, bottomPanelY + 4, 64, 14);
     rateSlider.setBounds (122, bottomPanelY + 15, 64, 59);
-    startLabel.setBounds (194, bottomPanelY + 4, 64, 14);
+    startParameterLabel->setBounds (194, bottomPanelY + 4, 64, 14);
     startSlider.setBounds (194, bottomPanelY + 15, 64, 59);
-    endLabel.setBounds (266, bottomPanelY + 4, 64, 14);
+    endParameterLabel->setBounds (266, bottomPanelY + 4, 64, 14);
     endSlider.setBounds (266, bottomPanelY + 15, 64, 59);
+    rangeLinkButton->setBounds (253, bottomPanelY + 27, 22, 20);
+    rangeLinkButton->toFront (false);
     sequenceModeLabel.setBounds (338, bottomPanelY + 4, 96, 14);
     sequenceModeBox.setBounds (338, bottomPanelY + 28, 96, 28);
 
@@ -4301,31 +4495,31 @@ void SeqwencerAudioProcessorEditor::resized()
     panPositionParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
     panPositionSlider.setBounds (448, bottomPanelY + 15, 64, 59);
 
-    filterTypeLabel.setBounds (436, bottomPanelY + 4, 122, 14);
-    filterTypeBox.setBounds (436, bottomPanelY + 28, 122, 28);
-    filterCutoffParameterLabel->setBounds (566, bottomPanelY + 4, 88, 14);
-    filterCutoffSlider.setBounds (578, bottomPanelY + 15, 64, 59);
-    filterResonanceParameterLabel->setBounds (654, bottomPanelY + 4, 92, 14);
-    filterResonanceSlider.setBounds (668, bottomPanelY + 15, 64, 59);
-    filterMixParameterLabel->setBounds (744, bottomPanelY + 4, 88, 14);
-    filterMixSlider.setBounds (756, bottomPanelY + 15, 64, 59);
+    filterTypeLabel.setBounds (448, bottomPanelY + 4, 122, 14);
+    filterTypeBox.setBounds (448, bottomPanelY + 28, 122, 28);
+    filterCutoffParameterLabel->setBounds (578, bottomPanelY + 4, 88, 14);
+    filterCutoffSlider.setBounds (590, bottomPanelY + 15, 64, 59);
+    filterResonanceParameterLabel->setBounds (666, bottomPanelY + 4, 92, 14);
+    filterResonanceSlider.setBounds (680, bottomPanelY + 15, 64, 59);
+    filterMixParameterLabel->setBounds (756, bottomPanelY + 4, 88, 14);
+    filterMixSlider.setBounds (768, bottomPanelY + 15, 64, 59);
 
     pitchShiftParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
     pitchShiftSlider.setBounds (448, bottomPanelY + 15, 64, 59);
     pitchMixParameterLabel->setBounds (526, bottomPanelY + 4, 88, 14);
     pitchMixSlider.setBounds (538, bottomPanelY + 15, 64, 59);
 
-    distortionTypeLabel.setBounds (436, bottomPanelY + 4, 122, 14);
-    distortionTypeBox.setBounds (436, bottomPanelY + 28, 122, 28);
+    distortionTypeLabel.setBounds (448, bottomPanelY + 4, 122, 14);
+    distortionTypeBox.setBounds (448, bottomPanelY + 28, 122, 28);
     distortionDriveParameterLabel->setBounds (
-        566, bottomPanelY + 4, 88, 14);
-    distortionDriveSlider.setBounds (578, bottomPanelY + 15, 64, 59);
+        578, bottomPanelY + 4, 88, 14);
+    distortionDriveSlider.setBounds (590, bottomPanelY + 15, 64, 59);
     distortionToneParameterLabel->setBounds (
-        654, bottomPanelY + 4, 92, 14);
-    distortionToneSlider.setBounds (668, bottomPanelY + 15, 64, 59);
+        666, bottomPanelY + 4, 92, 14);
+    distortionToneSlider.setBounds (680, bottomPanelY + 15, 64, 59);
     distortionMixParameterLabel->setBounds (
-        744, bottomPanelY + 4, 88, 14);
-    distortionMixSlider.setBounds (756, bottomPanelY + 15, 64, 59);
+        756, bottomPanelY + 4, 88, 14);
+    distortionMixSlider.setBounds (768, bottomPanelY + 15, 64, 59);
 
     grainSizeParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
     grainSizeSlider.setBounds (448, bottomPanelY + 15, 64, 59);
@@ -4514,6 +4708,9 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     releaseAParameterLabel->repaint();
     attackBParameterLabel->repaint();
     releaseBParameterLabel->repaint();
+    startParameterLabel->repaint();
+    endParameterLabel->repaint();
+    rangeLinkButton->repaint();
     targetListA->refresh();
     targetListB->refresh();
     delayTargetListA->refresh();

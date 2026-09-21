@@ -1,5 +1,7 @@
 # Seqwencer
 
+## Coming soon...
+
 [![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
 
@@ -11,8 +13,8 @@
 
 ![Seqwencer](Resources/Seqwencer1.jpg)
 
-Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in,
-designed for fast drawing, flexible modulation and simple routing.
+Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in by
+**sl23**, designed for fast drawing, flexible modulation and simple routing.
 Each internal effect owns an independent pair of 32-step sequencers, so its
 pattern, speed, range and direction do not have to match the other effects.
 
@@ -55,8 +57,10 @@ presets that contain no routing order use the original Gate-to-Compressor order.
 - Parallel mode for independent 32-step patterns
 - Serial mode for one continuous 64-step pattern
 - Unipolar and Bipolar values
-- Independent Rate, Start, End, Direction, Attack and Release for every effect
+- Independent Rate, Start/End or linked Start/Length, Direction, Attack and
+  Release for every effect
 - Draggable A/B Attack and Release targets on every internal FX page
+- Draggable Start, End and Length targets on every internal FX page
 - Loop, Bounce, Reverse, Played and Random directions
 - Straight and triplet rates from 1/128 through 1/1
 - Waveform drawing presets for each lane
@@ -103,6 +107,21 @@ draggable targets. Drag A Attack, A Release, B Attack or B Release into either
 target list to sequence that envelope from lane A, lane B or both. PHI keeps
 plain Attack/Release captions because its modulation destinations are selected
 through PHI's external target browser.
+
+The chain icon between `START` and `END` controls how the playback range is
+described. With the icon off, Start and End retain their original independent
+end-point behaviour. Switching it on converts the current inclusive span to a
+fixed Length: the `END` caption becomes `LENGTH`, and moving Start slides that
+same-size window through the 32-step Parallel or 64-step Serial range. Switching
+the icon off converts Start plus Length back to the matching End point. The Link
+state and Length are saved independently for every FX and PHI page.
+
+Start, End and Length are separate modulation destinations on every internal
+FX. End modulation is active while the icon is off; Length modulation is active
+while it is on. Start remains available in both states, so a sequencer can move
+a fixed-length playback window without changing its number of steps. PHI shows
+the same manual range workflow but keeps range captions local, like its envelope
+controls.
 
 ## Gate modes
 
@@ -180,7 +199,7 @@ Gate into Compressor and Compressor into Gate.
 1. Load the target synth or effect in PHI.
 2. Load Seqwencer as an FX tab after it.
 3. Select Seqwencer's PHI page and enable its LED.
-4. Click `TARGET` to open PHI's integrated Macro Mappings view.
+4. Click `TARGETS` to open PHI's integrated Macro Mappings view.
 5. Find the required plug-in parameter and tick A, B or both in the Targets
    column. PHI assigns a Macro automatically when required.
 6. Return to Seqwencer and draw the PHI A/B patterns.
@@ -190,7 +209,7 @@ Unticking a target temporarily stops Seqwencer control while preserving its PHI
 Macro. Removing Seqwencer from PHI hides the Targets column but does not delete
 the saved Macro mappings.
 
-The PHI selector and TARGET control are hidden when Seqwencer is used in a host
+The PHI selector and TARGETS control are hidden when Seqwencer is used in a host
 that does not support this bridge. The built-in audio effects continue to work
 normally in other VST3 hosts.
 

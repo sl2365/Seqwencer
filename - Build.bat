@@ -42,7 +42,7 @@ pause
 exit /b %BUILD_EXIT_CODE%
 
 :run_build
-title Seqwencer - v1.3.16.0 Build
+title Seqwencer - v1.3.17.1 Build
 
 set "PROJECT_ROOT=%~dp0"
 set "SOURCE_DIR=%PROJECT_ROOT%source"
@@ -56,7 +56,7 @@ set "BUNDLE_BINARY=%BUILD_DIR%\Seqwencer_artefacts\Release\VST3\Seqwencer.vst3\C
 set "FINAL_PLUGIN=%DIST_DIR%\Seqwencer.vst3"
 
 echo.
-echo Seqwencer 64-bit VST3 - v1.3.16.0 Build
+echo Seqwencer 64-bit VST3 - v1.3.17.1 Build
 echo ========================================
 echo.
 

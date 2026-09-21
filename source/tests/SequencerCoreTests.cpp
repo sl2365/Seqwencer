@@ -495,6 +495,48 @@ int main()
     const auto crossedRange = seqwencer::makeStepRange (20, 10, 32);
     expectEqual ("a crossed Start is constrained to End",
                  crossedRange.first, crossedRange.last);
+    const auto linkedLengthRange = seqwencer::makeLengthStepRange (5, 4, 32);
+    expectEqual ("linked Length begins at Start",
+                 linkedLengthRange.first, 4);
+    expectEqual ("linked Length preserves its inclusive step count",
+                 linkedLengthRange.last, 7);
+    const auto movedFromStart = seqwencer::moveLinkedStepRange (
+        bankRange, 7, true, 32);
+    expectEqual ("moving linked Start moves the complete range",
+                 movedFromStart.first, 6);
+    expectEqual ("moving linked Start preserves Length",
+                 movedFromStart.length(), 4);
+    const auto movedFromEnd = seqwencer::moveLinkedStepRange (
+        bankRange, 12, false, 32);
+    expectEqual ("moving linked End moves the complete range",
+                 movedFromEnd.first, 8);
+    expectEqual ("moving linked End preserves Length",
+                 movedFromEnd.last, 11);
+    const auto clampedLinkedMove = seqwencer::moveLinkedStepRange (
+        bankRange, 32, true, 32);
+    expectEqual ("a linked range clamps at the final step",
+                 clampedLinkedMove.last, 31);
+    expectEqual ("a clamped linked range still preserves Length",
+                 clampedLinkedMove.length(), 4);
+    const auto modulatedEndRange = seqwencer::resolveModulatedStepRange (
+        bankRange, 32, false,
+        0.0f, false,
+        1.0f, true);
+    expectEqual ("an End target can extend an unlinked range",
+                 modulatedEndRange.last, 31);
+    const auto modulatedLengthRange =
+        seqwencer::resolveModulatedLengthStepRange (
+            bankRange, 32,
+            0.30f, true,
+            4.0f / 30.0f, true);
+    expectEqual ("a Start target moves a linked Length range",
+                 modulatedLengthRange.first, 9);
+    expectEqual ("a Length target sets the linked step count",
+                 modulatedLengthRange.length(), 6);
+    expectNear ("unwrapped host phase preserves the complete timeline",
+                static_cast<float> (
+                    seqwencer::unwrappedPhaseFromQuarterNotes (40.0, 0.5)),
+                80.0f);
 
     a.fill (0.0f);
     a[7] = 0.25f;
@@ -818,6 +860,18 @@ int main()
                  static_cast<int> (seqwencer::targetFromChoice (71.0f)),
                  static_cast<int> (
                      seqwencer::ModulationTarget::compressorSequencerBRelease));
+    expectEqual ("Gate Start target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (72.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::gateSequencerStart));
+    expectEqual ("Gate Length target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (74.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::gateSequencerLength));
+    expectEqual ("Compressor Length target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (98.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::compressorSequencerLength));
     const auto filterEnvelopeTargets = seqwencer::sequencerEnvelopeTargets (
         seqwencer::SequencerEngine::filter);
     expectEqual ("Filter exposes A Attack as its first envelope target",
@@ -844,6 +898,29 @@ int main()
                  0);
     expectEqual ("PHI has no internal envelope modulation targets",
                  static_cast<int> (seqwencer::sequencerEnvelopeTargets (
+                     seqwencer::SequencerEngine::phi)[0]),
+                 static_cast<int> (seqwencer::ModulationTarget::none));
+    const auto pitchRangeTargets = seqwencer::sequencerRangeTargets (
+        seqwencer::SequencerEngine::pitch);
+    expectEqual ("Pitch exposes Start as its first range target",
+                 static_cast<int> (pitchRangeTargets[0]),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::pitchSequencerStart));
+    expectEqual ("Pitch exposes Length as its third range target",
+                 static_cast<int> (pitchRangeTargets[2]),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::pitchSequencerLength));
+    expectEqual ("a range target identifies its owning engine",
+                 static_cast<int> (seqwencer::sequencerRangeTargetEngine (
+                     seqwencer::ModulationTarget::grainSequencerEnd)),
+                 static_cast<int> (seqwencer::SequencerEngine::grain));
+    expectEqual ("a range target distinguishes Length",
+                 seqwencer::sequencerRangeTargetIsLength (
+                     seqwencer::ModulationTarget::filterSequencerLength)
+                     ? 1 : 0,
+                 1);
+    expectEqual ("PHI has no internal range modulation targets",
+                 static_cast<int> (seqwencer::sequencerRangeTargets (
                      seqwencer::SequencerEngine::phi)[0]),
                  static_cast<int> (seqwencer::ModulationTarget::none));
     expectEqual ("Gate Volume remains a unipolar destination",
@@ -889,6 +966,11 @@ int main()
     expectEqual ("Sequencer envelope targets accept bipolar movement",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::reverbSequencerBAttack)
+                     ? 1 : 0,
+                 1);
+    expectEqual ("Sequencer range targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::reverbSequencerLength)
                      ? 1 : 0,
                  1);
     expectNear ("Depth target scales from zero to its knob ceiling",

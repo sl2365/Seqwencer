@@ -178,6 +178,8 @@ private:
     std::atomic<float>* serialProfile = nullptr;
     std::atomic<float>* startStep = nullptr;
     std::atomic<float>* endStep = nullptr;
+    std::atomic<float>* rangeLength = nullptr;
+    std::atomic<float>* rangeLink = nullptr;
     std::atomic<float>* rate = nullptr;
     std::atomic<float>* sequenceMode = nullptr;
     std::atomic<float>* gateEnabled = nullptr;
@@ -196,6 +198,8 @@ private:
     std::atomic<float>* phiSerialProfile = nullptr;
     std::atomic<float>* phiStartStep = nullptr;
     std::atomic<float>* phiEndStep = nullptr;
+    std::atomic<float>* phiRangeLength = nullptr;
+    std::atomic<float>* phiRangeLink = nullptr;
     std::atomic<float>* phiRate = nullptr;
     std::atomic<float>* phiSequenceMode = nullptr;
     std::atomic<float>* phiSeqAEnabled = nullptr;
@@ -214,6 +218,8 @@ private:
     std::atomic<float>* delaySerialProfile = nullptr;
     std::atomic<float>* delayStartStep = nullptr;
     std::atomic<float>* delayEndStep = nullptr;
+    std::atomic<float>* delayRangeLength = nullptr;
+    std::atomic<float>* delayRangeLink = nullptr;
     std::atomic<float>* delayRate = nullptr;
     std::atomic<float>* delaySequenceMode = nullptr;
     std::atomic<float>* delaySeqAEnabled = nullptr;
@@ -233,6 +239,8 @@ private:
     std::atomic<float>* reverbSerialProfile = nullptr;
     std::atomic<float>* reverbStartStep = nullptr;
     std::atomic<float>* reverbEndStep = nullptr;
+    std::atomic<float>* reverbRangeLength = nullptr;
+    std::atomic<float>* reverbRangeLink = nullptr;
     std::atomic<float>* reverbRate = nullptr;
     std::atomic<float>* reverbSequenceMode = nullptr;
     std::atomic<float>* reverbSeqAEnabled = nullptr;
@@ -249,6 +257,8 @@ private:
     std::atomic<float>* panSerialProfile = nullptr;
     std::atomic<float>* panStartStep = nullptr;
     std::atomic<float>* panEndStep = nullptr;
+    std::atomic<float>* panRangeLength = nullptr;
+    std::atomic<float>* panRangeLink = nullptr;
     std::atomic<float>* panRate = nullptr;
     std::atomic<float>* panSequenceMode = nullptr;
     std::atomic<float>* panSeqAEnabled = nullptr;
@@ -268,6 +278,8 @@ private:
     std::atomic<float>* filterSerialProfile = nullptr;
     std::atomic<float>* filterStartStep = nullptr;
     std::atomic<float>* filterEndStep = nullptr;
+    std::atomic<float>* filterRangeLength = nullptr;
+    std::atomic<float>* filterRangeLink = nullptr;
     std::atomic<float>* filterRate = nullptr;
     std::atomic<float>* filterSequenceMode = nullptr;
     std::atomic<float>* filterSeqAEnabled = nullptr;
@@ -285,6 +297,8 @@ private:
     std::atomic<float>* pitchSerialProfile = nullptr;
     std::atomic<float>* pitchStartStep = nullptr;
     std::atomic<float>* pitchEndStep = nullptr;
+    std::atomic<float>* pitchRangeLength = nullptr;
+    std::atomic<float>* pitchRangeLink = nullptr;
     std::atomic<float>* pitchRate = nullptr;
     std::atomic<float>* pitchSequenceMode = nullptr;
     std::atomic<float>* pitchSeqAEnabled = nullptr;
@@ -304,6 +318,8 @@ private:
     std::atomic<float>* distortionSerialProfile = nullptr;
     std::atomic<float>* distortionStartStep = nullptr;
     std::atomic<float>* distortionEndStep = nullptr;
+    std::atomic<float>* distortionRangeLength = nullptr;
+    std::atomic<float>* distortionRangeLink = nullptr;
     std::atomic<float>* distortionRate = nullptr;
     std::atomic<float>* distortionSequenceMode = nullptr;
     std::atomic<float>* distortionSeqAEnabled = nullptr;
@@ -323,6 +339,8 @@ private:
     std::atomic<float>* grainSerialProfile = nullptr;
     std::atomic<float>* grainStartStep = nullptr;
     std::atomic<float>* grainEndStep = nullptr;
+    std::atomic<float>* grainRangeLength = nullptr;
+    std::atomic<float>* grainRangeLink = nullptr;
     std::atomic<float>* grainRate = nullptr;
     std::atomic<float>* grainSequenceMode = nullptr;
     std::atomic<float>* grainSeqAEnabled = nullptr;
@@ -344,6 +362,8 @@ private:
     std::atomic<float>* compressorSerialProfile = nullptr;
     std::atomic<float>* compressorStartStep = nullptr;
     std::atomic<float>* compressorEndStep = nullptr;
+    std::atomic<float>* compressorRangeLength = nullptr;
+    std::atomic<float>* compressorRangeLink = nullptr;
     std::atomic<float>* compressorRate = nullptr;
     std::atomic<float>* compressorSequenceMode = nullptr;
     std::atomic<float>* compressorSeqAEnabled = nullptr;

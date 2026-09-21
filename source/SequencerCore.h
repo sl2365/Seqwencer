@@ -306,6 +306,117 @@ inline StepRange makeStepRange (int startOneBased,
     return { std::min (start, end) - 1, end - 1 };
 }
 
+inline StepRange moveLinkedStepRange (StepRange range,
+                                      int requestedBoundaryOneBased,
+                                      bool movingStart,
+                                      int maximumStep) noexcept
+{
+    maximumStep = std::max (2, maximumStep);
+    range = makeStepRange (range.first + 1, range.last + 1, maximumStep);
+    const auto length = std::clamp (range.length(), 2, maximumStep);
+    if (movingStart)
+    {
+        const auto first = std::clamp (
+            requestedBoundaryOneBased - 1, 0, maximumStep - length);
+        return { first, first + length - 1 };
+    }
+
+    const auto last = std::clamp (
+        requestedBoundaryOneBased - 1, length - 1, maximumStep - 1);
+    return { last - length + 1, last };
+}
+
+inline StepRange makeLengthStepRange (int startOneBased,
+                                      int length,
+                                      int maximumStep) noexcept
+{
+    maximumStep = std::max (2, maximumStep);
+    length = std::clamp (length, 2, maximumStep);
+    const auto first = std::clamp (
+        startOneBased - 1, 0, maximumStep - length);
+    return { first, first + length - 1 };
+}
+
+inline StepRange resolveModulatedStepRange (
+    StepRange baseRange,
+    int maximumStep,
+    bool linkedBoundaries,
+    float normalisedStart,
+    bool startAssigned,
+    float normalisedEnd,
+    bool endAssigned) noexcept
+{
+    maximumStep = std::max (2, maximumStep);
+    baseRange = makeStepRange (
+        baseRange.first + 1, baseRange.last + 1, maximumStep);
+    normalisedStart = std::clamp (normalisedStart, 0.0f, 1.0f);
+    normalisedEnd = std::clamp (normalisedEnd, 0.0f, 1.0f);
+    const auto boundaryTravel = std::max (1, maximumStep - 2);
+    const auto requestedStart = 1 + static_cast<int> (std::lround (
+        normalisedStart * static_cast<float> (boundaryTravel)));
+    const auto requestedEnd = 2 + static_cast<int> (std::lround (
+        normalisedEnd * static_cast<float> (boundaryTravel)));
+
+    if (! linkedBoundaries)
+    {
+        return makeStepRange (
+            startAssigned ? requestedStart : baseRange.first + 1,
+            endAssigned ? requestedEnd : baseRange.last + 1,
+            maximumStep);
+    }
+
+    if (! startAssigned && ! endAssigned)
+        return baseRange;
+
+    const auto length = baseRange.length();
+    const auto maximumFirst = maximumStep - length;
+    auto requestedFirst = baseRange.first;
+    if (startAssigned && endAssigned)
+    {
+        const auto fromStart = std::clamp (
+            requestedStart - 1, 0, maximumFirst);
+        const auto fromEnd = std::clamp (
+            requestedEnd - length, 0, maximumFirst);
+        requestedFirst = static_cast<int> (std::lround (
+            0.5 * static_cast<double> (fromStart + fromEnd)));
+    }
+    else if (startAssigned)
+    {
+        requestedFirst = requestedStart - 1;
+    }
+    else
+    {
+        requestedFirst = requestedEnd - length;
+    }
+
+    requestedFirst = std::clamp (requestedFirst, 0, maximumFirst);
+    return { requestedFirst, requestedFirst + length - 1 };
+}
+
+inline StepRange resolveModulatedLengthStepRange (
+    StepRange baseRange,
+    int maximumStep,
+    float normalisedStart,
+    bool startAssigned,
+    float normalisedLength,
+    bool lengthAssigned) noexcept
+{
+    maximumStep = std::max (2, maximumStep);
+    baseRange = makeStepRange (
+        baseRange.first + 1, baseRange.last + 1, maximumStep);
+    normalisedStart = std::clamp (normalisedStart, 0.0f, 1.0f);
+    normalisedLength = std::clamp (normalisedLength, 0.0f, 1.0f);
+    const auto boundaryTravel = std::max (1, maximumStep - 2);
+    const auto requestedStart = 1 + static_cast<int> (std::lround (
+        normalisedStart * static_cast<float> (boundaryTravel)));
+    const auto requestedLength = 2 + static_cast<int> (std::lround (
+        normalisedLength * static_cast<float> (boundaryTravel)));
+    return makeLengthStepRange (
+        startAssigned ? requestedStart : baseRange.first + 1,
+        lengthAssigned ? requestedLength : baseRange.length(),
+        maximumStep);
+}
+
 enum class ModulationTarget
 {
     none = 0,
@@ -379,20 +490,48 @@ enum class ModulationTarget
     compressorSequencerAAttack = 68,
     compressorSequencerARelease = 69,
     compressorSequencerBAttack = 70,
-    compressorSequencerBRelease = 71
+    compressorSequencerBRelease = 71,
+    gateSequencerStart = 72,
+    gateSequencerEnd = 73,
+    gateSequencerLength = 74,
+    delaySequencerStart = 75,
+    delaySequencerEnd = 76,
+    delaySequencerLength = 77,
+    reverbSequencerStart = 78,
+    reverbSequencerEnd = 79,
+    reverbSequencerLength = 80,
+    panSequencerStart = 81,
+    panSequencerEnd = 82,
+    panSequencerLength = 83,
+    filterSequencerStart = 84,
+    filterSequencerEnd = 85,
+    filterSequencerLength = 86,
+    pitchSequencerStart = 87,
+    pitchSequencerEnd = 88,
+    pitchSequencerLength = 89,
+    distortionSequencerStart = 90,
+    distortionSequencerEnd = 91,
+    distortionSequencerLength = 92,
+    grainSequencerStart = 93,
+    grainSequencerEnd = 94,
+    grainSequencerLength = 95,
+    compressorSequencerStart = 96,
+    compressorSequencerEnd = 97,
+    compressorSequencerLength = 98
 };
 
 constexpr int sequencerEnvelopeTargetCount = 4;
-constexpr int gateModulationTargetCount = 13;
-constexpr int delayModulationTargetCount = 7;
-constexpr int reverbModulationTargetCount = 8;
-constexpr int panModulationTargetCount = 5;
-constexpr int filterModulationTargetCount = 7;
-constexpr int pitchModulationTargetCount = 6;
-constexpr int distortionModulationTargetCount = 7;
-constexpr int grainModulationTargetCount = 8;
-constexpr int compressorModulationTargetCount = 10;
-constexpr int modulationTargetCount = 71;
+constexpr int sequencerRangeTargetCount = 3;
+constexpr int gateModulationTargetCount = 16;
+constexpr int delayModulationTargetCount = 10;
+constexpr int reverbModulationTargetCount = 11;
+constexpr int panModulationTargetCount = 8;
+constexpr int filterModulationTargetCount = 10;
+constexpr int pitchModulationTargetCount = 9;
+constexpr int distortionModulationTargetCount = 10;
+constexpr int grainModulationTargetCount = 11;
+constexpr int compressorModulationTargetCount = 13;
+constexpr int modulationTargetCount = 98;
 
 inline bool isSequencerEnvelopeTarget (ModulationTarget target) noexcept
 {
@@ -495,12 +634,115 @@ sequencerEnvelopeTargets (SequencerEngine engine) noexcept
              static_cast<ModulationTarget> (first + 3) };
 }
 
+inline bool isSequencerRangeTarget (ModulationTarget target) noexcept
+{
+    const auto value = static_cast<int> (target);
+    return value >= static_cast<int> (ModulationTarget::gateSequencerStart)
+        && value <= static_cast<int> (
+            ModulationTarget::compressorSequencerLength);
+}
+
+inline SequencerEngine sequencerRangeTargetEngine (
+    ModulationTarget target) noexcept
+{
+    if (! isSequencerRangeTarget (target))
+        return SequencerEngine::phi;
+
+    const auto group = (static_cast<int> (target)
+        - static_cast<int> (ModulationTarget::gateSequencerStart))
+        / sequencerRangeTargetCount;
+    switch (group)
+    {
+        case 0:  return SequencerEngine::gate;
+        case 1:  return SequencerEngine::delay;
+        case 2:  return SequencerEngine::reverb;
+        case 3:  return SequencerEngine::pan;
+        case 4:  return SequencerEngine::filter;
+        case 5:  return SequencerEngine::pitch;
+        case 6:  return SequencerEngine::distortion;
+        case 7:  return SequencerEngine::grain;
+        case 8:  return SequencerEngine::compressor;
+        default: return SequencerEngine::phi;
+    }
+}
+
+inline bool sequencerRangeTargetIsStart (ModulationTarget target) noexcept
+{
+    return isSequencerRangeTarget (target)
+        && (static_cast<int> (target)
+            - static_cast<int> (ModulationTarget::gateSequencerStart))
+               % sequencerRangeTargetCount == 0;
+}
+
+inline bool sequencerRangeTargetIsEnd (ModulationTarget target) noexcept
+{
+    return isSequencerRangeTarget (target)
+        && (static_cast<int> (target)
+            - static_cast<int> (ModulationTarget::gateSequencerStart))
+               % sequencerRangeTargetCount == 1;
+}
+
+inline bool sequencerRangeTargetIsLength (ModulationTarget target) noexcept
+{
+    return isSequencerRangeTarget (target)
+        && (static_cast<int> (target)
+            - static_cast<int> (ModulationTarget::gateSequencerStart))
+               % sequencerRangeTargetCount == 2;
+}
+
+inline std::array<ModulationTarget, sequencerRangeTargetCount>
+sequencerRangeTargets (SequencerEngine engine) noexcept
+{
+    auto first = static_cast<int> (ModulationTarget::none);
+    switch (engine)
+    {
+        case SequencerEngine::gate:
+            first = static_cast<int> (ModulationTarget::gateSequencerStart);
+            break;
+        case SequencerEngine::delay:
+            first = static_cast<int> (ModulationTarget::delaySequencerStart);
+            break;
+        case SequencerEngine::reverb:
+            first = static_cast<int> (ModulationTarget::reverbSequencerStart);
+            break;
+        case SequencerEngine::pan:
+            first = static_cast<int> (ModulationTarget::panSequencerStart);
+            break;
+        case SequencerEngine::filter:
+            first = static_cast<int> (ModulationTarget::filterSequencerStart);
+            break;
+        case SequencerEngine::pitch:
+            first = static_cast<int> (ModulationTarget::pitchSequencerStart);
+            break;
+        case SequencerEngine::distortion:
+            first = static_cast<int> (
+                ModulationTarget::distortionSequencerStart);
+            break;
+        case SequencerEngine::grain:
+            first = static_cast<int> (ModulationTarget::grainSequencerStart);
+            break;
+        case SequencerEngine::compressor:
+            first = static_cast<int> (
+                ModulationTarget::compressorSequencerStart);
+            break;
+        case SequencerEngine::phi:
+            break;
+    }
+
+    if (first == static_cast<int> (ModulationTarget::none))
+        return { ModulationTarget::none, ModulationTarget::none,
+                 ModulationTarget::none };
+    return { static_cast<ModulationTarget> (first),
+             static_cast<ModulationTarget> (first + 1),
+             static_cast<ModulationTarget> (first + 2) };
+}
+
 inline ModulationTarget targetFromChoice (float choice) noexcept
 {
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
             && target <= static_cast<int> (
-                ModulationTarget::compressorSequencerBRelease)
+                ModulationTarget::compressorSequencerLength)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -894,6 +1136,14 @@ inline double phaseFromQuarterNotes (double quarterNotes,
     return wrapPhase (quarterNotes / beatsPerStep, length);
 }
 
+inline double unwrappedPhaseFromQuarterNotes (double quarterNotes,
+                                              double beatsPerStep) noexcept
+{
+    if (! std::isfinite (quarterNotes) || beatsPerStep <= 0.0)
+        return 0.0;
+    return quarterNotes / beatsPerStep;
+}
+
 inline bool hostTimelineShouldAdvance (bool hostReportsPlaying,
                                        bool ppqAvailable,
                                        bool ppqChanged,
@@ -1048,7 +1298,8 @@ inline Pattern makeWaveformPreset (WaveformPreset preset,
 
 inline bool targetSupportsBipolar (ModulationTarget target) noexcept
 {
-    if (isSequencerEnvelopeTarget (target))
+    if (isSequencerEnvelopeTarget (target)
+        || isSequencerRangeTarget (target))
         return true;
 
     switch (target)

@@ -23,6 +23,7 @@ private:
     class SeqwencerLookAndFeel;
     class FxSelectorButton;
     class PatternNudgeControls;
+    class RangeLinkButton;
     class ModulationParameterLabel;
     class TargetList;
     class PresetBrowser;
@@ -49,7 +50,8 @@ private:
     void configureLabel (juce::Label&, const juce::String& text);
     void handleLaneButton (int lane);
     void handleBipolarButton (int lane);
-    void handleRangeControl (juce::Slider&, juce::RangedAudioParameter&);
+    void handleRangeControl (bool movingStart);
+    void handleRangeLinkButton();
     void updateRangeControls();
     void updateLaneVisuals();
     void selectFx (SelectedFx);
@@ -77,6 +79,7 @@ private:
     std::unique_ptr<StepGrid> gridB;
     std::unique_ptr<PatternNudgeControls> nudgeControlsA;
     std::unique_ptr<PatternNudgeControls> nudgeControlsB;
+    std::unique_ptr<RangeLinkButton> rangeLinkButton;
     std::unique_ptr<FxSelectorButton> gateFxButton;
     std::unique_ptr<FxSelectorButton> delayFxButton;
     std::unique_ptr<FxSelectorButton> reverbFxButton;
@@ -126,6 +129,8 @@ private:
     std::unique_ptr<ModulationParameterLabel> compressorReleaseParameterLabel;
     std::unique_ptr<ModulationParameterLabel> compressorMakeupParameterLabel;
     std::unique_ptr<ModulationParameterLabel> compressorMixParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> startParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> endParameterLabel;
     std::unique_ptr<TargetList> targetListA;
     std::unique_ptr<TargetList> targetListB;
     std::unique_ptr<TargetList> delayTargetListA;
@@ -151,6 +156,8 @@ private:
     juce::RangedAudioParameter* serialProfileParameter = nullptr;
     juce::RangedAudioParameter* startStepParameter = nullptr;
     juce::RangedAudioParameter* endStepParameter = nullptr;
+    juce::RangedAudioParameter* rangeLengthParameter = nullptr;
+    juce::RangedAudioParameter* rangeLinkParameter = nullptr;
     juce::RangedAudioParameter* bipolarAParameter = nullptr;
     juce::RangedAudioParameter* bipolarBParameter = nullptr;
 
@@ -161,7 +168,7 @@ private:
     juce::ComboBox waveformABox;
     juce::ComboBox waveformBBox;
     juce::ToggleButton syncButton { "HOST SYNC" };
-    juce::ToggleButton phiTargetButton { "TARGET" };
+    juce::ToggleButton phiTargetButton { "TARGETS" };
     juce::ToggleButton enableAButton { "A" };
     juce::ToggleButton enableBButton { "B" };
     juce::ToggleButton bipolarAButton { "BIPOLAR" };
@@ -215,8 +222,6 @@ private:
 
     juce::Label rateLabel;
     juce::Label sequenceModeLabel;
-    juce::Label startLabel;
-    juce::Label endLabel;
     juce::Label laneATitle;
     juce::Label laneBTitle;
     juce::Label colourALabel;
@@ -243,6 +248,7 @@ private:
     std::unique_ptr<ButtonAttachment> compressorAttachment;
     std::unique_ptr<ButtonAttachment> phiBridgeAttachment;
     std::unique_ptr<ButtonAttachment> noiseGateAttachment;
+    std::unique_ptr<ButtonAttachment> rangeLinkAttachment;
     std::unique_ptr<ComboAttachment> modeAttachment;
     std::unique_ptr<ComboAttachment> sequenceModeAttachment;
     std::unique_ptr<ComboAttachment> filterTypeAttachment;
@@ -287,7 +293,14 @@ private:
     std::unique_ptr<SliderAttachment> releaseAAttachment;
     std::unique_ptr<SliderAttachment> attackBAttachment;
     std::unique_ptr<SliderAttachment> releaseBAttachment;
+    std::array<seqwencer::ModulationTarget,
+               seqwencer::sequencerRangeTargetCount> boundRangeTargets {
+        seqwencer::ModulationTarget::none,
+        seqwencer::ModulationTarget::none,
+        seqwencer::ModulationTarget::none
+    };
     bool updatingRangeControls = false;
+    bool rangeLabelShowsLength = false;
     SelectedFx selectedFx = SelectedFx::gate;
     SelectedFx boundFx = SelectedFx::gate;
     seqwencer::AudioFxOrder displayedAudioFxOrder =
