@@ -501,6 +501,8 @@ public:
     {
         setCanonicalStepValues (seqwencer::nudgeStepArray (
             readCanonicalValues(), direction));
+        setSubdivisions (seqwencer::nudgeStepArray (
+            processor.getStepSubdivisions (engine, bank), direction));
     }
 
     void nudgeGateModes (int direction)
@@ -516,6 +518,7 @@ public:
         endGestures();
         const auto values = seqwencer::makeWaveformPreset (
             preset, usesBipolarDisplay());
+        auto subdivisions = processor.getStepSubdivisions (engine, bank);
         for (std::size_t step = 0; step < values.size(); ++step)
         {
             auto* parameter = stepParameters[step];
@@ -526,7 +529,9 @@ public:
             parameter->setValueNotifyingHost (
                 parameter->convertTo0to1 (values[step]));
             parameter->endChangeGesture();
+            subdivisions[step].extraValues.fill (values[step]);
         }
+        processor.setStepSubdivisions (engine, bank, subdivisions);
         repaint();
     }
 
@@ -632,6 +637,10 @@ public:
         const auto columnWidth = graph.getWidth()
                                / static_cast<float> (seqwencer::stepsPerBank);
         const auto values = readValues();
+        const auto subdivisions = readSubdivisions();
+        const auto otherValues = readOtherValues();
+        const auto otherSubdivisions = readSubdivisionsForBank (
+            bank == 0 ? 1 : 0);
         const auto bipolar = usesBipolarDisplay();
         const auto activeStep = bank == 0
             ? processor.getActiveStepA (engine)
@@ -707,6 +716,35 @@ public:
             }
         }
 
+        const auto subdivisionRow = getSubdivisionBounds();
+        graphics.setFont (juce::FontOptions { 9.0f, juce::Font::bold });
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto left = subdivisionRow.getX()
+                            + columnWidth * static_cast<float> (step);
+            const auto cell = juce::Rectangle<float> {
+                left + 1.0f, subdivisionRow.getY(),
+                juce::jmax (1.0f, columnWidth - 2.0f),
+                subdivisionRow.getHeight()
+            };
+            const auto mode = subdivisions[static_cast<std::size_t> (step)].mode;
+            const auto label = mode == seqwencer::StepDivisionMode::half ? "H"
+                : mode == seqwencer::StepDivisionMode::two ? "2"
+                : mode == seqwencer::StepDivisionMode::three ? "3" : "•";
+            const auto inRange = isStepInPlaybackRange (step);
+            graphics.setColour (juce::Colour (0xff111820));
+            graphics.fillRoundedRectangle (cell, 2.0f);
+            graphics.setColour ((mode == seqwencer::StepDivisionMode::normal
+                                      ? juce::Colour (mutedText)
+                                      : accent.brighter (0.20f))
+                                    .withMultipliedAlpha (inRange ? 0.90f : 0.25f));
+            graphics.drawText (label, cell.toNearestInt(),
+                               juce::Justification::centred, false);
+            graphics.setColour (juce::Colour (panelOutline)
+                                    .withMultipliedAlpha (inRange ? 0.85f : 0.28f));
+            graphics.drawRoundedRectangle (cell, 2.0f, 0.8f);
+        }
+
         juce::Path clip;
         clip.addRoundedRectangle (graph, 4.0f);
         graphics.saveState();
@@ -741,23 +779,52 @@ public:
                 graphics.fillRect (cell);
             }
 
-            const auto value = values[static_cast<std::size_t> (step)];
-            const auto height = graph.getHeight() * value;
-            graphics.setColour (accent.withAlpha (step == activeStep ? 0.92f : 0.68f));
-            if (bipolar)
+            const auto& subdivision = subdivisions[
+                static_cast<std::size_t> (step)];
+            const auto segmentCount = seqwencer::stepDivisionSegmentCount (
+                subdivision.mode);
+            const auto segmentWidth = columnWidth
+                                    / static_cast<float> (segmentCount);
+            for (int segment = 0; segment < segmentCount; ++segment)
             {
-                const auto valueY = graph.getBottom() - height;
-                const auto centreY = graph.getCentreY();
-                graphics.fillRect (left + 1.0f,
-                                   juce::jmin (valueY, centreY),
-                                   juce::jmax (1.0f, columnWidth - 2.0f),
-                                   std::abs (valueY - centreY));
-            }
-            else
-            {
-                graphics.fillRect (left + 1.0f,
-                                   graph.getBottom() - height,
-                                   juce::jmax (1.0f, columnWidth - 2.0f), height);
+                const auto clearHalf = subdivision.mode
+                                           == seqwencer::StepDivisionMode::half
+                                    && segment == 1;
+                const auto value = clearHalf ? (bipolar ? 0.5f : 0.0f)
+                    : segment == 0
+                        ? values[static_cast<std::size_t> (step)]
+                        : subdivision.extraValues[static_cast<std::size_t> (
+                              segment - 1)];
+                const auto segmentLeft = left
+                    + segmentWidth * static_cast<float> (segment);
+                const auto height = graph.getHeight() * value;
+                graphics.setColour (accent.withAlpha (
+                    step == activeStep ? 0.92f : 0.68f));
+                if (bipolar)
+                {
+                    const auto valueY = graph.getBottom() - height;
+                    const auto centreY = graph.getCentreY();
+                    graphics.fillRect (
+                        segmentLeft + 1.0f,
+                        juce::jmin (valueY, centreY),
+                        juce::jmax (1.0f, segmentWidth - 2.0f),
+                        std::abs (valueY - centreY));
+                }
+                else
+                {
+                    graphics.fillRect (
+                        segmentLeft + 1.0f,
+                        graph.getBottom() - height,
+                        juce::jmax (1.0f, segmentWidth - 2.0f), height);
+                }
+
+                if (segment > 0)
+                {
+                    graphics.setColour (accent.withAlpha (0.32f));
+                    graphics.drawVerticalLine (
+                        static_cast<int> (std::round (segmentLeft)),
+                        graph.getY(), graph.getBottom());
+                }
             }
 
             graphics.setColour (juce::Colour (0x553b4650));
@@ -776,7 +843,10 @@ public:
                 const auto x = graph.getX()
                              + columnWidth * (static_cast<float> (step) + position);
                 const auto y = graph.getBottom()
-                             - graph.getHeight() * displayedValueAt (values, step, position);
+                             - graph.getHeight() * displayedValueAt (
+                                   values, subdivisions,
+                                   otherValues, otherSubdivisions,
+                                   step, position);
                 if (step == 0 && point == 0)
                     curve.startNewSubPath (x, y);
                 else
@@ -819,11 +889,19 @@ public:
     {
         const auto inGateModeRow = engine == seqwencer::SequencerEngine::gate
                                 && getGateModeBounds().contains (event.position);
+        const auto inSubdivisionRow = getSubdivisionBounds().contains (
+            event.position);
         const auto inGraph = getGraphBounds().contains (event.position);
-        if (! inGateModeRow && ! inGraph)
+        if (! inGateModeRow && ! inSubdivisionRow && ! inGraph)
             return;
 
         const auto step = stepAtPosition (event.position);
+        if (inSubdivisionRow)
+        {
+            if (event.mods.isLeftButtonDown())
+                cycleDivisionMode (step);
+            return;
+        }
         if (inGateModeRow)
         {
             if (event.mods.isRightButtonDown())
@@ -844,7 +922,10 @@ public:
 
         if (event.mods.isMiddleButtonDown())
         {
-            setStoredStepValueOnce (step, usesBipolarDisplay() ? 0.0f : 0.5f);
+            const auto segment = segmentAtPosition (event.position, step);
+            if (segment >= 0)
+                setStoredStepValueOnce (
+                    step, segment, usesBipolarDisplay() ? 0.0f : 0.5f);
             return;
         }
 
@@ -852,14 +933,36 @@ public:
             return;
 
         dragging = true;
-        lastEditedStep = -1;
+        hasLastDragPosition = false;
         updateFromMouse (event.position);
     }
 
     void mouseDrag (const juce::MouseEvent& event) override
     {
         if (dragging)
-            updateFromMouse (event.position);
+        {
+            if (! hasLastDragPosition)
+            {
+                updateFromMouse (event.position);
+                return;
+            }
+
+            const auto graph = getGraphBounds();
+            const auto smallestSegmentWidth = graph.getWidth()
+                / static_cast<float> (seqwencer::stepsPerBank
+                                      * seqwencer::maximumSegmentsPerStep);
+            const auto samples = juce::jmax (
+                1, static_cast<int> (std::ceil (
+                    std::abs (event.position.x - lastDragPosition.x)
+                    / juce::jmax (1.0f, smallestSegmentWidth))));
+            const auto start = lastDragPosition;
+            for (int sample = 1; sample <= samples; ++sample)
+            {
+                const auto amount = static_cast<float> (sample)
+                                  / static_cast<float> (samples);
+                updateFromMouse (start + (event.position - start) * amount);
+            }
+        }
     }
 
     void mouseUp (const juce::MouseEvent&) override
@@ -873,7 +976,10 @@ public:
             return;
 
         endGestures();
-        setStoredStepValueOnce (stepAtPosition (event.position), 0.5f);
+        const auto step = stepAtPosition (event.position);
+        const auto segment = segmentAtPosition (event.position, step);
+        if (segment >= 0)
+            setStoredStepValueOnce (step, segment, 0.5f);
     }
 
 private:
@@ -905,19 +1011,26 @@ private:
                  inner.getWidth(), modeHeight };
     }
 
+    juce::Rectangle<float> getSubdivisionBounds() const
+    {
+        const auto inner = getLocalBounds().toFloat().reduced (7.0f);
+        const auto columnWidth = inner.getWidth()
+                               / static_cast<float> (seqwencer::stepsPerBank);
+        const auto modeHeight = juce::jmax (9.0f,
+                                           std::floor (columnWidth * 0.68f));
+        return { inner.getX(), inner.getBottom() - modeHeight,
+                 inner.getWidth(), modeHeight };
+    }
+
     juce::Rectangle<float> getGraphBounds() const
     {
         const auto inner = getLocalBounds().toFloat().reduced (7.0f);
-        if (engine != seqwencer::SequencerEngine::gate)
-        {
-            const auto graphTop = inner.getY() + 9.0f;
-            return { inner.getX(), graphTop, inner.getWidth(),
-                     juce::jmax (1.0f, inner.getBottom() - graphTop) };
-        }
-        const auto modeRow = getGateModeBounds();
-        const auto graphTop = modeRow.getBottom() + 4.0f;
+        const auto graphTop = engine == seqwencer::SequencerEngine::gate
+            ? getGateModeBounds().getBottom() + 4.0f
+            : inner.getY() + 9.0f;
+        const auto graphBottom = getSubdivisionBounds().getY() - 4.0f;
         return { inner.getX(), graphTop, inner.getWidth(),
-                 juce::jmax (1.0f, inner.getBottom() - graphTop) };
+                 juce::jmax (1.0f, graphBottom - graphTop) };
     }
 
     seqwencer::Pattern readValues() const
@@ -940,6 +1053,33 @@ private:
         for (std::size_t step = 0; step < values.size(); ++step)
             values[step] = readParameter (stepParameters[step], 1.0f);
         return values;
+    }
+
+    seqwencer::Pattern readOtherValues() const
+    {
+        seqwencer::Pattern values {};
+        const auto bipolar = usesBipolarDisplay();
+        for (std::size_t step = 0; step < values.size(); ++step)
+            values[step] = seqwencer::displayFromCanonical (
+                readParameter (otherBankStepParameters[step], 1.0f), bipolar);
+        return values;
+    }
+
+    seqwencer::StepSubdivisionPattern readSubdivisionsForBank (
+        int requestedBank) const
+    {
+        auto subdivisions = processor.getStepSubdivisions (
+            engine, requestedBank);
+        const auto bipolar = usesBipolarDisplay();
+        for (auto& step : subdivisions)
+            for (auto& value : step.extraValues)
+                value = seqwencer::displayFromCanonical (value, bipolar);
+        return subdivisions;
+    }
+
+    seqwencer::StepSubdivisionPattern readSubdivisions() const
+    {
+        return readSubdivisionsForBank (bank);
     }
 
     seqwencer::GateModePattern readGateModes() const
@@ -1022,13 +1162,18 @@ private:
             readParameter (parameter, 1.0f), usesBipolarDisplay());
     }
 
-    float displayedValueAt (const seqwencer::Pattern& values,
-                            int step,
-                            float position) const
+    float displayedValueAt (
+        const seqwencer::Pattern& values,
+        const seqwencer::StepSubdivisionPattern& subdivisions,
+        const seqwencer::Pattern& otherValues,
+        const seqwencer::StepSubdivisionPattern& otherSubdivisions,
+        int step,
+        float position) const
     {
         const auto linked = isSerial();
         const auto range = getPlaybackRange();
-        float previous = 1.0f;
+        auto previousStep = 0;
+        auto previousIsOtherBank = false;
         if (linked)
         {
             const auto globalStep = bank * seqwencer::stepsPerBank + step;
@@ -1036,15 +1181,16 @@ private:
                 ? range.last
                 : (globalStep + seqwencer::linkedStepCount - 1)
                     % seqwencer::linkedStepCount;
-            previous = valueAtGlobalStep (values, previousGlobalStep);
+            previousStep = previousGlobalStep % seqwencer::stepsPerBank;
+            previousIsOtherBank = previousGlobalStep
+                                    / seqwencer::stepsPerBank != bank;
         }
         else
         {
-            const auto previousStep = step == range.first
+            previousStep = step == range.first
                 ? range.last
                 : (step + seqwencer::stepsPerBank - 1)
                     % seqwencer::stepsPerBank;
-            previous = values[static_cast<std::size_t> (previousStep)];
         }
 
         const auto useProfileB = linked && serialProfileParameter != nullptr
@@ -1060,9 +1206,33 @@ private:
             ? attackParameter->convertFrom0to1 (attackParameter->getValue()) : 0.0f;
         const auto release = releaseParameter != nullptr
             ? releaseParameter->convertFrom0to1 (releaseParameter->getValue()) : 0.0f;
+        const auto neutral = usesBipolarDisplay() ? 0.5f : 0.0f;
+        const auto divisionMode = subdivisions[static_cast<std::size_t> (
+            step)].mode;
+        const auto segmentCount = seqwencer::stepDivisionSegmentCount (
+            divisionMode);
+        const auto scaledPosition = juce::jmin (
+            static_cast<float> (segmentCount) - 0.000001f,
+            juce::jlimit (0.0f, 1.0f, position)
+                * static_cast<float> (segmentCount));
+        const auto segment = juce::jlimit (
+            0, segmentCount - 1,
+            static_cast<int> (std::floor (scaledPosition)));
+        const auto segmentPosition = scaledPosition
+                                   - static_cast<float> (segment);
+        const auto previous = segment > 0
+            ? seqwencer::subdividedStepSegmentValue (
+                  values, subdivisions, step, segment - 1, neutral)
+            : previousIsOtherBank
+                ? seqwencer::subdividedStepFinalValue (
+                      otherValues, otherSubdivisions,
+                      previousStep, neutral)
+                : seqwencer::subdividedStepFinalValue (
+                      values, subdivisions, previousStep, neutral);
+        const auto current = seqwencer::subdividedStepSegmentValue (
+            values, subdivisions, step, segment, neutral);
         return seqwencer::transitionValue (
-            previous, values[static_cast<std::size_t> (step)],
-            position, attack, release);
+            previous, current, segmentPosition, attack, release);
     }
 
     void setStepValue (int step, float value)
@@ -1085,6 +1255,21 @@ private:
         parameter->setValueNotifyingHost (parameter->convertTo0to1 (canonical));
     }
 
+    void setSegmentValue (int step, int segment, float displayedValue)
+    {
+        const auto displayed = juce::jlimit (0.0f, 1.0f, displayedValue);
+        if (segment <= 0)
+        {
+            setStepValue (step, displayed);
+            return;
+        }
+
+        const auto canonical = usesBipolarDisplay()
+            ? displayed : seqwencer::canonicalFromUnipolar (displayed);
+        processor.setStepExtraValue (
+            engine, bank, step, segment - 1, canonical);
+    }
+
     int stepAtPosition (juce::Point<float> position) const
     {
         const auto graph = getGraphBounds();
@@ -1094,6 +1279,52 @@ private:
             0, seqwencer::stepsPerBank - 1,
             static_cast<int> ((x - graph.getX())
                 * static_cast<float> (seqwencer::stepsPerBank) / graph.getWidth()));
+    }
+
+    int segmentAtPosition (juce::Point<float> position, int step) const
+    {
+        const auto graph = getGraphBounds();
+        const auto columnWidth = graph.getWidth()
+                               / static_cast<float> (seqwencer::stepsPerBank);
+        step = juce::jlimit (0, seqwencer::stepsPerBank - 1, step);
+        const auto localPosition = juce::jlimit (
+            0.0f, 0.999999f,
+            (position.x - (graph.getX()
+                + columnWidth * static_cast<float> (step))) / columnWidth);
+        const auto subdivisions = processor.getStepSubdivisions (engine, bank);
+        const auto mode = subdivisions[static_cast<std::size_t> (step)].mode;
+        if (mode == seqwencer::StepDivisionMode::half)
+            return localPosition < 0.5f ? 0 : -1;
+        const auto segmentCount = seqwencer::stepDivisionSegmentCount (mode);
+        return juce::jlimit (
+            0, segmentCount - 1,
+            static_cast<int> (localPosition
+                * static_cast<float> (segmentCount)));
+    }
+
+    void cycleDivisionMode (int step)
+    {
+        step = juce::jlimit (0, seqwencer::stepsPerBank - 1, step);
+        auto subdivisions = processor.getStepSubdivisions (engine, bank);
+        auto& subdivision = subdivisions[static_cast<std::size_t> (step)];
+        const auto current = static_cast<int> (subdivision.mode);
+        const auto next = seqwencer::stepDivisionModeFromChoice (
+            (current + 1)
+                % (static_cast<int> (seqwencer::StepDivisionMode::three) + 1));
+        if (subdivision.mode == seqwencer::StepDivisionMode::half
+            && next == seqwencer::StepDivisionMode::two)
+        {
+            subdivision.extraValues[0] = readParameter (
+                stepParameters[static_cast<std::size_t> (step)], 1.0f);
+        }
+        else if (subdivision.mode == seqwencer::StepDivisionMode::two
+                 && next == seqwencer::StepDivisionMode::three)
+        {
+            subdivision.extraValues[1] = subdivision.extraValues[0];
+        }
+        subdivision.mode = next;
+        processor.setStepSubdivisions (engine, bank, subdivisions);
+        repaint();
     }
 
     void cycleGateMode (int step)
@@ -1144,6 +1375,13 @@ private:
                 static_cast<float> (modes[step])));
             parameter->endChangeGesture();
         }
+        repaint();
+    }
+
+    void setSubdivisions (
+        const seqwencer::StepSubdivisionPattern& subdivisions)
+    {
+        processor.setStepSubdivisions (engine, bank, subdivisions);
         repaint();
     }
 
@@ -1201,6 +1439,8 @@ private:
         if (command == stepCopy)
         {
             stepClipboard = readCanonicalValues();
+            subdivisionClipboard = processor.getStepSubdivisions (
+                engine, bank);
             stepClipboardEngine = engine;
             stepClipboardBank = bank;
             hasStepClipboard = true;
@@ -1211,7 +1451,10 @@ private:
             if (hasStepClipboard
                 && (stepClipboardEngine != engine
                     || stepClipboardBank != bank))
+            {
                 setCanonicalStepValues (stepClipboard);
+                setSubdivisions (subdivisionClipboard);
+            }
             return;
         }
         if (command == stepReset)
@@ -1221,15 +1464,22 @@ private:
         }
 
         seqwencer::Pattern values {};
+        auto subdivisions = processor.getStepSubdivisions (engine, bank);
         if (command == stepRandom)
         {
             auto& random = juce::Random::getSystemRandom();
             const auto bipolar = usesBipolarDisplay();
-            for (auto& value : values)
+            for (std::size_t step = 0; step < values.size(); ++step)
             {
                 const auto displayed = random.nextFloat();
-                value = bipolar ? displayed
-                                : seqwencer::canonicalFromUnipolar (displayed);
+                values[step] = bipolar ? displayed
+                    : seqwencer::canonicalFromUnipolar (displayed);
+                for (auto& extra : subdivisions[step].extraValues)
+                {
+                    const auto extraDisplayed = random.nextFloat();
+                    extra = bipolar ? extraDisplayed
+                        : seqwencer::canonicalFromUnipolar (extraDisplayed);
+                }
             }
         }
         else
@@ -1238,8 +1488,11 @@ private:
                 : command == stepMinimum && usesBipolarDisplay() ? 0.0f
                                                                  : 0.5f;
             values.fill (value);
+            for (auto& subdivision : subdivisions)
+                subdivision.extraValues.fill (value);
         }
         setCanonicalStepValues (values);
+        setSubdivisions (subdivisions);
     }
 
     void performGateMenuCommand (int command)
@@ -1294,8 +1547,16 @@ private:
         repaint();
     }
 
-    void setStoredStepValueOnce (int step, float canonical)
+    void setStoredStepValueOnce (int step, int segment, float canonical)
     {
+        if (segment > 0)
+        {
+            processor.setStepExtraValue (
+                engine, bank, step, segment - 1,
+                juce::jlimit (0.0f, 1.0f, canonical));
+            repaint();
+            return;
+        }
         const auto index = static_cast<std::size_t> (
             juce::jlimit (0, seqwencer::stepsPerBank - 1, step));
         auto* parameter = stepParameters[index];
@@ -1314,29 +1575,13 @@ private:
         const auto graph = getGraphBounds();
         const auto y = juce::jlimit (graph.getY(), graph.getBottom(), position.y);
         const auto step = stepAtPosition (position);
+        const auto segment = segmentAtPosition (position, step);
         const auto value = juce::jlimit (
             0.0f, 1.0f, (graph.getBottom() - y) / graph.getHeight());
-
-        if (lastEditedStep < 0 || lastEditedStep == step)
-        {
-            setStepValue (step, value);
-        }
-        else
-        {
-            const auto direction = step > lastEditedStep ? 1 : -1;
-            const auto distance = std::abs (step - lastEditedStep);
-            for (int offset = 1; offset <= distance; ++offset)
-            {
-                const auto interpolation = static_cast<float> (offset)
-                                         / static_cast<float> (distance);
-                setStepValue (lastEditedStep + direction * offset,
-                              lastEditedValue
-                                  + interpolation * (value - lastEditedValue));
-            }
-        }
-
-        lastEditedStep = step;
-        lastEditedValue = value;
+        if (segment >= 0)
+            setSegmentValue (step, segment, value);
+        lastDragPosition = position;
+        hasLastDragPosition = true;
         repaint();
     }
 
@@ -1349,7 +1594,7 @@ private:
             gestureActive[step] = false;
         }
         dragging = false;
-        lastEditedStep = -1;
+        hasLastDragPosition = false;
     }
 
     SeqwencerAudioProcessor& processor;
@@ -1376,9 +1621,10 @@ private:
     juce::RangedAudioParameter* bipolarBParameter = nullptr;
     juce::RangedAudioParameter* gateEnabledParameter = nullptr;
     bool dragging = false;
-    int lastEditedStep = -1;
-    float lastEditedValue = 1.0f;
+    bool hasLastDragPosition = false;
+    juce::Point<float> lastDragPosition;
     inline static seqwencer::Pattern stepClipboard {};
+    inline static seqwencer::StepSubdivisionPattern subdivisionClipboard {};
     inline static seqwencer::GateModePattern gateClipboard {};
     inline static seqwencer::SequencerEngine stepClipboardEngine =
         seqwencer::SequencerEngine::gate;
@@ -4319,7 +4565,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.17.1",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.18.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 

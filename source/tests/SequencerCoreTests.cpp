@@ -89,6 +89,102 @@ int main()
     expectNear ("right nudge moves step one into step two",
                 nudgedRight[1], 0.0f);
 
+    seqwencer::Pattern dividedPattern {};
+    dividedPattern.fill (0.0f);
+    dividedPattern[0] = 0.8f;
+    seqwencer::StepSubdivisionPattern divisions {};
+    expectNear ("division Off preserves the normal full-width step",
+                seqwencer::evaluateSubdividedBankRange (
+                    dividedPattern, divisions, 0.75,
+                    { 0, 1 }, 0.0f, 0.0f),
+                0.8f);
+    divisions[0].mode = seqwencer::StepDivisionMode::half;
+    expectNear ("Half uses the first half of the main step",
+                seqwencer::evaluateSubdividedBankRange (
+                    dividedPattern, divisions, 0.25,
+                    { 0, 1 }, 0.0f, 0.0f),
+                0.8f);
+    expectNear ("Half clears the second half of the main step",
+                seqwencer::evaluateSubdividedBankRange (
+                    dividedPattern, divisions, 0.75,
+                    { 0, 1 }, 0.0f, 0.0f),
+                0.0f);
+    divisions[0].mode = seqwencer::StepDivisionMode::two;
+    divisions[0].extraValues[0] = 0.3f;
+    expectNear ("two divisions keep an independent second height",
+                seqwencer::evaluateSubdividedBankRange (
+                    dividedPattern, divisions, 0.75,
+                    { 0, 1 }, 0.0f, 0.0f),
+                0.3f);
+    divisions[0].mode = seqwencer::StepDivisionMode::three;
+    divisions[0].extraValues[1] = 0.6f;
+    expectNear ("three divisions keep an independent third height",
+                seqwencer::evaluateSubdividedBankRange (
+                    dividedPattern, divisions, 0.90,
+                    { 0, 1 }, 0.0f, 0.0f),
+                0.6f);
+
+    seqwencer::Pattern dividedEnvelopePattern {};
+    dividedEnvelopePattern.fill (0.0f);
+    dividedEnvelopePattern[1] = 1.0f;
+    seqwencer::StepSubdivisionPattern dividedEnvelope {};
+    dividedEnvelope[1].mode = seqwencer::StepDivisionMode::two;
+    dividedEnvelope[1].extraValues[0] = 0.25f;
+    expectNear ("Attack is applied inside each divided segment",
+                seqwencer::evaluateSubdividedStep (
+                    dividedEnvelopePattern, dividedEnvelope,
+                    0, 1, 0.125f, 0.5f, 0.0f, 0.0f),
+                0.75f);
+
+    seqwencer::GateModePattern dividedGateModes {};
+    dividedGateModes.fill (seqwencer::GateStepMode::longStep);
+    divisions[0].mode = seqwencer::StepDivisionMode::half;
+    expectNear ("Gate Half is closed for its clear second half",
+                seqwencer::evaluateSubdividedGateBankRange (
+                    dividedPattern, dividedGateModes, divisions, 0.75,
+                    { 0, 1 }, 0.0f, 0.0f),
+                0.0f);
+    expectNear ("Bipolar Half returns to its neutral centre",
+                seqwencer::evaluateSubdividedBankRange (
+                    dividedPattern, divisions, 0.75,
+                    { 0, 1 }, 0.0f, 0.0f, nullptr,
+                    seqwencer::SequenceMode::loop, 0.5f),
+                0.5f);
+
+    seqwencer::Pattern dividedSerialA {};
+    seqwencer::Pattern dividedSerialB {};
+    dividedSerialA.fill (0.0f);
+    dividedSerialB.fill (0.0f);
+    dividedSerialB[0] = 0.2f;
+    seqwencer::StepSubdivisionPattern dividedSerialModesA {};
+    seqwencer::StepSubdivisionPattern dividedSerialModesB {};
+    dividedSerialModesB[0].mode = seqwencer::StepDivisionMode::three;
+    dividedSerialModesB[0].extraValues[0] = 0.4f;
+    dividedSerialModesB[0].extraValues[1] = 0.7f;
+    auto dividedSerialBank = -1;
+    auto dividedSerialStep = -1;
+    expectNear ("Serial playback reaches B step one's third division",
+                seqwencer::evaluateSubdividedLinkedRange (
+                    dividedSerialA, dividedSerialB,
+                    dividedSerialModesA, dividedSerialModesB,
+                    32.90, { 0, 63 }, 0.0f, 0.0f, 0.0f, 0.0f,
+                    &dividedSerialBank, &dividedSerialStep),
+                0.7f);
+    expectEqual ("a divided Serial step reports bank B",
+                 dividedSerialBank, 1);
+    expectEqual ("a divided Serial step reports B step one",
+                 dividedSerialStep, 0);
+
+    auto nudgeDivisions = seqwencer::StepSubdivisionPattern {};
+    nudgeDivisions[0].mode = seqwencer::StepDivisionMode::three;
+    nudgeDivisions[0].extraValues[1] = 0.35f;
+    nudgeDivisions = seqwencer::nudgeStepArray (nudgeDivisions, 1);
+    expectEqual ("step nudge moves its subdivision mode",
+                 static_cast<int> (nudgeDivisions[1].mode),
+                 static_cast<int> (seqwencer::StepDivisionMode::three));
+    expectNear ("step nudge moves its third segment height",
+                nudgeDivisions[1].extraValues[1], 0.35f);
+
     expectEqual (
         "HOST SYNC advances when a nested host omits all transport fields",
         seqwencer::hostTimelineShouldAdvance (

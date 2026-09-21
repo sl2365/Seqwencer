@@ -1,8 +1,6 @@
 # Seqwencer
 
-## Coming soon...
-
-[![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=009090)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
+[![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
 
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/latest/Seqwencer.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/Seqwencer/releases/latest)
@@ -13,8 +11,8 @@
 
 ![Seqwencer](Resources/Seqwencer1.jpg)
 
-Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in by
-**sl23**, designed for fast drawing, flexible modulation and simple routing.
+Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in,
+designed for fast drawing, flexible modulation and simple routing.
 Each internal effect owns an independent pair of 32-step sequencers, so its
 pattern, speed, range and direction do not have to match the other effects.
 
@@ -57,6 +55,8 @@ presets that contain no routing order use the original Gate-to-Compressor order.
 - Parallel mode for independent 32-step patterns
 - Serial mode for one continuous 64-step pattern
 - Unipolar and Bipolar values
+- Per-step `•`, `H`, `2` and `3` subdivision modes with independent segment
+  heights
 - Independent Rate, Start/End or linked Start/Length, Direction, Attack and
   Release for every effect
 - Draggable A/B Attack and Release targets on every internal FX page
@@ -82,14 +82,15 @@ sequence reliably.
    saved sequencer pair.
 3. Click the small LED inside the FX button to switch the effect on or off.
    Disabled internal effects also pause their private sequencer processing.
-4. Click and drag inside a lane to draw its steps.
+4. Click and drag inside a lane to draw its steps or individual divided
+   segments.
 5. Drag any parameter caption beginning with `::` into the A or B target list.
 6. Tick or untick a target-list checkbox to pause or resume that assignment
    without deleting it. Click its `X` to remove the assignment.
 
 The step shortcuts are:
 
-- Double-click: set that step to 0%
+- Double-click: set the clicked step or divided segment to 0%
 - Right-click: open Zero, Max, Min, Random, Reset, Copy and Paste for the
   complete 32-step lane
 - Middle-click: set that step to -100% in Bipolar mode, or 0% in Unipolar mode
@@ -100,7 +101,23 @@ complete lane between any A or B sequencers, including sequencers belonging to
 different FX.
 
 The small `STEPS < >` controls beneath each lane's Attack/Release knobs rotate
-the whole 32-step pattern left or right, including wraparound.
+the whole 32-step pattern left or right, including its subdivision modes and
+independent segment heights.
+
+Each main step has a small mode button beneath it. Click the button to cycle
+through:
+
+- `•`: subdivision off; the step behaves exactly as it did previously
+- `H`: the first half uses the step height and the second half is clear
+- `2`: two equal-width segments with separately drawable heights
+- `3`: three equal-width segments with separately drawable heights
+
+All active segments use that lane's existing Attack and Release controls. Rate,
+Start, End and Length continue to count the original main steps, so dividing a
+step adds detail inside its existing duration without changing the playback
+range or pattern length. Subdivisions are included in Copy, Paste, Reset,
+nudge, DAW project state and portable presets. Older projects and presets load
+with every step set to `•`, preserving their original sound.
 
 On every internal FX page, the `ATTACK` and `RELEASE` captions are also
 draggable targets. Drag A Attack, A Release, B Attack or B Release into either

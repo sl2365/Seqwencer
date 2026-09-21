@@ -2,6 +2,27 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.18.0 features
+
+- Added a compact subdivision button beneath every main step on every FX and
+  PHI sequencer page
+- The `•` mode keeps the original full-width step, `H` uses the first half and
+  clears the second, `2` creates two equal segments, and `3` creates three
+- Every active segment has an independently drawable height while continuing
+  to use its lane's existing Attack and Release controls
+- Rate, Start, End and linked Length still count the original main steps;
+  subdivision happens only inside each step's existing duration
+- Subdivisions follow Loop, Bounce, Reverse, Played and Random traversal and
+  work across the A-to-B boundary in Serial mode
+- Step Copy/Paste, Reset, left/right nudge, waveform application and bulk value
+  commands now include subdivision modes and segment heights
+- Subdivision data is stored in DAW projects and portable presets without
+  adding thousands of entries to the host automation list
+- Older projects and presets default every step to `•`, retaining their exact
+  previous behaviour
+- Removed the `Coming soon...` heading from README and shortened its opening
+  description as requested
+
 ## v1.3.17.1 fixes
 
 - Increased the gap between Direction and Type on the Filter and Distortion

@@ -9,6 +9,8 @@ namespace seqwencer
 constexpr int stepsPerBank = 32;
 constexpr int linkedStepCount = 64;
 constexpr int rateChoiceCount = 14;
+constexpr int sequencerEngineCount = 10;
+constexpr int maximumSegmentsPerStep = 3;
 using Pattern = std::array<float, stepsPerBank>;
 
 template <typename Value>
@@ -52,6 +54,42 @@ enum class SequencerEngine
     grain,
     compressor
 };
+
+enum class StepDivisionMode
+{
+    normal = 0,
+    half,
+    two,
+    three
+};
+
+inline StepDivisionMode stepDivisionModeFromChoice (int choice) noexcept
+{
+    return static_cast<StepDivisionMode> (std::clamp (
+        choice,
+        static_cast<int> (StepDivisionMode::normal),
+        static_cast<int> (StepDivisionMode::three)));
+}
+
+inline int stepDivisionSegmentCount (StepDivisionMode mode) noexcept
+{
+    switch (mode)
+    {
+        case StepDivisionMode::half:  return 2;
+        case StepDivisionMode::two:   return 2;
+        case StepDivisionMode::three: return 3;
+        case StepDivisionMode::normal:
+        default:                      return 1;
+    }
+}
+
+struct StepSubdivision
+{
+    StepDivisionMode mode = StepDivisionMode::normal;
+    std::array<float, maximumSegmentsPerStep - 1> extraValues { 1.0f, 1.0f };
+};
+
+using StepSubdivisionPattern = std::array<StepSubdivision, stepsPerBank>;
 
 inline float combinedTargetHue (float hueA, float hueB) noexcept
 {
@@ -867,6 +905,158 @@ inline float transitionValue (float previous,
     return previous + easedProgress * (current - previous);
 }
 
+inline float subdividedStepSegmentValue (
+    const Pattern& pattern,
+    const StepSubdivisionPattern& subdivisions,
+    int step,
+    int segment,
+    float neutralValue) noexcept
+{
+    step = std::clamp (step, 0, stepsPerBank - 1);
+    const auto& subdivision = subdivisions[static_cast<std::size_t> (step)];
+    const auto mode = subdivision.mode;
+    const auto segmentCount = stepDivisionSegmentCount (mode);
+    segment = std::clamp (segment, 0, segmentCount - 1);
+    if (mode == StepDivisionMode::half && segment == 1)
+        return std::clamp (neutralValue, 0.0f, 1.0f);
+    if (segment == 0)
+        return std::clamp (pattern[static_cast<std::size_t> (step)],
+                           0.0f, 1.0f);
+    return std::clamp (subdivision.extraValues[static_cast<std::size_t> (
+                           segment - 1)],
+                       0.0f, 1.0f);
+}
+
+inline float subdividedStepFinalValue (
+    const Pattern& pattern,
+    const StepSubdivisionPattern& subdivisions,
+    int step,
+    float neutralValue) noexcept
+{
+    step = std::clamp (step, 0, stepsPerBank - 1);
+    const auto mode = subdivisions[static_cast<std::size_t> (step)].mode;
+    return subdividedStepSegmentValue (
+        pattern, subdivisions, step,
+        stepDivisionSegmentCount (mode) - 1, neutralValue);
+}
+
+inline float evaluateSubdividedStep (
+    const Pattern& pattern,
+    const StepSubdivisionPattern& subdivisions,
+    int previousStep,
+    int currentStep,
+    float positionWithinStep,
+    float attackFraction,
+    float releaseFraction,
+    float neutralValue) noexcept
+{
+    currentStep = std::clamp (currentStep, 0, stepsPerBank - 1);
+    previousStep = std::clamp (previousStep, 0, stepsPerBank - 1);
+    positionWithinStep = std::clamp (positionWithinStep, 0.0f, 1.0f);
+    const auto mode = subdivisions[static_cast<std::size_t> (currentStep)].mode;
+    const auto segmentCount = stepDivisionSegmentCount (mode);
+    const auto scaledPosition = std::min (
+        static_cast<float> (segmentCount) - 0.000001f,
+        positionWithinStep * static_cast<float> (segmentCount));
+    const auto segment = std::clamp (
+        static_cast<int> (std::floor (scaledPosition)), 0, segmentCount - 1);
+    const auto segmentPosition = scaledPosition
+                               - static_cast<float> (segment);
+    const auto previousValue = segment > 0
+        ? subdividedStepSegmentValue (
+              pattern, subdivisions, currentStep, segment - 1, neutralValue)
+        : subdividedStepFinalValue (
+              pattern, subdivisions, previousStep, neutralValue);
+    const auto currentValue = subdividedStepSegmentValue (
+        pattern, subdivisions, currentStep, segment, neutralValue);
+    return transitionValue (previousValue, currentValue, segmentPosition,
+                            attackFraction, releaseFraction);
+}
+
+inline float evaluateSubdividedBankRange (
+    const Pattern& pattern,
+    const StepSubdivisionPattern& subdivisions,
+    double phase,
+    StepRange range,
+    float attackFraction,
+    float releaseFraction,
+    int* activeStep = nullptr,
+    SequenceMode mode = SequenceMode::loop,
+    float neutralValue = 0.0f) noexcept
+{
+    range.first = std::clamp (range.first, 0, stepsPerBank - 1);
+    range.last = std::clamp (range.last, range.first, stepsPerBank - 1);
+    const auto position = sequencePositionForPhase (
+        phase, range.length(), mode);
+    const auto step = range.first + position.currentOffset;
+    const auto previousStep = range.first + position.previousOffset;
+    if (activeStep != nullptr)
+        *activeStep = step;
+    return evaluateSubdividedStep (
+        pattern, subdivisions, previousStep, step, position.fraction,
+        attackFraction, releaseFraction, neutralValue);
+}
+
+inline float evaluateSubdividedLinkedRange (
+    const Pattern& a,
+    const Pattern& b,
+    const StepSubdivisionPattern& subdivisionsA,
+    const StepSubdivisionPattern& subdivisionsB,
+    double phase,
+    StepRange range,
+    float attackA,
+    float releaseA,
+    float attackB,
+    float releaseB,
+    int* activeBank,
+    int* activeStep,
+    SequenceMode mode = SequenceMode::loop,
+    float neutralValue = 0.0f) noexcept
+{
+    range.first = std::clamp (range.first, 0, linkedStepCount - 1);
+    range.last = std::clamp (range.last, range.first, linkedStepCount - 1);
+    const auto position = sequencePositionForPhase (
+        phase, range.length(), mode);
+    const auto globalStep = range.first + position.currentOffset;
+    const auto previousGlobalStep = range.first + position.previousOffset;
+    const auto bank = globalStep < stepsPerBank ? 0 : 1;
+    const auto localStep = globalStep % stepsPerBank;
+    const auto previousBank = previousGlobalStep < stepsPerBank ? 0 : 1;
+    const auto previousLocalStep = previousGlobalStep % stepsPerBank;
+    if (activeBank != nullptr)
+        *activeBank = bank;
+    if (activeStep != nullptr)
+        *activeStep = localStep;
+
+    const auto& pattern = bank == 0 ? a : b;
+    const auto& subdivisions = bank == 0 ? subdivisionsA : subdivisionsB;
+    const auto& previousPattern = previousBank == 0 ? a : b;
+    const auto& previousSubdivisions = previousBank == 0
+        ? subdivisionsA : subdivisionsB;
+    const auto divisionMode = subdivisions[static_cast<std::size_t> (
+        localStep)].mode;
+    const auto segmentCount = stepDivisionSegmentCount (divisionMode);
+    const auto scaledPosition = std::min (
+        static_cast<float> (segmentCount) - 0.000001f,
+        position.fraction * static_cast<float> (segmentCount));
+    const auto segment = std::clamp (
+        static_cast<int> (std::floor (scaledPosition)), 0, segmentCount - 1);
+    const auto segmentPosition = scaledPosition
+                               - static_cast<float> (segment);
+    const auto previousValue = segment > 0
+        ? subdividedStepSegmentValue (
+              pattern, subdivisions, localStep, segment - 1, neutralValue)
+        : subdividedStepFinalValue (
+              previousPattern, previousSubdivisions,
+              previousLocalStep, neutralValue);
+    const auto currentValue = subdividedStepSegmentValue (
+        pattern, subdivisions, localStep, segment, neutralValue);
+    return transitionValue (
+        previousValue, currentValue, segmentPosition,
+        bank == 0 ? attackA : attackB,
+        bank == 0 ? releaseA : releaseB);
+}
+
 inline float evaluateGateStep (float previousValue,
                                float currentValue,
                                GateStepMode previousMode,
@@ -914,6 +1104,140 @@ inline float evaluateGateStep (float previousValue,
         (positionWithinStep - openFraction) / closingDuration, 0.0f, 1.0f);
     return transitionValue (
         currentValue, 0.0f, closingPosition, 0.0f, 1.0f);
+}
+
+inline float evaluateSubdividedGateBankRange (
+    const Pattern& pattern,
+    const GateModePattern& gateModes,
+    const StepSubdivisionPattern& subdivisions,
+    double phase,
+    StepRange range,
+    float attackFraction,
+    float releaseFraction,
+    int* activeStep = nullptr,
+    float shortOpenFraction = shortGateOpenFraction,
+    float longOpenFraction = longGateOpenFraction,
+    SequenceMode mode = SequenceMode::loop) noexcept
+{
+    range.first = std::clamp (range.first, 0, stepsPerBank - 1);
+    range.last = std::clamp (range.last, range.first, stepsPerBank - 1);
+    const auto position = sequencePositionForPhase (
+        phase, range.length(), mode);
+    const auto step = range.first + position.currentOffset;
+    const auto previousStep = range.first + position.previousOffset;
+    if (activeStep != nullptr)
+        *activeStep = step;
+
+    const auto divisionMode = subdivisions[static_cast<std::size_t> (step)].mode;
+    const auto segmentCount = stepDivisionSegmentCount (divisionMode);
+    const auto scaledPosition = std::min (
+        static_cast<float> (segmentCount) - 0.000001f,
+        position.fraction * static_cast<float> (segmentCount));
+    const auto segment = std::clamp (
+        static_cast<int> (std::floor (scaledPosition)), 0, segmentCount - 1);
+    const auto segmentPosition = scaledPosition
+                               - static_cast<float> (segment);
+    const auto currentIsClear = divisionMode == StepDivisionMode::half
+                             && segment == 1;
+    const auto previousIsClear = segment > 0
+        ? (divisionMode == StepDivisionMode::half && segment - 1 == 1)
+        : (subdivisions[static_cast<std::size_t> (previousStep)].mode
+               == StepDivisionMode::half);
+    const auto previousValue = segment > 0
+        ? subdividedStepSegmentValue (
+              pattern, subdivisions, step, segment - 1, 0.0f)
+        : subdividedStepFinalValue (
+              pattern, subdivisions, previousStep, 0.0f);
+    const auto currentValue = subdividedStepSegmentValue (
+        pattern, subdivisions, step, segment, 0.0f);
+    return evaluateGateStep (
+        previousValue, currentValue,
+        previousIsClear ? GateStepMode::off
+                        : gateModes[static_cast<std::size_t> (
+                              segment > 0 ? step : previousStep)],
+        currentIsClear ? GateStepMode::off
+                       : gateModes[static_cast<std::size_t> (step)],
+        segmentPosition, attackFraction, releaseFraction,
+        shortOpenFraction, longOpenFraction);
+}
+
+inline float evaluateSubdividedGateLinkedRange (
+    const Pattern& a,
+    const Pattern& b,
+    const GateModePattern& modesA,
+    const GateModePattern& modesB,
+    const StepSubdivisionPattern& subdivisionsA,
+    const StepSubdivisionPattern& subdivisionsB,
+    double phase,
+    StepRange range,
+    float attackA,
+    float releaseA,
+    float attackB,
+    float releaseB,
+    int* activeBank,
+    int* activeStep,
+    float shortOpenFraction = shortGateOpenFraction,
+    float longOpenFraction = longGateOpenFraction,
+    SequenceMode mode = SequenceMode::loop) noexcept
+{
+    range.first = std::clamp (range.first, 0, linkedStepCount - 1);
+    range.last = std::clamp (range.last, range.first, linkedStepCount - 1);
+    const auto position = sequencePositionForPhase (
+        phase, range.length(), mode);
+    const auto globalStep = range.first + position.currentOffset;
+    const auto previousGlobalStep = range.first + position.previousOffset;
+    const auto bank = globalStep < stepsPerBank ? 0 : 1;
+    const auto localStep = globalStep % stepsPerBank;
+    const auto previousBank = previousGlobalStep < stepsPerBank ? 0 : 1;
+    const auto previousLocalStep = previousGlobalStep % stepsPerBank;
+    if (activeBank != nullptr)
+        *activeBank = bank;
+    if (activeStep != nullptr)
+        *activeStep = localStep;
+
+    const auto& pattern = bank == 0 ? a : b;
+    const auto& subdivisions = bank == 0 ? subdivisionsA : subdivisionsB;
+    const auto& gateModes = bank == 0 ? modesA : modesB;
+    const auto& previousPattern = previousBank == 0 ? a : b;
+    const auto& previousSubdivisions = previousBank == 0
+        ? subdivisionsA : subdivisionsB;
+    const auto& previousGateModes = previousBank == 0 ? modesA : modesB;
+    const auto divisionMode = subdivisions[static_cast<std::size_t> (
+        localStep)].mode;
+    const auto segmentCount = stepDivisionSegmentCount (divisionMode);
+    const auto scaledPosition = std::min (
+        static_cast<float> (segmentCount) - 0.000001f,
+        position.fraction * static_cast<float> (segmentCount));
+    const auto segment = std::clamp (
+        static_cast<int> (std::floor (scaledPosition)), 0, segmentCount - 1);
+    const auto segmentPosition = scaledPosition
+                               - static_cast<float> (segment);
+    const auto currentIsClear = divisionMode == StepDivisionMode::half
+                             && segment == 1;
+    const auto previousIsClear = segment > 0
+        ? (divisionMode == StepDivisionMode::half && segment - 1 == 1)
+        : (previousSubdivisions[static_cast<std::size_t> (
+               previousLocalStep)].mode == StepDivisionMode::half);
+    const auto previousValue = segment > 0
+        ? subdividedStepSegmentValue (
+              pattern, subdivisions, localStep, segment - 1, 0.0f)
+        : subdividedStepFinalValue (
+              previousPattern, previousSubdivisions,
+              previousLocalStep, 0.0f);
+    const auto currentValue = subdividedStepSegmentValue (
+        pattern, subdivisions, localStep, segment, 0.0f);
+    const auto previousMode = segment > 0
+        ? gateModes[static_cast<std::size_t> (localStep)]
+        : previousGateModes[static_cast<std::size_t> (previousLocalStep)];
+    return evaluateGateStep (
+        previousValue, currentValue,
+        previousIsClear ? GateStepMode::off : previousMode,
+        currentIsClear ? GateStepMode::off
+                       : gateModes[static_cast<std::size_t> (localStep)],
+        segmentPosition,
+        bank == 0 ? attackA : attackB,
+        bank == 0 ? releaseA : releaseB,
+        shortOpenFraction, longOpenFraction);
 }
 
 inline float evaluateBank (const Pattern& pattern,

@@ -103,6 +103,18 @@ public:
     void setAudioFxOrder (const seqwencer::AudioFxOrder& order);
     void moveAudioFxStage (seqwencer::AudioFxStage stage,
                            int destinationIndex);
+    seqwencer::StepSubdivisionPattern getStepSubdivisions (
+        seqwencer::SequencerEngine engine, int bank) const noexcept;
+    void setStepSubdivisions (
+        seqwencer::SequencerEngine engine, int bank,
+        const seqwencer::StepSubdivisionPattern& subdivisions,
+        bool notifyHost = true) noexcept;
+    void setStepDivisionMode (
+        seqwencer::SequencerEngine engine, int bank, int step,
+        seqwencer::StepDivisionMode mode) noexcept;
+    void setStepExtraValue (
+        seqwencer::SequencerEngine engine, int bank, int step,
+        int extraIndex, float canonicalValue) noexcept;
 
     static juce::String stepParameterID (int bank, int step);
     static juce::String phiStepParameterID (int bank, int step);
@@ -162,6 +174,12 @@ private:
     seqwencer::Pattern readCompressorPattern (int bank,
                                               bool bipolar) const noexcept;
     seqwencer::GateModePattern readGateModes (int bank) const noexcept;
+    seqwencer::StepSubdivisionPattern readStepSubdivisions (
+        seqwencer::SequencerEngine engine, int bank,
+        bool bipolar) const noexcept;
+    void resetStepSubdivisions() noexcept;
+    void writeStepSubdivisionsToState (juce::ValueTree& state) const;
+    void readStepSubdivisionsFromState (const juce::ValueTree& state) noexcept;
     void migrateStepStorageIfNeeded();
     void syncAudioFxOrderFromState();
     void resetFilterProcessor() noexcept;
@@ -416,6 +434,22 @@ private:
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> compressorStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesB {};
+    struct StoredStepSubdivision
+    {
+        std::atomic<int> mode {
+            static_cast<int> (seqwencer::StepDivisionMode::normal) };
+        std::array<std::atomic<float>,
+                   seqwencer::maximumSegmentsPerStep - 1> extraValues;
+
+        StoredStepSubdivision() noexcept
+        {
+            for (auto& value : extraValues)
+                value.store (1.0f, std::memory_order_relaxed);
+        }
+    };
+    std::array<std::array<std::array<StoredStepSubdivision,
+                                     seqwencer::stepsPerBank>, 2>,
+               seqwencer::sequencerEngineCount> stepSubdivisions;
     std::array<std::atomic<int>, seqwencer::audioFxStageCount> audioFxOrder {};
 
     double currentSampleRate = 44100.0;
