@@ -134,11 +134,22 @@ public:
     static juce::String targetDisplayName (seqwencer::ModulationTarget target);
     static juce::File getPortableDataDirectory();
     static juce::File getPortablePresetDirectory();
+    static juce::File getPortableSequenceDirectory();
     bool savePortablePreset (const juce::File& file,
                              const juce::String& presetName,
                              juce::String& errorMessage);
     bool loadPortablePreset (const juce::File& file,
                              juce::String& errorMessage);
+    bool savePortableSequence (
+        const juce::File& file,
+        seqwencer::SequencerEngine engine,
+        int bank,
+        juce::String& errorMessage);
+    bool loadPortableSequence (
+        const juce::File& file,
+        seqwencer::SequencerEngine engine,
+        int bank,
+        juce::String& errorMessage);
     bool restoreSequenceFromCurrentPreset (
         seqwencer::SequencerEngine engine, int bank,
         bool gateModesOnly, juce::String& errorMessage);

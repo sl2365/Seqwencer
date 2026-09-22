@@ -64,6 +64,8 @@ presets that contain no routing order use the original Gate-to-Compressor order.
 - Loop, Bounce, Reverse, Played and Random directions
 - Straight and triplet rates from 1/128 through 1/1
 - Waveform drawing presets for each lane
+- Portable user sequences for each lane, including subdivision modes and
+  independent segment heights
 - Right-click bulk menus for step values and Gate modes
 - Independent left/right nudging for step values and Gate modes
 - Per-lane target lists with temporary enable checkboxes and remove buttons
@@ -95,14 +97,26 @@ and therefore uses one Random stream.
 The step shortcuts are:
 
 - Double-click: set the clicked step or divided segment to 0%
-- Right-click: open Zero, Max, Min, Random, Reset, Copy and Paste for the
-  complete 32-step lane
+- Right-click: open Zero, Max, Min, Random, Reset, Save Sequence, Copy and
+  Paste for the complete 32-step lane
 - Middle-click: set that step to -100% in Bipolar mode, or 0% in Unipolar mode
 
 `Reset` reloads only the right-clicked lane from the current portable preset;
 all other lanes and controls remain untouched. `Copy` and `Paste` transfer the
 complete lane between any A or B sequencers, including sequencers belonging to
 different FX.
+
+Every sequencer right-click menu is headed `SEQUENCER A` or `SEQUENCER B`.
+`Save Sequence...` writes the selected lane's 32 step values, `•/H/2/3` modes
+and independent divided-segment heights to a portable `.sqwseq` file beneath
+`Data/Sequences`. Rate, Start/End/Length, Direction, Attack/Release, FX
+settings and Gate Short/Long modes are intentionally not included.
+
+The top bar groups the compact A/B waveform selectors beneath `WAVEFORM` and
+the user-sequence selectors beneath `USER`. The USER menu is rebuilt each time
+it opens. Folders and `.sqwseq` files manually arranged inside
+`Data/Sequences` therefore appear as the same nested menu structure. Loading
+changes only A or B for the currently displayed FX.
 
 The small `STEPS < >` controls beneath each lane's Attack/Release knobs rotate
 the whole 32-step pattern left or right, including its subdivision modes and

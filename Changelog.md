@@ -2,6 +2,22 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.20.0 features
+
+- Added `SEQUENCER A` and `SEQUENCER B` headings to the step, Gate-mode and
+  subdivision right-click menus
+- Added `Save Sequence...` to each main step-grid menu
+- User sequences store only the selected lane's 32 step values, subdivision
+  modes and independent divided-segment heights, making them reusable across
+  every FX and PHI sequencer
+- User sequences are stored as portable `.sqwseq` files under
+  `Data/Sequences`
+- Added USER A/B selectors that rebuild their menus from `Data/Sequences`
+  whenever opened and reproduce manually created folder/subfolder structure
+- Loading affects only the chosen A or B lane of the currently selected FX
+- Compacted the existing waveform selectors into matching A/B controls beneath
+  a WAVEFORM heading, with a separator before the new USER selectors
+
 ## v1.3.19.0 features
 
 - Added a separate deterministic Random stream for every FX and PHI A/B lane

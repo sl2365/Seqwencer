@@ -189,6 +189,115 @@ void parseSubdivisionExtraValues (
     }
 }
 
+juce::String stepParameterIDForEngine (
+    seqwencer::SequencerEngine engine,
+    int bank,
+    int step)
+{
+    switch (engine)
+    {
+        case seqwencer::SequencerEngine::phi:
+            return SeqwencerAudioProcessor::phiStepParameterID (bank, step);
+        case seqwencer::SequencerEngine::delay:
+            return SeqwencerAudioProcessor::delayStepParameterID (bank, step);
+        case seqwencer::SequencerEngine::reverb:
+            return SeqwencerAudioProcessor::reverbStepParameterID (bank, step);
+        case seqwencer::SequencerEngine::pan:
+            return SeqwencerAudioProcessor::panStepParameterID (bank, step);
+        case seqwencer::SequencerEngine::filter:
+            return SeqwencerAudioProcessor::filterStepParameterID (bank, step);
+        case seqwencer::SequencerEngine::pitch:
+            return SeqwencerAudioProcessor::pitchStepParameterID (bank, step);
+        case seqwencer::SequencerEngine::distortion:
+            return SeqwencerAudioProcessor::distortionStepParameterID (
+                bank, step);
+        case seqwencer::SequencerEngine::grain:
+            return SeqwencerAudioProcessor::grainStepParameterID (bank, step);
+        case seqwencer::SequencerEngine::compressor:
+            return SeqwencerAudioProcessor::compressorStepParameterID (
+                bank, step);
+        case seqwencer::SequencerEngine::gate:
+            return SeqwencerAudioProcessor::stepParameterID (bank, step);
+    }
+    return {};
+}
+
+juce::String serialiseSequenceSteps (const seqwencer::Pattern& steps)
+{
+    juce::StringArray values;
+    for (const auto value : steps)
+        values.add (juce::String (value, 7));
+    return values.joinIntoString (",");
+}
+
+bool parseSequenceSteps (const juce::String& stored,
+                         seqwencer::Pattern& steps)
+{
+    juce::StringArray values;
+    values.addTokens (stored, ",", {});
+    if (values.size() != seqwencer::stepsPerBank)
+        return false;
+
+    for (auto index = 0; index < values.size(); ++index)
+    {
+        const auto value = values[index].trim();
+        if (value.isEmpty())
+            return false;
+        steps[static_cast<std::size_t> (index)] = juce::jlimit (
+            0.0f, 1.0f, value.getFloatValue());
+    }
+    return true;
+}
+
+bool parseSequenceSubdivisionModes (
+    const juce::String& stored,
+    seqwencer::StepSubdivisionPattern& subdivisions)
+{
+    juce::StringArray values;
+    values.addTokens (stored, ",", {});
+    if (values.size() != seqwencer::stepsPerBank)
+        return false;
+
+    for (auto index = 0; index < values.size(); ++index)
+    {
+        const auto value = values[index].trim();
+        const auto mode = value.getIntValue();
+        if (value.isEmpty()
+            || mode < static_cast<int> (seqwencer::StepDivisionMode::normal)
+            || mode > static_cast<int> (seqwencer::StepDivisionMode::three))
+        {
+            return false;
+        }
+        subdivisions[static_cast<std::size_t> (index)].mode =
+            static_cast<seqwencer::StepDivisionMode> (mode);
+    }
+    return true;
+}
+
+bool parseSequenceSubdivisionExtraValues (
+    const juce::String& stored,
+    int extraIndex,
+    seqwencer::StepSubdivisionPattern& subdivisions)
+{
+    juce::StringArray values;
+    values.addTokens (stored, ",", {});
+    if (values.size() != seqwencer::stepsPerBank)
+        return false;
+
+    extraIndex = juce::jlimit (
+        0, seqwencer::maximumSegmentsPerStep - 2, extraIndex);
+    for (auto index = 0; index < values.size(); ++index)
+    {
+        const auto value = values[index].trim();
+        if (value.isEmpty())
+            return false;
+        subdivisions[static_cast<std::size_t> (index)]
+            .extraValues[static_cast<std::size_t> (extraIndex)] =
+                juce::jlimit (0.0f, 1.0f, value.getFloatValue());
+    }
+    return true;
+}
+
 juce::String sequencerEnvelopeTargetParameterID (
     int sourceBank, seqwencer::ModulationTarget target, bool enabled)
 {
@@ -1184,6 +1293,174 @@ juce::File SeqwencerAudioProcessor::getPortableDataDirectory()
 juce::File SeqwencerAudioProcessor::getPortablePresetDirectory()
 {
     return getPortableDataDirectory().getChildFile ("Presets");
+}
+
+juce::File SeqwencerAudioProcessor::getPortableSequenceDirectory()
+{
+    return getPortableDataDirectory().getChildFile ("Sequences");
+}
+
+bool SeqwencerAudioProcessor::savePortableSequence (
+    const juce::File& file,
+    seqwencer::SequencerEngine engine,
+    int bank,
+    juce::String& errorMessage)
+{
+    errorMessage.clear();
+    if (bank < 0 || bank > 1)
+    {
+        errorMessage = "That sequencer cannot be saved.";
+        return false;
+    }
+
+    const auto rootDirectory = getPortableSequenceDirectory();
+    if (file.getParentDirectory() != rootDirectory
+        && ! file.isAChildOf (rootDirectory))
+    {
+        errorMessage = "Sequences must be saved inside:\n"
+                     + rootDirectory.getFullPathName();
+        return false;
+    }
+
+    const auto directoryResult = file.getParentDirectory().createDirectory();
+    if (directoryResult.failed())
+    {
+        errorMessage = directoryResult.getErrorMessage();
+        return false;
+    }
+
+    seqwencer::Pattern steps {};
+    for (auto step = 0; step < seqwencer::stepsPerBank; ++step)
+    {
+        auto* parameter = parameters.getParameter (
+            stepParameterIDForEngine (engine, bank, step));
+        if (parameter == nullptr)
+        {
+            errorMessage = "A sequencer parameter required for Save was not found.";
+            return false;
+        }
+        steps[static_cast<std::size_t> (step)] = juce::jlimit (
+            0.0f, 1.0f, parameter->convertFrom0to1 (parameter->getValue()));
+    }
+
+    const auto subdivisions = getStepSubdivisions (engine, bank);
+    juce::String contents { "; Seqwencer user sequence\r\n" };
+    contents << "[Sequence]\r\nFormatVersion=1\r\nName="
+             << file.getFileNameWithoutExtension()
+             << "\r\nSteps=" << serialiseSequenceSteps (steps)
+             << "\r\nSubdivisionModes="
+             << serialiseSubdivisionModes (subdivisions)
+             << "\r\nSubdivisionExtra2="
+             << serialiseSubdivisionExtraValues (subdivisions, 0)
+             << "\r\nSubdivisionExtra3="
+             << serialiseSubdivisionExtraValues (subdivisions, 1)
+             << "\r\n";
+
+    if (! file.replaceWithText (contents))
+    {
+        errorMessage = "Seqwencer could not write:\n" + file.getFullPathName();
+        return false;
+    }
+    return true;
+}
+
+bool SeqwencerAudioProcessor::loadPortableSequence (
+    const juce::File& file,
+    seqwencer::SequencerEngine engine,
+    int bank,
+    juce::String& errorMessage)
+{
+    errorMessage.clear();
+    if (bank < 0 || bank > 1)
+    {
+        errorMessage = "That sequencer cannot be loaded.";
+        return false;
+    }
+    if (! file.existsAsFile())
+    {
+        errorMessage = "Sequence not found:\n" + file.getFullPathName();
+        return false;
+    }
+
+    auto validSection = false;
+    auto validVersion = false;
+    auto stepsLoaded = false;
+    auto modesLoaded = false;
+    auto extra2Loaded = false;
+    auto extra3Loaded = false;
+    seqwencer::Pattern loadedSteps {};
+    seqwencer::StepSubdivisionPattern loadedSubdivisions {};
+
+    juce::StringArray lines;
+    lines.addLines (file.loadFileAsString());
+    for (auto line : lines)
+    {
+        line = line.trim();
+        if (line.isEmpty() || line.startsWithChar (';')
+            || line.startsWithChar ('#'))
+        {
+            continue;
+        }
+        if (line.startsWithChar ('['))
+        {
+            validSection = line == "[Sequence]";
+            continue;
+        }
+        if (! validSection)
+            continue;
+
+        const auto separator = line.indexOfChar ('=');
+        if (separator <= 0)
+            continue;
+        const auto key = line.substring (0, separator).trim();
+        const auto value = line.substring (separator + 1).trim();
+        if (key == "FormatVersion")
+            validVersion = value.getIntValue() == 1;
+        else if (key == "Steps")
+            stepsLoaded = parseSequenceSteps (value, loadedSteps);
+        else if (key == "SubdivisionModes")
+            modesLoaded = parseSequenceSubdivisionModes (
+                value, loadedSubdivisions);
+        else if (key == "SubdivisionExtra2")
+            extra2Loaded = parseSequenceSubdivisionExtraValues (
+                value, 0, loadedSubdivisions);
+        else if (key == "SubdivisionExtra3")
+            extra3Loaded = parseSequenceSubdivisionExtraValues (
+                value, 1, loadedSubdivisions);
+    }
+
+    if (! validVersion || ! stepsLoaded || ! modesLoaded
+        || ! extra2Loaded || ! extra3Loaded)
+    {
+        errorMessage = file.getFileName()
+                     + " is not a valid Seqwencer sequence.";
+        return false;
+    }
+
+    std::array<juce::RangedAudioParameter*, seqwencer::stepsPerBank>
+        stepParameters {};
+    for (auto step = 0; step < seqwencer::stepsPerBank; ++step)
+    {
+        auto* parameter = parameters.getParameter (
+            stepParameterIDForEngine (engine, bank, step));
+        if (parameter == nullptr)
+        {
+            errorMessage = "A sequencer parameter required for Load was not found.";
+            return false;
+        }
+        stepParameters[static_cast<std::size_t> (step)] = parameter;
+    }
+
+    for (std::size_t step = 0; step < stepParameters.size(); ++step)
+    {
+        auto* parameter = stepParameters[step];
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost (
+            parameter->convertTo0to1 (loadedSteps[step]));
+        parameter->endChangeGesture();
+    }
+    setStepSubdivisions (engine, bank, loadedSubdivisions);
+    return true;
 }
 
 bool SeqwencerAudioProcessor::savePortablePreset (

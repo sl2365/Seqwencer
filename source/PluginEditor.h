@@ -27,6 +27,7 @@ private:
     class ModulationParameterLabel;
     class TargetList;
     class PresetBrowser;
+    class SequenceComboBox;
 
     enum class SelectedFx
     {
@@ -59,6 +60,13 @@ private:
     void updateFxPanel();
     void updateLaneColours();
     void applyWaveformPreset (int bank);
+    void refreshUserSequenceMenus();
+    bool populateUserSequenceMenu (
+        juce::PopupMenu& menu,
+        const juce::File& directory,
+        juce::StringArray& visitedDirectories,
+        int depth);
+    void loadUserSequence (int bank);
     void showPresetBrowser();
     bool isInterestedInDragSource (
         const juce::DragAndDropTarget::SourceDetails&) override;
@@ -167,6 +175,9 @@ private:
     juce::ComboBox distortionTypeBox;
     juce::ComboBox waveformABox;
     juce::ComboBox waveformBBox;
+    std::unique_ptr<SequenceComboBox> userSequenceABox;
+    std::unique_ptr<SequenceComboBox> userSequenceBBox;
+    juce::Array<juce::File> userSequenceFiles;
     juce::ToggleButton syncButton { "HOST SYNC" };
     juce::ToggleButton phiTargetButton { "TARGETS" };
     juce::ToggleButton enableAButton { "A" };

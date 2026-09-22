@@ -471,6 +471,20 @@ private:
     bool dragStarted = false;
 };
 
+class SeqwencerAudioProcessorEditor::SequenceComboBox final
+    : public juce::ComboBox
+{
+public:
+    void showPopup() override
+    {
+        if (onAboutToShow != nullptr)
+            onAboutToShow();
+        juce::ComboBox::showPopup();
+    }
+
+    std::function<void()> onAboutToShow;
+};
+
 class SeqwencerAudioProcessorEditor::StepGrid final : public juce::Component
 {
 public:
@@ -495,6 +509,11 @@ public:
     {
         accent = newAccent;
         repaint();
+    }
+
+    seqwencer::SequencerEngine getEngine() const noexcept
+    {
+        return engine;
     }
 
     void nudgeSteps (int direction)
@@ -1003,6 +1022,7 @@ private:
         stepMinimum,
         stepRandom,
         stepReset,
+        stepSaveSequence,
         stepCopy,
         stepPaste,
         gateShort = 101,
@@ -1406,12 +1426,14 @@ private:
     {
         endGestures();
         juce::PopupMenu menu;
+        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
         menu.addItem (stepZero, "Zero");
         menu.addItem (stepMaximum, "Max");
         menu.addItem (stepMinimum, "Min");
         menu.addItem (stepRandom, "Random");
         menu.addSeparator();
         menu.addItem (stepReset, "Reset");
+        menu.addItem (stepSaveSequence, "Save Sequence...");
         menu.addSeparator();
         menu.addItem (stepCopy, "Copy");
         menu.addItem (stepPaste, "Paste",
@@ -1432,6 +1454,7 @@ private:
     {
         endGestures();
         juce::PopupMenu menu;
+        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
         menu.addItem (gateShort, "Short");
         menu.addItem (gateLong, "Long");
         menu.addItem (gateRandom, "Random");
@@ -1455,6 +1478,7 @@ private:
     {
         endGestures();
         juce::PopupMenu menu;
+        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
         menu.addItem (subdivisionOff, "Off");
         menu.addItem (subdivisionHalf, "H");
         menu.addItem (subdivisionTwo, "2");
@@ -1495,6 +1519,11 @@ private:
         if (command == stepReset)
         {
             restoreFromPreset (false);
+            return;
+        }
+        if (command == stepSaveSequence)
+        {
+            showSaveSequenceChooser();
             return;
         }
 
@@ -1619,6 +1648,52 @@ private:
         repaint();
     }
 
+    void showSaveSequenceChooser()
+    {
+        const auto sequenceDirectory =
+            SeqwencerAudioProcessor::getPortableSequenceDirectory();
+        const auto directoryResult = sequenceDirectory.createDirectory();
+        if (directoryResult.failed())
+        {
+            juce::AlertWindow::showMessageBoxAsync (
+                juce::MessageBoxIconType::WarningIcon,
+                "Sequence Not Saved", directoryResult.getErrorMessage(),
+                "OK", this);
+            return;
+        }
+
+        const auto suggestedFile = sequenceDirectory.getNonexistentChildFile (
+            bank == 0 ? "Sequence A" : "Sequence B", ".sqwseq", false);
+        sequenceFileChooser = std::make_unique<juce::FileChooser> (
+            bank == 0 ? "Save Sequencer A" : "Save Sequencer B",
+            suggestedFile, "*.sqwseq", true, false, this);
+        juce::Component::SafePointer<StepGrid> safeThis (this);
+        sequenceFileChooser->launchAsync (
+            juce::FileBrowserComponent::saveMode
+                | juce::FileBrowserComponent::canSelectFiles
+                | juce::FileBrowserComponent::warnAboutOverwriting,
+            [safeThis] (const juce::FileChooser& chooser)
+            {
+                if (safeThis == nullptr)
+                    return;
+                auto file = chooser.getResult();
+                if (file.getFullPathName().isEmpty())
+                    return;
+                if (! file.hasFileExtension (".sqwseq"))
+                    file = file.withFileExtension (".sqwseq");
+
+                juce::String error;
+                if (! safeThis->processor.savePortableSequence (
+                        file, safeThis->engine, safeThis->bank, error))
+                {
+                    juce::AlertWindow::showMessageBoxAsync (
+                        juce::MessageBoxIconType::WarningIcon,
+                        "Sequence Not Saved", error, "OK",
+                        safeThis.getComponent());
+                }
+            });
+    }
+
     void setStoredStepValueOnce (int step, int segment, float canonical)
     {
         if (segment > 0)
@@ -1695,6 +1770,7 @@ private:
     bool dragging = false;
     bool hasLastDragPosition = false;
     juce::Point<float> lastDragPosition;
+    std::unique_ptr<juce::FileChooser> sequenceFileChooser;
     inline static seqwencer::Pattern stepClipboard {};
     inline static seqwencer::StepSubdivisionPattern subdivisionClipboard {};
     inline static seqwencer::GateModePattern gateClipboard {};
@@ -3009,7 +3085,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         box.addItem ("SQUARE-DOUBLE", 12);
         box.addItem ("PULSE 75", 13);
         box.addItem ("PULSE 75-DOUBLE", 14);
-        box.setTextWhenNothingSelected ("WAVEFORM " + laneName);
+        box.setTextWhenNothingSelected (laneName);
         box.setTooltip ("Fill all 32 " + laneName
                         + " steps for the selected FX; Double draws two cycles");
         content.addAndMakeVisible (box);
@@ -3018,6 +3094,24 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureWaveformBox (waveformBBox, "B");
     waveformABox.onChange = [this] { applyWaveformPreset (0); };
     waveformBBox.onChange = [this] { applyWaveformPreset (1); };
+
+    userSequenceABox = std::make_unique<SequenceComboBox>();
+    userSequenceBBox = std::make_unique<SequenceComboBox>();
+    const auto configureUserSequenceBox = [this] (
+        SequenceComboBox& box, const juce::String& laneName)
+    {
+        box.setTextWhenNothingSelected (laneName);
+        box.setTextWhenNoChoicesAvailable ("No sequences");
+        box.setTooltip ("Load a user sequence into Sequencer " + laneName
+                        + " for the selected FX");
+        box.onAboutToShow = [this] { refreshUserSequenceMenus(); };
+        content.addAndMakeVisible (box);
+    };
+    configureUserSequenceBox (*userSequenceABox, "A");
+    configureUserSequenceBox (*userSequenceBBox, "B");
+    userSequenceABox->onChange = [this] { loadUserSequence (0); };
+    userSequenceBBox->onChange = [this] { loadUserSequence (1); };
+    refreshUserSequenceMenus();
 
     for (auto* button : { &syncButton, &phiTargetButton, &noiseGateButton,
                           &enableAButton, &enableBButton,
@@ -4399,6 +4493,115 @@ void SeqwencerAudioProcessorEditor::applyWaveformPreset (int bank)
     box.setSelectedId (0, juce::dontSendNotification);
 }
 
+void SeqwencerAudioProcessorEditor::refreshUserSequenceMenus()
+{
+    if (userSequenceABox == nullptr || userSequenceBBox == nullptr)
+        return;
+
+    userSequenceABox->clear (juce::dontSendNotification);
+    userSequenceBBox->clear (juce::dontSendNotification);
+    userSequenceFiles.clear();
+
+    juce::PopupMenu menu;
+    const auto directory =
+        SeqwencerAudioProcessor::getPortableSequenceDirectory();
+    directory.createDirectory();
+    juce::StringArray visitedDirectories;
+    const auto addedAny = populateUserSequenceMenu (
+        menu, directory, visitedDirectories, 0);
+    if (! addedAny)
+        menu.addItem (1, "(No Sequences Found)", false, false);
+
+    *userSequenceABox->getRootMenu() = menu;
+    *userSequenceBBox->getRootMenu() = menu;
+}
+
+bool SeqwencerAudioProcessorEditor::populateUserSequenceMenu (
+    juce::PopupMenu& menu,
+    const juce::File& directory,
+    juce::StringArray& visitedDirectories,
+    int depth)
+{
+    constexpr int maximumFolderDepth = 32;
+    if (depth > maximumFolderDepth || ! directory.isDirectory())
+        return false;
+
+    const auto directoryPath = directory.getFullPathName();
+    if (visitedDirectories.contains (directoryPath, true))
+        return false;
+    visitedDirectories.add (directoryPath);
+
+    auto childDirectories = directory.findChildFiles (
+        juce::File::findDirectories, false);
+    std::sort (
+        childDirectories.begin(), childDirectories.end(),
+        [] (const juce::File& first, const juce::File& second)
+        {
+            return first.getFileName().compareIgnoreCase (
+                       second.getFileName()) < 0;
+        });
+
+    auto addedAny = false;
+    for (const auto& childDirectory : childDirectories)
+    {
+        juce::PopupMenu subMenu;
+        if (populateUserSequenceMenu (
+                subMenu, childDirectory, visitedDirectories, depth + 1))
+        {
+            menu.addSubMenu (childDirectory.getFileName(), subMenu);
+            addedAny = true;
+        }
+    }
+
+    auto sequenceFiles = directory.findChildFiles (
+        juce::File::findFiles, false, "*.sqwseq");
+    std::sort (
+        sequenceFiles.begin(), sequenceFiles.end(),
+        [] (const juce::File& first, const juce::File& second)
+        {
+            return first.getFileName().compareIgnoreCase (
+                       second.getFileName()) < 0;
+        });
+
+    for (const auto& sequenceFile : sequenceFiles)
+    {
+        userSequenceFiles.add (sequenceFile);
+        menu.addItem (
+            userSequenceFiles.size(),
+            sequenceFile.getFileNameWithoutExtension());
+        addedAny = true;
+    }
+    return addedAny;
+}
+
+void SeqwencerAudioProcessorEditor::loadUserSequence (int bank)
+{
+    auto* box = bank == 0 ? userSequenceABox.get()
+                          : userSequenceBBox.get();
+    if (box == nullptr)
+        return;
+
+    const auto fileIndex = box->getSelectedId() - 1;
+    box->setSelectedId (0, juce::dontSendNotification);
+    if (! juce::isPositiveAndBelow (fileIndex, userSequenceFiles.size()))
+        return;
+
+    juce::String error;
+    auto* grid = bank == 0 ? gridA.get() : gridB.get();
+    if (grid == nullptr
+        || ! processor.loadPortableSequence (
+            userSequenceFiles[fileIndex], grid->getEngine(), bank, error))
+    {
+        juce::AlertWindow::showMessageBoxAsync (
+            juce::MessageBoxIconType::WarningIcon,
+            "Sequence Not Loaded",
+            error.isNotEmpty() ? error : "The selected sequencer is unavailable.",
+            "OK", this);
+        return;
+    }
+    grid->repaint();
+}
+
 void SeqwencerAudioProcessorEditor::updateLaneVisuals()
 {
     const auto readActual = [] (const juce::RangedAudioParameter* parameter)
@@ -4637,7 +4840,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.19.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.20.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -4647,6 +4850,15 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
     graphics.fillRoundedRectangle (topPanel, 8.0f);
     graphics.setColour (juce::Colour (panelOutline));
     graphics.drawRoundedRectangle (topPanel, 8.0f, 1.0f);
+
+    graphics.setColour (juce::Colour (globalAccent));
+    graphics.setFont (juce::FontOptions { 9.5f, juce::Font::bold });
+    graphics.drawText ("WAVEFORM", 404, 66, 160, 14,
+                       juce::Justification::centred, false);
+    graphics.drawText ("USER", 588, 66, 160, 14,
+                       juce::Justification::centred, false);
+    graphics.setColour (juce::Colour (panelOutline));
+    graphics.drawVerticalLine (576, 68.0f, 132.0f);
 
     const auto bottomPanelY = static_cast<float> (designHeight - 88);
     const auto bottomPanel = juce::Rectangle<float> (
@@ -4755,8 +4967,12 @@ void SeqwencerAudioProcessorEditor::resized()
     colourASlider.setBounds (250, 77, 64, 59);
     colourBLabel.setBounds (322, 66, 64, 14);
     colourBSlider.setBounds (322, 77, 64, 59);
-    waveformABox.setBounds (404, 85, 166, 31);
-    waveformBBox.setBounds (582, 85, 166, 31);
+    waveformABox.setBounds (404, 85, 76, 31);
+    waveformBBox.setBounds (488, 85, 76, 31);
+    if (userSequenceABox != nullptr)
+        userSequenceABox->setBounds (588, 85, 76, 31);
+    if (userSequenceBBox != nullptr)
+        userSequenceBBox->setBounds (672, 85, 76, 31);
 
     const auto bottomPanelY = designHeight - 88;
     updateFxSelectorBounds();
