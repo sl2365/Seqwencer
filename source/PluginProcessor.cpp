@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #if JUCE_WINDOWS
@@ -53,6 +54,8 @@ juce::String audioFxStageName (seqwencer::AudioFxStage stage)
         case seqwencer::AudioFxStage::distortion: return "Distortion";
         case seqwencer::AudioFxStage::grain:      return "Grain";
         case seqwencer::AudioFxStage::compressor: return "Compressor";
+        case seqwencer::AudioFxStage::reverse:    return "Reverse";
+        case seqwencer::AudioFxStage::retrigger:  return "Retrigger";
     }
     return {};
 }
@@ -112,6 +115,8 @@ juce::String sequencerEngineID (seqwencer::SequencerEngine engine)
         case seqwencer::SequencerEngine::distortion: return "distortion";
         case seqwencer::SequencerEngine::grain:      return "grain";
         case seqwencer::SequencerEngine::compressor: return "compressor";
+        case seqwencer::SequencerEngine::reverse:    return "reverse";
+        case seqwencer::SequencerEngine::retrigger:  return "retrigger";
     }
     return {};
 }
@@ -215,6 +220,12 @@ juce::String stepParameterIDForEngine (
             return SeqwencerAudioProcessor::grainStepParameterID (bank, step);
         case seqwencer::SequencerEngine::compressor:
             return SeqwencerAudioProcessor::compressorStepParameterID (
+                bank, step);
+        case seqwencer::SequencerEngine::reverse:
+            return SeqwencerAudioProcessor::reverseStepParameterID (
+                bank, step);
+        case seqwencer::SequencerEngine::retrigger:
+            return SeqwencerAudioProcessor::retriggerStepParameterID (
                 bank, step);
         case seqwencer::SequencerEngine::gate:
             return SeqwencerAudioProcessor::stepParameterID (bank, step);
@@ -588,6 +599,81 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
         "compressor_seq_b_attack");
     compressorSeqBRelease = parameters.getRawParameterValue (
         "compressor_seq_b_release");
+    reverseEnabled = parameters.getRawParameterValue ("reverse_enabled");
+    reverseTime = parameters.getRawParameterValue ("reverse_time");
+    reversePointA = parameters.getRawParameterValue ("reverse_point_a");
+    reversePointB = parameters.getRawParameterValue ("reverse_point_b");
+    reverseMix = parameters.getRawParameterValue ("reverse_mix");
+    reversePlaybackMode = parameters.getRawParameterValue (
+        "reverse_playback_mode");
+    reverseSerialProfile = parameters.getRawParameterValue (
+        "reverse_serial_profile");
+    reverseStartStep = parameters.getRawParameterValue (
+        "reverse_start_step");
+    reverseEndStep = parameters.getRawParameterValue ("reverse_end_step");
+    reverseRangeLength = parameters.getRawParameterValue (
+        "reverse_range_length");
+    reverseRangeLink = parameters.getRawParameterValue (
+        "reverse_range_link");
+    reverseRate = parameters.getRawParameterValue ("reverse_rate");
+    reverseSequenceMode = parameters.getRawParameterValue (
+        "reverse_sequence_mode");
+    reverseSeqAEnabled = parameters.getRawParameterValue (
+        "reverse_seq_a_enabled");
+    reverseSeqABipolar = parameters.getRawParameterValue (
+        "reverse_seq_a_bipolar");
+    reverseSeqAAttack = parameters.getRawParameterValue (
+        "reverse_seq_a_attack");
+    reverseSeqARelease = parameters.getRawParameterValue (
+        "reverse_seq_a_release");
+    reverseSeqBEnabled = parameters.getRawParameterValue (
+        "reverse_seq_b_enabled");
+    reverseSeqBBipolar = parameters.getRawParameterValue (
+        "reverse_seq_b_bipolar");
+    reverseSeqBAttack = parameters.getRawParameterValue (
+        "reverse_seq_b_attack");
+    reverseSeqBRelease = parameters.getRawParameterValue (
+        "reverse_seq_b_release");
+    retriggerEnabled = parameters.getRawParameterValue ("retrigger_enabled");
+    retriggerInitialSpeed = parameters.getRawParameterValue (
+        "retrigger_initial_speed");
+    retriggerFinalSpeed = parameters.getRawParameterValue (
+        "retrigger_final_speed");
+    retriggerTransition = parameters.getRawParameterValue (
+        "retrigger_transition");
+    retriggerDecay = parameters.getRawParameterValue ("retrigger_decay");
+    retriggerMix = parameters.getRawParameterValue ("retrigger_mix");
+    retriggerPlaybackMode = parameters.getRawParameterValue (
+        "retrigger_playback_mode");
+    retriggerSerialProfile = parameters.getRawParameterValue (
+        "retrigger_serial_profile");
+    retriggerStartStep = parameters.getRawParameterValue (
+        "retrigger_start_step");
+    retriggerEndStep = parameters.getRawParameterValue (
+        "retrigger_end_step");
+    retriggerRangeLength = parameters.getRawParameterValue (
+        "retrigger_range_length");
+    retriggerRangeLink = parameters.getRawParameterValue (
+        "retrigger_range_link");
+    retriggerRate = parameters.getRawParameterValue ("retrigger_rate");
+    retriggerSequenceMode = parameters.getRawParameterValue (
+        "retrigger_sequence_mode");
+    retriggerSeqAEnabled = parameters.getRawParameterValue (
+        "retrigger_seq_a_enabled");
+    retriggerSeqABipolar = parameters.getRawParameterValue (
+        "retrigger_seq_a_bipolar");
+    retriggerSeqAAttack = parameters.getRawParameterValue (
+        "retrigger_seq_a_attack");
+    retriggerSeqARelease = parameters.getRawParameterValue (
+        "retrigger_seq_a_release");
+    retriggerSeqBEnabled = parameters.getRawParameterValue (
+        "retrigger_seq_b_enabled");
+    retriggerSeqBBipolar = parameters.getRawParameterValue (
+        "retrigger_seq_b_bipolar");
+    retriggerSeqBAttack = parameters.getRawParameterValue (
+        "retrigger_seq_b_attack");
+    retriggerSeqBRelease = parameters.getRawParameterValue (
+        "retrigger_seq_b_release");
     seqAEnabled = parameters.getRawParameterValue ("seq_a_enabled");
     seqATarget = parameters.getRawParameterValue ("seq_a_target");
     seqATargetEnabled = parameters.getRawParameterValue ("seq_a_target_enabled");
@@ -656,6 +742,22 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
             parameters.getRawParameterValue (compressorStepParameterID (0, step));
         compressorStepsB[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (compressorStepParameterID (1, step));
+        reverseStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (reverseStepParameterID (0, step));
+        reverseStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (reverseStepParameterID (1, step));
+        reverseModesA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (reverseModeParameterID (0, step));
+        reverseModesB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (reverseModeParameterID (1, step));
+        retriggerStepsA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (retriggerStepParameterID (0, step));
+        retriggerStepsB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (retriggerStepParameterID (1, step));
+        retriggerModesA[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (retriggerModeParameterID (0, step));
+        retriggerModesB[static_cast<std::size_t> (step)] =
+            parameters.getRawParameterValue (retriggerModeParameterID (1, step));
         gateModesA[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (gateModeParameterID (0, step));
         gateModesB[static_cast<std::size_t> (step)] =
@@ -955,6 +1057,42 @@ juce::String SeqwencerAudioProcessor::compressorStepParameterID (
                .paddedLeft ('0', 2);
 }
 
+juce::String SeqwencerAudioProcessor::reverseStepParameterID (
+    int bank, int step)
+{
+    return "reverse_seq_" + juce::String (bank == 0 ? "a" : "b")
+         + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::reverseModeParameterID (
+    int bank, int step)
+{
+    return "reverse_seq_" + juce::String (bank == 0 ? "a" : "b")
+         + "_reverse_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::retriggerStepParameterID (
+    int bank, int step)
+{
+    return "retrigger_seq_" + juce::String (bank == 0 ? "a" : "b")
+         + "_step_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
+juce::String SeqwencerAudioProcessor::retriggerModeParameterID (
+    int bank, int step)
+{
+    return "retrigger_seq_" + juce::String (bank == 0 ? "a" : "b")
+         + "_retrigger_"
+         + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
+               .paddedLeft ('0', 2);
+}
+
 juce::String SeqwencerAudioProcessor::gateModeParameterID (int bank, int step)
 {
     return "seq_" + juce::String (bank == 0 ? "a" : "b") + "_gate_mode_"
@@ -1071,6 +1209,37 @@ juce::String SeqwencerAudioProcessor::targetAssignedParameterID (
         case seqwencer::ModulationTarget::compressorMix:
             return juce::String (bank == 0 ? "compressor_seq_a_mix_target"
                                            : "compressor_seq_b_mix_target");
+        case seqwencer::ModulationTarget::reverseTime:
+            return juce::String (bank == 0 ? "reverse_seq_a_time_target"
+                                           : "reverse_seq_b_time_target");
+        case seqwencer::ModulationTarget::reversePointA:
+            return juce::String (bank == 0 ? "reverse_seq_a_point_a_target"
+                                           : "reverse_seq_b_point_a_target");
+        case seqwencer::ModulationTarget::reversePointB:
+            return juce::String (bank == 0 ? "reverse_seq_a_point_b_target"
+                                           : "reverse_seq_b_point_b_target");
+        case seqwencer::ModulationTarget::reverseMix:
+            return juce::String (bank == 0 ? "reverse_seq_a_mix_target"
+                                           : "reverse_seq_b_mix_target");
+        case seqwencer::ModulationTarget::retriggerInitialSpeed:
+            return juce::String (
+                bank == 0 ? "retrigger_seq_a_initial_speed_target"
+                          : "retrigger_seq_b_initial_speed_target");
+        case seqwencer::ModulationTarget::retriggerFinalSpeed:
+            return juce::String (
+                bank == 0 ? "retrigger_seq_a_final_speed_target"
+                          : "retrigger_seq_b_final_speed_target");
+        case seqwencer::ModulationTarget::retriggerTransition:
+            return juce::String (
+                bank == 0 ? "retrigger_seq_a_transition_target"
+                          : "retrigger_seq_b_transition_target");
+        case seqwencer::ModulationTarget::retriggerDecay:
+            return juce::String (bank == 0
+                ? "retrigger_seq_a_decay_target"
+                : "retrigger_seq_b_decay_target");
+        case seqwencer::ModulationTarget::retriggerMix:
+            return juce::String (bank == 0 ? "retrigger_seq_a_mix_target"
+                                           : "retrigger_seq_b_mix_target");
         case seqwencer::ModulationTarget::none:
             break;
         default:
@@ -1199,6 +1368,42 @@ juce::String SeqwencerAudioProcessor::targetEnabledParameterID (
             return juce::String (
                 bank == 0 ? "compressor_seq_a_mix_target_enabled"
                           : "compressor_seq_b_mix_target_enabled");
+        case seqwencer::ModulationTarget::reverseTime:
+            return juce::String (
+                bank == 0 ? "reverse_seq_a_time_target_enabled"
+                          : "reverse_seq_b_time_target_enabled");
+        case seqwencer::ModulationTarget::reversePointA:
+            return juce::String (
+                bank == 0 ? "reverse_seq_a_point_a_target_enabled"
+                          : "reverse_seq_b_point_a_target_enabled");
+        case seqwencer::ModulationTarget::reversePointB:
+            return juce::String (
+                bank == 0 ? "reverse_seq_a_point_b_target_enabled"
+                          : "reverse_seq_b_point_b_target_enabled");
+        case seqwencer::ModulationTarget::reverseMix:
+            return juce::String (
+                bank == 0 ? "reverse_seq_a_mix_target_enabled"
+                          : "reverse_seq_b_mix_target_enabled");
+        case seqwencer::ModulationTarget::retriggerInitialSpeed:
+            return juce::String (
+                bank == 0 ? "retrigger_seq_a_initial_speed_target_enabled"
+                          : "retrigger_seq_b_initial_speed_target_enabled");
+        case seqwencer::ModulationTarget::retriggerFinalSpeed:
+            return juce::String (
+                bank == 0 ? "retrigger_seq_a_final_speed_target_enabled"
+                          : "retrigger_seq_b_final_speed_target_enabled");
+        case seqwencer::ModulationTarget::retriggerTransition:
+            return juce::String (
+                bank == 0 ? "retrigger_seq_a_transition_target_enabled"
+                          : "retrigger_seq_b_transition_target_enabled");
+        case seqwencer::ModulationTarget::retriggerDecay:
+            return juce::String (
+                bank == 0 ? "retrigger_seq_a_decay_target_enabled"
+                          : "retrigger_seq_b_decay_target_enabled");
+        case seqwencer::ModulationTarget::retriggerMix:
+            return juce::String (
+                bank == 0 ? "retrigger_seq_a_mix_target_enabled"
+                          : "retrigger_seq_b_mix_target_enabled");
         case seqwencer::ModulationTarget::none:
             break;
         default:
@@ -1261,6 +1466,18 @@ juce::String SeqwencerAudioProcessor::targetDisplayName (
         case seqwencer::ModulationTarget::compressorRelease: return "RELEASE";
         case seqwencer::ModulationTarget::compressorMakeup: return "MAKEUP";
         case seqwencer::ModulationTarget::compressorMix: return "MIX";
+        case seqwencer::ModulationTarget::reverseTime: return "TIME";
+        case seqwencer::ModulationTarget::reversePointA: return "POINT A";
+        case seqwencer::ModulationTarget::reversePointB: return "POINT B";
+        case seqwencer::ModulationTarget::reverseMix: return "MIX";
+        case seqwencer::ModulationTarget::retriggerInitialSpeed:
+            return "INITIAL";
+        case seqwencer::ModulationTarget::retriggerFinalSpeed:
+            return "FINAL";
+        case seqwencer::ModulationTarget::retriggerTransition:
+            return "TRANSITION";
+        case seqwencer::ModulationTarget::retriggerDecay: return "DECAY";
+        case seqwencer::ModulationTarget::retriggerMix: return "MIX";
         case seqwencer::ModulationTarget::none:            break;
         default:                                            break;
     }
@@ -1493,6 +1710,8 @@ bool SeqwencerAudioProcessor::savePortablePreset (
     juce::String distortionParameterLines;
     juce::String grainParameterLines;
     juce::String compressorParameterLines;
+    juce::String reverseParameterLines;
+    juce::String retriggerParameterLines;
     juce::String subdivisionLines;
     auto parameterCount = 0;
     for (auto* baseParameter : getParameters())
@@ -1520,6 +1739,10 @@ bool SeqwencerAudioProcessor::savePortablePreset (
                 destination = &grainParameterLines;
             else if (parameterID.startsWith ("compressor_"))
                 destination = &compressorParameterLines;
+            else if (parameterID.startsWith ("reverse_"))
+                destination = &reverseParameterLines;
+            else if (parameterID.startsWith ("retrigger_"))
+                destination = &retriggerParameterLines;
             else if (parameterID == "bypass" || parameterID == "sync_to_host")
                 destination = &globalParameterLines;
 
@@ -1565,6 +1788,8 @@ bool SeqwencerAudioProcessor::savePortablePreset (
              << "\r\n[Distortion]\r\n" << distortionParameterLines
              << "\r\n[GrainShifter]\r\n" << grainParameterLines
              << "\r\n[Compressor]\r\n" << compressorParameterLines
+             << "\r\n[Reverse]\r\n" << reverseParameterLines
+             << "\r\n[Retrigger]\r\n" << retriggerParameterLines
              << "\r\n[Subdivisions]\r\n" << subdivisionLines;
     if (! file.replaceWithText (contents))
     {
@@ -1629,7 +1854,8 @@ bool SeqwencerAudioProcessor::loadPortablePreset (
             || line == "[Gate]" || line == "[PHI]" || line == "[Delay]"
             || line == "[Reverb]" || line == "[Pan]" || line == "[Filter]"
             || line == "[Pitch]" || line == "[Distortion]"
-            || line == "[GrainShifter]" || line == "[Compressor]")
+            || line == "[GrainShifter]" || line == "[Compressor]"
+            || line == "[Reverse]" || line == "[Retrigger]")
         {
             inParameters = true;
             inRouting = false;
@@ -1738,10 +1964,12 @@ bool SeqwencerAudioProcessor::loadPortablePreset (
 
 bool SeqwencerAudioProcessor::restoreSequenceFromCurrentPreset (
     seqwencer::SequencerEngine engine, int bank,
-    bool gateModesOnly, juce::String& errorMessage)
+    bool stepModesOnly, juce::String& errorMessage)
 {
     if (bank < 0 || bank > 1
-        || (gateModesOnly && engine != seqwencer::SequencerEngine::gate))
+        || (stepModesOnly
+            && engine != seqwencer::SequencerEngine::gate
+            && engine != seqwencer::SequencerEngine::retrigger))
     {
         errorMessage = "That sequencer cannot be reset.";
         return false;
@@ -1769,6 +1997,10 @@ bool SeqwencerAudioProcessor::restoreSequenceFromCurrentPreset (
                 return grainStepParameterID (stepBank, stepIndex);
             case seqwencer::SequencerEngine::compressor:
                 return compressorStepParameterID (stepBank, stepIndex);
+            case seqwencer::SequencerEngine::reverse:
+                return reverseStepParameterID (stepBank, stepIndex);
+            case seqwencer::SequencerEngine::retrigger:
+                return retriggerStepParameterID (stepBank, stepIndex);
             case seqwencer::SequencerEngine::gate:
                 return stepParameterID (stepBank, stepIndex);
         }
@@ -1781,8 +2013,11 @@ bool SeqwencerAudioProcessor::restoreSequenceFromCurrentPreset (
     for (int step = 0; step < seqwencer::stepsPerBank; ++step)
     {
         const auto index = static_cast<std::size_t> (step);
-        parameterIDs[index] = gateModesOnly
-            ? gateModeParameterID (bank, step) : stepID (bank, step);
+        parameterIDs[index] = stepModesOnly
+            ? (engine == seqwencer::SequencerEngine::gate
+                ? gateModeParameterID (bank, step)
+                : retriggerModeParameterID (bank, step))
+            : stepID (bank, step);
         parametersToRestore[index] = parameters.getParameter (
             parameterIDs[index]);
         if (parametersToRestore[index] == nullptr)
@@ -1830,7 +2065,7 @@ bool SeqwencerAudioProcessor::restoreSequenceFromCurrentPreset (
                 if (key == parameterIDs[index])
                     restoredValues[index] = juce::jlimit (
                         0.0f, 1.0f, value.getFloatValue());
-            if (! gateModesOnly)
+            if (! stepModesOnly)
             {
                 if (key == subdivisionPropertyID (engine, bank, "modes"))
                     parseSubdivisionModes (value, restoredSubdivisions);
@@ -1853,7 +2088,7 @@ bool SeqwencerAudioProcessor::restoreSequenceFromCurrentPreset (
         parameter->setValueNotifyingHost (restoredValues[index]);
         parameter->endChangeGesture();
     }
-    if (! gateModesOnly)
+    if (! stepModesOnly)
         setStepSubdivisions (engine, bank, restoredSubdivisions);
     return true;
 }
@@ -2355,7 +2590,7 @@ SeqwencerAudioProcessor::createParameterLayout()
     layout.add (std::make_unique<Choice> (
         ID { "filter_type", 1 }, "Filter Type",
         juce::StringArray { "Low Pass", "High Pass", "Band Pass",
-                            "Band Reject", "Peaking" }, 0));
+                            "Band Reject", "Peaking", "Comb" }, 0));
     layout.add (std::make_unique<Float> (
         ID { "filter_cutoff", 1 }, "Filter Cutoff",
         juce::NormalisableRange<float> { 20.0f, 20000.0f, 0.1f, 0.25f },
@@ -2837,7 +3072,108 @@ SeqwencerAudioProcessor::createParameterLayout()
         }
     }
 
-    constexpr std::array<seqwencer::SequencerEngine, 9>
+    // Reverse owns an eleventh complete sequencer engine and four targets.
+    layout.add (std::make_unique<Bool> (
+        ID { "reverse_enabled", 1 }, "Reverse Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "reverse_time", 1 }, "Reverse Time",
+        juce::NormalisableRange<float> { 25.0f, 2000.0f, 1.0f, 0.45f },
+        500.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverse_point_a", 1 }, "Reverse Point A",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverse_point_b", 1 }, "Reverse Point B",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverse_mix", 1 }, "Reverse Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Choice> (
+        ID { "reverse_playback_mode", 1 }, "Reverse Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "reverse_rate", 1 }, "Reverse Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverse_seq_a_enabled", 1 },
+        "Reverse Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "reverse_seq_a_attack", 1 },
+        "Reverse Sequencer A Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverse_seq_a_release", 1 },
+        "Reverse Sequencer A Release", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverse_seq_b_enabled", 1 },
+        "Reverse Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "reverse_seq_b_attack", 1 },
+        "Reverse Sequencer B Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "reverse_seq_b_release", 1 },
+        "Reverse Sequencer B Release", 0.0f, 1.0f, 0.0f));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            const auto bankName = bank == 0 ? "A" : "B";
+            layout.add (std::make_unique<Float> (
+                ID { reverseStepParameterID (bank, step), 1 },
+                "Reverse Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+
+    layout.add (std::make_unique<Choice> (
+        ID { "reverse_serial_profile", 1 },
+        "Reverse Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "reverse_start_step", 1 }, "Reverse Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "reverse_end_step", 1 }, "Reverse End Step", 2, 64, 64));
+    layout.add (std::make_unique<Int> (
+        ID { "reverse_range_length", 1 }, "Reverse Range Length",
+        2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverse_range_link", 1 }, "Reverse Range Link", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverse_seq_a_bipolar", 1 },
+        "Reverse Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "reverse_seq_b_bipolar", 1 },
+        "Reverse Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "reverse_sequence_mode", 1 }, "Reverse Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played", "Random" }, 0));
+
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Reverse Sequencer A " : "Reverse Sequencer B ";
+        for (int index = static_cast<int> (
+                 seqwencer::ModulationTarget::reverseTime);
+             index <= static_cast<int> (
+                 seqwencer::ModulationTarget::reverseMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
+    constexpr std::array<seqwencer::SequencerEngine, 10>
         internalSequencerEngines {
             seqwencer::SequencerEngine::gate,
             seqwencer::SequencerEngine::delay,
@@ -2847,7 +3183,8 @@ SeqwencerAudioProcessor::createParameterLayout()
             seqwencer::SequencerEngine::pitch,
             seqwencer::SequencerEngine::distortion,
             seqwencer::SequencerEngine::grain,
-            seqwencer::SequencerEngine::compressor
+            seqwencer::SequencerEngine::compressor,
+            seqwencer::SequencerEngine::reverse
         };
     for (const auto engine : internalSequencerEngines)
     {
@@ -2881,6 +3218,162 @@ SeqwencerAudioProcessor::createParameterLayout()
         }
     }
 
+    // Keep these appended after every existing parameter so older parameter
+    // indices remain stable. New and previously saved projects start Off.
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto bankName = bank == 0 ? "A" : "B";
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            layout.add (std::make_unique<Bool> (
+                ID { reverseModeParameterID (bank, step), 1 },
+                "Reverse Sequencer " + juce::String (bankName)
+                    + " Reverse Step " + juce::String (step + 1),
+                false));
+        }
+    }
+
+    // Retrigger is appended after every v1.3.21.1 parameter so existing
+    // automation indices remain stable.
+    layout.add (std::make_unique<Bool> (
+        ID { "retrigger_enabled", 1 }, "Retrigger Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_initial_speed", 1 }, "Retrigger Initial Speed",
+        juce::NormalisableRange<float> { 1.0f, 16.0f, 1.0f }, 2.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_final_speed", 1 }, "Retrigger Final Speed",
+        juce::NormalisableRange<float> { 1.0f, 16.0f, 1.0f }, 2.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_transition", 1 }, "Retrigger Transition",
+        juce::NormalisableRange<float> { 0.0f, 16.0f, 1.0f }, 4.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_decay", 1 }, "Retrigger Decay",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_mix", 1 }, "Retrigger Mix",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f }, 1.0f));
+    layout.add (std::make_unique<Choice> (
+        ID { "retrigger_playback_mode", 1 }, "Retrigger Playback Mode",
+        juce::StringArray { "Parallel", "Serial" }, 0));
+    layout.add (std::make_unique<Choice> (
+        ID { "retrigger_rate", 1 }, "Retrigger Rate",
+        juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                            "1/32", "1/16T", "1/16", "1/8T",
+                            "1/8", "1/4T", "1/4", "1/2T",
+                            "1/2", "1/1" }, 6));
+    layout.add (std::make_unique<Bool> (
+        ID { "retrigger_seq_a_enabled", 1 },
+        "Retrigger Sequencer A Enabled", true));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_seq_a_attack", 1 },
+        "Retrigger Sequencer A Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_seq_a_release", 1 },
+        "Retrigger Sequencer A Release", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Bool> (
+        ID { "retrigger_seq_b_enabled", 1 },
+        "Retrigger Sequencer B Enabled", false));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_seq_b_attack", 1 },
+        "Retrigger Sequencer B Attack", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<Float> (
+        ID { "retrigger_seq_b_release", 1 },
+        "Retrigger Sequencer B Release", 0.0f, 1.0f, 0.0f));
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto bankName = bank == 0 ? "A" : "B";
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            layout.add (std::make_unique<Float> (
+                ID { retriggerStepParameterID (bank, step), 1 },
+                "Retrigger Sequencer " + juce::String (bankName) + " Step "
+                    + juce::String (step + 1),
+                juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+        }
+    }
+    layout.add (std::make_unique<Choice> (
+        ID { "retrigger_serial_profile", 1 },
+        "Retrigger Serial Control Profile",
+        juce::StringArray { "A", "B" }, 0));
+    layout.add (std::make_unique<Int> (
+        ID { "retrigger_start_step", 1 }, "Retrigger Start Step", 1, 63, 1));
+    layout.add (std::make_unique<Int> (
+        ID { "retrigger_end_step", 1 }, "Retrigger End Step", 2, 64, 64));
+    layout.add (std::make_unique<Int> (
+        ID { "retrigger_range_length", 1 }, "Retrigger Range Length",
+        2, 64, 64));
+    layout.add (std::make_unique<Bool> (
+        ID { "retrigger_range_link", 1 }, "Retrigger Range Link", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "retrigger_seq_a_bipolar", 1 },
+        "Retrigger Sequencer A Bipolar", false));
+    layout.add (std::make_unique<Bool> (
+        ID { "retrigger_seq_b_bipolar", 1 },
+        "Retrigger Sequencer B Bipolar", false));
+    layout.add (std::make_unique<Choice> (
+        ID { "retrigger_sequence_mode", 1 }, "Retrigger Direction",
+        juce::StringArray { "Loop", "Bounce", "Reverse", "Played", "Random" },
+        0));
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto laneName = bank == 0
+            ? "Retrigger Sequencer A " : "Retrigger Sequencer B ";
+        for (int index = static_cast<int> (
+                 seqwencer::ModulationTarget::retriggerInitialSpeed);
+             index <= static_cast<int> (
+                 seqwencer::ModulationTarget::retriggerMix);
+             ++index)
+        {
+            const auto target = static_cast<seqwencer::ModulationTarget> (index);
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+
+        for (const auto target : seqwencer::sequencerEnvelopeTargets (
+                 seqwencer::SequencerEngine::retrigger))
+        {
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+        for (const auto target : seqwencer::sequencerRangeTargets (
+                 seqwencer::SequencerEngine::retrigger))
+        {
+            const auto displayName = targetDisplayName (target);
+            layout.add (std::make_unique<Bool> (
+                ID { targetAssignedParameterID (bank, target), 1 },
+                laneName + displayName + " Target", false));
+            layout.add (std::make_unique<Bool> (
+                ID { targetEnabledParameterID (bank, target), 1 },
+                laneName + displayName + " Target Enabled", true));
+        }
+    }
+
+    // Retrigger step switches are appended after every v1.3.22.0 parameter
+    // so all existing automation indices remain stable. They deliberately
+    // default Off, leaving the effect silent until a block is drawn.
+    for (int bank = 0; bank < 2; ++bank)
+    {
+        const auto bankName = bank == 0 ? "A" : "B";
+        for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+        {
+            layout.add (std::make_unique<Bool> (
+                ID { retriggerModeParameterID (bank, step), 1 },
+                "Retrigger Sequencer " + juce::String (bankName)
+                    + " Retrigger Step " + juce::String (step + 1),
+                false));
+        }
+    }
+
     return layout;
 }
 
@@ -2897,6 +3390,8 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     distortionFreeRunningPhase = 0.0;
     grainFreeRunningPhase = 0.0;
     compressorFreeRunningPhase = 0.0;
+    reverseFreeRunningPhase = 0.0;
+    retriggerFreeRunningPhase = 0.0;
     previousHostPpq = 0.0;
     previousHostTimeInSamples = 0;
     previousHostPpqValid = false;
@@ -2926,6 +3421,10 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     grainActiveStepB.store (-1);
     compressorActiveStepA.store (0);
     compressorActiveStepB.store (-1);
+    reverseActiveStepA.store (0);
+    reverseActiveStepB.store (-1);
+    retriggerActiveStepA.store (0);
+    retriggerActiveStepB.store (-1);
     const auto delayBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 2.05)) + 4;
     delayBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
@@ -2940,7 +3439,13 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     reverbProcessor.reset();
     reverbWasActive = false;
     juce::ignoreUnused (samplesPerBlock);
+    const auto filterCombBufferLength = static_cast<int> (
+        std::ceil (currentSampleRate / 20.0)) + 8;
+    filterCombBuffer.setSize (
+        juce::jmax (1, getTotalNumOutputChannels()),
+        filterCombBufferLength, false, true, false);
     resetFilterProcessor();
+    filterPreviousType = -1;
     filterWasActive = false;
     const auto pitchBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 0.10)) + 8;
@@ -2963,6 +3468,23 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     grainWasActive = false;
     compressorGain = 1.0f;
     compressorWasActive = false;
+    const auto reverseBufferLength = static_cast<int> (
+        std::ceil (currentSampleRate * 2.05)) + 8;
+    for (auto& reverseBuffer : reverseBuffers)
+    {
+        reverseBuffer.setSize (
+            juce::jmax (1, getTotalNumOutputChannels()),
+            reverseBufferLength, false, true, false);
+        reverseBuffer.clear();
+    }
+    resetReverseProcessor();
+    const auto retriggerBufferLength = static_cast<int> (
+        std::ceil (currentSampleRate * 8.05)) + 8;
+    retriggerBuffer.setSize (
+        juce::jmax (1, getTotalNumOutputChannels()),
+        retriggerBufferLength, false, true, false);
+    retriggerBuffer.clear();
+    resetRetriggerProcessor();
 }
 
 void SeqwencerAudioProcessor::releaseResources()
@@ -2974,6 +3496,7 @@ void SeqwencerAudioProcessor::releaseResources()
     reverbProcessor.reset();
     reverbWasActive = false;
     resetFilterProcessor();
+    filterPreviousType = -1;
     filterWasActive = false;
     pitchBuffer.clear();
     pitchWritePosition = 0;
@@ -2988,12 +3511,52 @@ void SeqwencerAudioProcessor::releaseResources()
     grainWasActive = false;
     compressorGain = 1.0f;
     compressorWasActive = false;
+    for (auto& reverseBuffer : reverseBuffers)
+        reverseBuffer.clear();
+    resetReverseProcessor();
+    retriggerBuffer.clear();
+    resetRetriggerProcessor();
+}
+
+void SeqwencerAudioProcessor::resetReverseProcessor() noexcept
+{
+    reverseCaptureBufferIndex = 0;
+    reversePlaybackBufferIndex = 1;
+    reverseCaptureWritePosition = 0;
+    reverseCaptureAvailableSamples = 0;
+    reverseCapturedSamples = 0;
+    reversePendingCaptureSamples = 2;
+    reversePlaybackStartPosition = 0;
+    reverseReadPosition = 0.0;
+    reversePreviousSequencePhase = -1.0;
+    reverseReadDirection = 1;
+    reverseWetFade = 0.0f;
+    reverseIsPlaying = false;
+    reverseStepWasOn = false;
+    reverseWasActive = false;
+}
+
+void SeqwencerAudioProcessor::resetRetriggerProcessor() noexcept
+{
+    retriggerCaptureSamples = 0;
+    retriggerCaptureTargetSamples = 2;
+    retriggerReadPosition = 0;
+    retriggerSamplesUntilRepeat = 0;
+    retriggerPlaybackSamples = 0;
+    retriggerRepeatIndex = 0;
+    retriggerWetFade = 0.0f;
+    retriggerIsPlaying = false;
+    retriggerStepWasOn = false;
+    retriggerBlockIsActive = false;
+    retriggerWasActive = false;
 }
 
 void SeqwencerAudioProcessor::resetFilterProcessor() noexcept
 {
     for (auto& state : filterStates)
         state = {};
+    filterCombBuffer.clear();
+    filterCombWritePositions.fill (0);
 }
 
 float SeqwencerAudioProcessor::processFilterSample (
@@ -3008,6 +3571,39 @@ float SeqwencerAudioProcessor::processFilterSample (
         20.0, juce::jmin (20000.0, safeSampleRate * 0.45));
     const auto safeCutoff = juce::jlimit (
         20.0, maximumCutoff, static_cast<double> (cutoffHz));
+
+    if (type == 5 && filterCombBuffer.getNumSamples() > 3)
+    {
+        const auto channelIndex = static_cast<std::size_t> (juce::jlimit (
+            0, static_cast<int> (filterCombWritePositions.size()) - 1,
+            channel));
+        const auto bufferChannel = juce::jlimit (
+            0, filterCombBuffer.getNumChannels() - 1, channel);
+        const auto capacity = filterCombBuffer.getNumSamples();
+        auto& writePosition = filterCombWritePositions[channelIndex];
+        const auto delaySamples = seqwencer::combDelaySamples (
+            safeSampleRate, static_cast<float> (safeCutoff), capacity);
+        auto readPosition = static_cast<double> (writePosition) - delaySamples;
+        while (readPosition < 0.0)
+            readPosition += static_cast<double> (capacity);
+        const auto index0 = static_cast<int> (std::floor (readPosition))
+                          % capacity;
+        const auto index1 = (index0 + 1) % capacity;
+        const auto fraction = static_cast<float> (
+            readPosition - std::floor (readPosition));
+        const auto delayed0 = filterCombBuffer.getSample (
+            bufferChannel, index0);
+        const auto delayed1 = filterCombBuffer.getSample (
+            bufferChannel, index1);
+        const auto delayed = delayed0 + fraction * (delayed1 - delayed0);
+        const auto feedback = seqwencer::combFeedbackFromResonance (resonance);
+        const auto feedbackSample = input + feedback * delayed;
+        filterCombBuffer.setSample (
+            bufferChannel, writePosition, feedbackSample);
+        writePosition = (writePosition + 1) % capacity;
+        return (1.0f - feedback) * feedbackSample;
+    }
+
     const auto g = std::tan (
         juce::MathConstants<double>::pi * safeCutoff / safeSampleRate);
     const auto k = 1.0 / juce::jlimit (
@@ -3024,7 +3620,7 @@ float SeqwencerAudioProcessor::processFilterSample (
     const auto highPass = static_cast<double> (input)
                         - k * bandPass - lowPass;
 
-    switch (juce::jlimit (0, 4, type))
+    switch (juce::jlimit (0, 5, type))
     {
         case 1:  return static_cast<float> (highPass);
         case 2:  return static_cast<float> (bandPass);
@@ -3191,6 +3787,58 @@ seqwencer::Pattern SeqwencerAudioProcessor::readCompressorPattern (
             0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
         result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
     }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readReversePattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? reverseStepsA : reverseStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::Pattern SeqwencerAudioProcessor::readRetriggerPattern (
+    int bank, bool bipolar) const noexcept
+{
+    seqwencer::Pattern result {};
+    const auto& source = bank == 0 ? retriggerStepsA : retriggerStepsB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const auto canonical = juce::jlimit (
+            0.0f, 1.0f, source[i] != nullptr ? source[i]->load() : 1.0f);
+        result[i] = seqwencer::displayFromCanonical (canonical, bipolar);
+    }
+    return result;
+}
+
+seqwencer::ReverseStepPattern SeqwencerAudioProcessor::readReverseModes (
+    int bank) const noexcept
+{
+    seqwencer::ReverseStepPattern result {};
+    const auto& source = bank == 0 ? reverseModesA : reverseModesB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+        result[i] = source[i] != nullptr && source[i]->load() >= 0.5f;
+    return result;
+}
+
+seqwencer::RetriggerStepPattern SeqwencerAudioProcessor::readRetriggerModes (
+    int bank) const noexcept
+{
+    seqwencer::RetriggerStepPattern result {};
+    const auto& source = bank == 0 ? retriggerModesA : retriggerModesB;
+
+    for (std::size_t i = 0; i < result.size(); ++i)
+        result[i] = source[i] != nullptr && source[i]->load() >= 0.5f;
     return result;
 }
 
@@ -3691,6 +4339,99 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             ? compressorSequenceMode->load() : 0.0f);
     const auto compressorRetriggersFromPlayedNotes =
         compressorTraversalMode == seqwencer::SequenceMode::played;
+
+    const auto reverseAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        reverseSeqAAttack != nullptr ? reverseSeqAAttack->load() : 0.0f);
+    const auto reverseReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        reverseSeqARelease != nullptr ? reverseSeqARelease->load() : 0.0f);
+    const auto reverseAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        reverseSeqBAttack != nullptr ? reverseSeqBAttack->load() : 0.0f);
+    const auto reverseReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        reverseSeqBRelease != nullptr ? reverseSeqBRelease->load() : 0.0f);
+    const auto reverseLinked = reversePlaybackMode != nullptr
+                            && reversePlaybackMode->load() >= 0.5f;
+    const auto reverseUsesProfileB = reverseSerialProfile != nullptr
+                                  && reverseSerialProfile->load() >= 0.5f;
+    const auto reverseBipolarAValue = reverseSeqABipolar != nullptr
+                                   && reverseSeqABipolar->load() >= 0.5f;
+    const auto reverseBipolarBValue = reverseSeqBBipolar != nullptr
+                                   && reverseSeqBBipolar->load() >= 0.5f;
+    const auto reverseSerialBipolar = reverseUsesProfileB
+        ? reverseBipolarBValue : reverseBipolarAValue;
+    const auto reverseUnipolarPatternA = readReversePattern (0, false);
+    const auto reverseUnipolarPatternB = readReversePattern (1, false);
+    const auto reverseCanonicalPatternA = readReversePattern (0, true);
+    const auto reverseCanonicalPatternB = readReversePattern (1, true);
+    const auto reverseModesForA = readReverseModes (0);
+    const auto reverseModesForB = readReverseModes (1);
+    const auto reverseUnipolarSubdivisionsA = readStepSubdivisions (
+        seqwencer::SequencerEngine::reverse, 0, false);
+    const auto reverseUnipolarSubdivisionsB = readStepSubdivisions (
+        seqwencer::SequencerEngine::reverse, 1, false);
+    const auto reverseCanonicalSubdivisionsA = readStepSubdivisions (
+        seqwencer::SequencerEngine::reverse, 0, true);
+    const auto reverseCanonicalSubdivisionsB = readStepSubdivisions (
+        seqwencer::SequencerEngine::reverse, 1, true);
+    const auto reverseRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            reverseRate != nullptr ? reverseRate->load() : 6.0f)));
+    const auto reverseStepBeats = seqwencer::beatsForRate (reverseRateIndex);
+    const auto reverseTraversalMode = seqwencer::sequenceModeFromChoice (
+        reverseSequenceMode != nullptr ? reverseSequenceMode->load() : 0.0f);
+    const auto reverseRetriggersFromPlayedNotes =
+        reverseTraversalMode == seqwencer::SequenceMode::played;
+    const auto retriggerAttackAValue = juce::jlimit (
+        0.0f, 1.0f,
+        retriggerSeqAAttack != nullptr ? retriggerSeqAAttack->load() : 0.0f);
+    const auto retriggerReleaseAValue = juce::jlimit (
+        0.0f, 1.0f,
+        retriggerSeqARelease != nullptr ? retriggerSeqARelease->load() : 0.0f);
+    const auto retriggerAttackBValue = juce::jlimit (
+        0.0f, 1.0f,
+        retriggerSeqBAttack != nullptr ? retriggerSeqBAttack->load() : 0.0f);
+    const auto retriggerReleaseBValue = juce::jlimit (
+        0.0f, 1.0f,
+        retriggerSeqBRelease != nullptr ? retriggerSeqBRelease->load() : 0.0f);
+    const auto retriggerLinked = retriggerPlaybackMode != nullptr
+                              && retriggerPlaybackMode->load() >= 0.5f;
+    const auto retriggerUsesProfileB = retriggerSerialProfile != nullptr
+                                    && retriggerSerialProfile->load() >= 0.5f;
+    const auto retriggerBipolarAValue = retriggerSeqABipolar != nullptr
+                                     && retriggerSeqABipolar->load() >= 0.5f;
+    const auto retriggerBipolarBValue = retriggerSeqBBipolar != nullptr
+                                     && retriggerSeqBBipolar->load() >= 0.5f;
+    const auto retriggerSerialBipolar = retriggerUsesProfileB
+        ? retriggerBipolarBValue : retriggerBipolarAValue;
+    const auto retriggerUnipolarPatternA = readRetriggerPattern (0, false);
+    const auto retriggerUnipolarPatternB = readRetriggerPattern (1, false);
+    const auto retriggerCanonicalPatternA = readRetriggerPattern (0, true);
+    const auto retriggerCanonicalPatternB = readRetriggerPattern (1, true);
+    const auto retriggerModesForA = readRetriggerModes (0);
+    const auto retriggerModesForB = readRetriggerModes (1);
+    const auto retriggerUnipolarSubdivisionsA = readStepSubdivisions (
+        seqwencer::SequencerEngine::retrigger, 0, false);
+    const auto retriggerUnipolarSubdivisionsB = readStepSubdivisions (
+        seqwencer::SequencerEngine::retrigger, 1, false);
+    const auto retriggerCanonicalSubdivisionsA = readStepSubdivisions (
+        seqwencer::SequencerEngine::retrigger, 0, true);
+    const auto retriggerCanonicalSubdivisionsB = readStepSubdivisions (
+        seqwencer::SequencerEngine::retrigger, 1, true);
+    const auto retriggerRateIndex = juce::jlimit (
+        0, seqwencer::rateChoiceCount - 1,
+        static_cast<int> (std::lround (
+            retriggerRate != nullptr ? retriggerRate->load() : 6.0f)));
+    const auto retriggerStepBeats = seqwencer::beatsForRate (
+        retriggerRateIndex);
+    const auto retriggerTraversalMode = seqwencer::sequenceModeFromChoice (
+        retriggerSequenceMode != nullptr
+            ? retriggerSequenceMode->load() : 0.0f);
+    const auto retriggerRetriggersFromPlayedNotes =
+        retriggerTraversalMode == seqwencer::SequenceMode::played;
     auto hostBpm = 120.0;
     auto hostPpq = 0.0;
     auto hostPositionAvailable = false;
@@ -3807,6 +4548,14 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                         && hostPositionAvailable
                                         && ! phiTimelineNeedsFreeRun
                                         && ! compressorRetriggersFromPlayedNotes;
+    const auto reverseUseHostPosition = hostSyncEnabled
+                                     && hostPositionAvailable
+                                     && ! phiTimelineNeedsFreeRun
+                                     && ! reverseRetriggersFromPlayedNotes;
+    const auto retriggerUseHostPosition = hostSyncEnabled
+                                       && hostPositionAvailable
+                                       && ! phiTimelineNeedsFreeRun
+                                       && ! retriggerRetriggersFromPlayedNotes;
     const auto configuredRange = [] (const std::atomic<float>* startParameter,
                                      const std::atomic<float>* endParameter,
                                      const std::atomic<float>* lengthParameter,
@@ -3850,6 +4599,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         ? seqwencer::linkedStepCount : seqwencer::stepsPerBank;
     const auto compressorMaximumStep = compressorLinked
         ? seqwencer::linkedStepCount : seqwencer::stepsPerBank;
+    const auto reverseMaximumStep = reverseLinked
+        ? seqwencer::linkedStepCount : seqwencer::stepsPerBank;
+    const auto retriggerMaximumStep = retriggerLinked
+        ? seqwencer::linkedStepCount : seqwencer::stepsPerBank;
     const auto gateRangeIsLinked = rangeLink != nullptr
                                 && rangeLink->load() >= 0.5f;
     const auto phiRangeIsLinked = phiRangeLink != nullptr
@@ -3870,6 +4623,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                  && grainRangeLink->load() >= 0.5f;
     const auto compressorRangeIsLinked = compressorRangeLink != nullptr
                                       && compressorRangeLink->load() >= 0.5f;
+    const auto reverseRangeIsLinked = reverseRangeLink != nullptr
+                                   && reverseRangeLink->load() >= 0.5f;
+    const auto retriggerRangeIsLinked = retriggerRangeLink != nullptr
+                                     && retriggerRangeLink->load() >= 0.5f;
     const auto gateRange = configuredRange (
         startStep, endStep, rangeLength, gateRangeIsLinked, gateMaximumStep);
     const auto phiRange = configuredRange (
@@ -3899,6 +4656,12 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const auto compressorRange = configuredRange (
         compressorStartStep, compressorEndStep, compressorRangeLength,
         compressorRangeIsLinked, compressorMaximumStep);
+    const auto reverseRange = configuredRange (
+        reverseStartStep, reverseEndStep, reverseRangeLength,
+        reverseRangeIsLinked, reverseMaximumStep);
+    const auto retriggerRange = configuredRange (
+        retriggerStartStep, retriggerEndStep, retriggerRangeLength,
+        retriggerRangeIsLinked, retriggerMaximumStep);
     const auto gatePhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * gateStepBeats * currentSampleRate / hostBpm);
     const auto phiPhaseIncrement = 1.0 / juce::jmax (
@@ -3919,6 +4682,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         1.0, 60.0 * grainStepBeats * currentSampleRate / hostBpm);
     const auto compressorPhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * compressorStepBeats * currentSampleRate / hostBpm);
+    const auto reversePhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * reverseStepBeats * currentSampleRate / hostBpm);
+    const auto retriggerPhaseIncrement = 1.0 / juce::jmax (
+        1.0, 60.0 * retriggerStepBeats * currentSampleRate / hostBpm);
     const auto shouldBypass = bypass != nullptr && bypass->load() >= 0.5f;
     const auto shouldGate = gateEnabled != nullptr && gateEnabled->load() >= 0.5f;
     const auto base = juce::jlimit (
@@ -3976,7 +4743,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         0.0f, 1.0f,
         0.5f * ((panPosition != nullptr ? panPosition->load() : 0.0f) + 1.0f));
     const auto baseFilterType = juce::jlimit (
-        0, 4, static_cast<int> (std::lround (
+        0, 5, static_cast<int> (std::lround (
             filterType != nullptr ? filterType->load() : 0.0f)));
     const auto baseFilterCutoff = juce::jlimit (
         20.0f, 20000.0f,
@@ -4037,6 +4804,38 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const auto baseCompressorMix = juce::jlimit (
         0.0f, 1.0f,
         compressorMix != nullptr ? compressorMix->load() : 1.0f);
+    const auto shouldReverse = reverseEnabled != nullptr
+                            && reverseEnabled->load() >= 0.5f;
+    const auto baseReverseTimeMs = juce::jlimit (
+        25.0f, 2000.0f,
+        reverseTime != nullptr ? reverseTime->load() : 500.0f);
+    const auto baseReversePointA = juce::jlimit (
+        0.0f, 1.0f,
+        reversePointA != nullptr ? reversePointA->load() : 0.0f);
+    const auto baseReversePointB = juce::jlimit (
+        0.0f, 1.0f,
+        reversePointB != nullptr ? reversePointB->load() : 1.0f);
+    const auto baseReverseMix = juce::jlimit (
+        0.0f, 1.0f,
+        reverseMix != nullptr ? reverseMix->load() : 1.0f);
+    const auto shouldRetrigger = retriggerEnabled != nullptr
+                              && retriggerEnabled->load() >= 0.5f;
+    const auto baseRetriggerInitialSpeed = juce::jlimit (
+        1.0f, 16.0f,
+        retriggerInitialSpeed != nullptr
+            ? retriggerInitialSpeed->load() : 2.0f);
+    const auto baseRetriggerFinalSpeed = juce::jlimit (
+        1.0f, 16.0f,
+        retriggerFinalSpeed != nullptr ? retriggerFinalSpeed->load() : 2.0f);
+    const auto baseRetriggerTransitionSteps = juce::jlimit (
+        0.0f, 16.0f,
+        retriggerTransition != nullptr ? retriggerTransition->load() : 4.0f);
+    const auto baseRetriggerDecay = juce::jlimit (
+        0.0f, 1.0f,
+        retriggerDecay != nullptr ? retriggerDecay->load() : 0.0f);
+    const auto baseRetriggerMix = juce::jlimit (
+        0.0f, 1.0f,
+        retriggerMix != nullptr ? retriggerMix->load() : 1.0f);
     const auto gateAIsEnabled = seqAEnabled == nullptr
                              || seqAEnabled->load() >= 0.5f;
     const auto gateBIsEnabled = seqBEnabled != nullptr
@@ -4077,6 +4876,14 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                    || compressorSeqAEnabled->load() >= 0.5f;
     const auto compressorBIsEnabled = compressorSeqBEnabled != nullptr
                                    && compressorSeqBEnabled->load() >= 0.5f;
+    const auto reverseAIsEnabled = reverseSeqAEnabled == nullptr
+                                || reverseSeqAEnabled->load() >= 0.5f;
+    const auto reverseBIsEnabled = reverseSeqBEnabled != nullptr
+                                && reverseSeqBEnabled->load() >= 0.5f;
+    const auto retriggerAIsEnabled = retriggerSeqAEnabled == nullptr
+                                  || retriggerSeqAEnabled->load() >= 0.5f;
+    const auto retriggerBIsEnabled = retriggerSeqBEnabled != nullptr
+                                  && retriggerSeqBEnabled->load() >= 0.5f;
     const auto targetIsActive = [this] (
         int bank, seqwencer::ModulationTarget target)
     {
@@ -4138,10 +4945,12 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const auto panIsProcessing = shouldPan && ! shouldBypass
                               && buffer.getNumChannels() >= 2;
     const auto filterIsProcessing = shouldFilter && ! shouldBypass;
-    if (filterIsProcessing && ! filterWasActive)
+    if (filterIsProcessing
+        && (! filterWasActive || baseFilterType != filterPreviousType))
         resetFilterProcessor();
     else if (! filterIsProcessing && filterWasActive)
         resetFilterProcessor();
+    filterPreviousType = filterIsProcessing ? baseFilterType : -1;
     filterWasActive = filterIsProcessing;
     const auto pitchIsProcessing = shouldPitch && ! shouldBypass
                                  && pitchBuffer.getNumSamples() > 8;
@@ -4170,6 +4979,23 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     if (compressorIsProcessing != compressorWasActive)
         compressorGain = 1.0f;
     compressorWasActive = compressorIsProcessing;
+    const auto reverseIsProcessing = shouldReverse && ! shouldBypass
+                                  && reverseBuffers[0].getNumSamples() > 8;
+    if (reverseIsProcessing != reverseWasActive)
+    {
+        for (auto& reverseBuffer : reverseBuffers)
+            reverseBuffer.clear();
+        resetReverseProcessor();
+    }
+    reverseWasActive = reverseIsProcessing;
+    const auto retriggerIsProcessing = shouldRetrigger && ! shouldBypass
+                                    && retriggerBuffer.getNumSamples() > 8;
+    if (retriggerIsProcessing != retriggerWasActive)
+    {
+        retriggerBuffer.clear();
+        resetRetriggerProcessor();
+    }
+    retriggerWasActive = retriggerIsProcessing;
     if (! gateIsProcessing)
     {
         gateActiveStepA.store (-1);
@@ -4215,6 +5041,16 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         compressorActiveStepA.store (-1);
         compressorActiveStepB.store (-1);
     }
+    if (! reverseIsProcessing)
+    {
+        reverseActiveStepA.store (-1);
+        reverseActiveStepB.store (-1);
+    }
+    if (! retriggerIsProcessing)
+    {
+        retriggerActiveStepA.store (-1);
+        retriggerActiveStepB.store (-1);
+    }
     const auto orderedAudioFx = getAudioFxOrder();
     std::size_t nextPhraseStart = 0;
 
@@ -4243,6 +5079,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 grainFreeRunningPhase = 0.0;
             if (compressorRetriggersFromPlayedNotes)
                 compressorFreeRunningPhase = 0.0;
+            if (reverseRetriggersFromPlayedNotes)
+                reverseFreeRunningPhase = 0.0;
+            if (retriggerRetriggersFromPlayedNotes)
+                retriggerFreeRunningPhase = 0.0;
             ++nextPhraseStart;
         }
 
@@ -4354,6 +5194,28 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                        : 0.0);
             compressorPhase = seqwencer::unwrappedPhaseFromQuarterNotes (
                 ppq, compressorStepBeats);
+        }
+
+        auto reversePhase = reverseFreeRunningPhase;
+        if (reverseUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            reversePhase = seqwencer::unwrappedPhaseFromQuarterNotes (
+                ppq, reverseStepBeats);
+        }
+
+        auto retriggerPhase = retriggerFreeRunningPhase;
+        if (retriggerUseHostPosition)
+        {
+            const auto ppq = hostPpq
+                + (hostTimelineAdvancing
+                       ? sample * quarterNotesPerSample
+                       : 0.0);
+            retriggerPhase = seqwencer::unwrappedPhaseFromQuarterNotes (
+                ppq, retriggerStepBeats);
         }
 
         const auto modulatedSequenceRange = [&] (
@@ -4652,6 +5514,40 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 seqwencer::SequencerEngine::compressor),
             seqwencer::SequencerEngine::compressor,
             compressorMaximumStep);
+        const auto reverseSampleRange = modulatedSequenceRange (
+            reverseIsProcessing,
+            reverseUnipolarPatternA, reverseUnipolarPatternB,
+            reverseCanonicalPatternA, reverseCanonicalPatternB,
+            reverseUnipolarSubdivisionsA,
+            reverseUnipolarSubdivisionsB,
+            reverseCanonicalSubdivisionsA,
+            reverseCanonicalSubdivisionsB,
+            reversePhase, reverseRange, reverseTraversalMode,
+            reverseLinked, reverseSerialBipolar,
+            reverseBipolarAValue, reverseBipolarBValue,
+            reverseAIsEnabled, reverseBIsEnabled,
+            reverseRangeIsLinked,
+            seqwencer::sequencerRangeTargets (
+                seqwencer::SequencerEngine::reverse),
+            seqwencer::SequencerEngine::reverse,
+            reverseMaximumStep);
+        const auto retriggerSampleRange = modulatedSequenceRange (
+            retriggerIsProcessing,
+            retriggerUnipolarPatternA, retriggerUnipolarPatternB,
+            retriggerCanonicalPatternA, retriggerCanonicalPatternB,
+            retriggerUnipolarSubdivisionsA,
+            retriggerUnipolarSubdivisionsB,
+            retriggerCanonicalSubdivisionsA,
+            retriggerCanonicalSubdivisionsB,
+            retriggerPhase, retriggerRange, retriggerTraversalMode,
+            retriggerLinked, retriggerSerialBipolar,
+            retriggerBipolarAValue, retriggerBipolarBValue,
+            retriggerAIsEnabled, retriggerBIsEnabled,
+            retriggerRangeIsLinked,
+            seqwencer::sequencerRangeTargets (
+                seqwencer::SequencerEngine::retrigger),
+            seqwencer::SequencerEngine::retrigger,
+            retriggerMaximumStep);
 
         const auto modulatedEnvelopeValues = [&] (
             bool engineIsProcessing,
@@ -5965,6 +6861,293 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 compressorBipolarBValue, assigned);
         };
 
+        auto reverseUnipolarA = 1.0f;
+        auto reverseUnipolarB = 1.0f;
+        auto reverseCanonicalA = 1.0f;
+        auto reverseCanonicalB = 1.0f;
+        auto reverseSerialUnipolar = 1.0f;
+        auto reverseSerialCanonical = 1.0f;
+        const auto reverseEnvelopeValues = modulatedEnvelopeValues (
+            reverseIsProcessing,
+            reverseUnipolarPatternA, reverseUnipolarPatternB,
+            reverseCanonicalPatternA, reverseCanonicalPatternB,
+            reverseUnipolarSubdivisionsA,
+            reverseUnipolarSubdivisionsB,
+            reverseCanonicalSubdivisionsA,
+            reverseCanonicalSubdivisionsB,
+            reversePhase, reverseSampleRange, reverseTraversalMode,
+            reverseLinked, reverseSerialBipolar,
+            reverseBipolarAValue, reverseBipolarBValue,
+            reverseAIsEnabled, reverseBIsEnabled,
+            seqwencer::SequencerEngine::reverse,
+            seqwencer::sequencerEnvelopeTargets (
+                seqwencer::SequencerEngine::reverse),
+            { reverseAttackAValue, reverseReleaseAValue,
+              reverseAttackBValue, reverseReleaseBValue });
+        const auto effectiveReverseAttackA = reverseEnvelopeValues[0];
+        const auto effectiveReverseReleaseA = reverseEnvelopeValues[1];
+        const auto effectiveReverseAttackB = reverseEnvelopeValues[2];
+        const auto effectiveReverseReleaseB = reverseEnvelopeValues[3];
+        const auto effectiveReverseSerialAttack = reverseUsesProfileB
+            ? effectiveReverseAttackB : effectiveReverseAttackA;
+        const auto effectiveReverseSerialRelease = reverseUsesProfileB
+            ? effectiveReverseReleaseB : effectiveReverseReleaseA;
+        if (reverseIsProcessing && reverseLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            reverseSerialUnipolar = seqwencer::evaluateSubdividedLinkedRange (
+                reverseUnipolarPatternA, reverseUnipolarPatternB,
+                reverseUnipolarSubdivisionsA,
+                reverseUnipolarSubdivisionsB,
+                reversePhase, reverseSampleRange,
+                effectiveReverseSerialAttack,
+                effectiveReverseSerialRelease,
+                effectiveReverseSerialAttack,
+                effectiveReverseSerialRelease,
+                &activeBank, &activeStep, reverseTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverse, 2));
+            reverseSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
+                reverseCanonicalPatternA, reverseCanonicalPatternB,
+                reverseCanonicalSubdivisionsA,
+                reverseCanonicalSubdivisionsB,
+                reversePhase, reverseSampleRange,
+                effectiveReverseSerialAttack,
+                effectiveReverseSerialRelease,
+                effectiveReverseSerialAttack,
+                effectiveReverseSerialRelease,
+                nullptr, nullptr, reverseTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverse, 2));
+            reverseActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            reverseActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else if (reverseIsProcessing)
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            reverseUnipolarA = seqwencer::evaluateSubdividedBankRange (
+                reverseUnipolarPatternA, reverseUnipolarSubdivisionsA,
+                reversePhase, reverseSampleRange,
+                effectiveReverseAttackA, effectiveReverseReleaseA,
+                &stepA, reverseTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverse, 0));
+            reverseUnipolarB = seqwencer::evaluateSubdividedBankRange (
+                reverseUnipolarPatternB, reverseUnipolarSubdivisionsB,
+                reversePhase, reverseSampleRange,
+                effectiveReverseAttackB, effectiveReverseReleaseB,
+                &stepB, reverseTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverse, 1));
+            reverseCanonicalA = seqwencer::evaluateSubdividedBankRange (
+                reverseCanonicalPatternA, reverseCanonicalSubdivisionsA,
+                reversePhase, reverseSampleRange,
+                effectiveReverseAttackA, effectiveReverseReleaseA,
+                nullptr, reverseTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverse, 0));
+            reverseCanonicalB = seqwencer::evaluateSubdividedBankRange (
+                reverseCanonicalPatternB, reverseCanonicalSubdivisionsB,
+                reversePhase, reverseSampleRange,
+                effectiveReverseAttackB, effectiveReverseReleaseB,
+                nullptr, reverseTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::reverse, 1));
+            reverseActiveStepA.store (reverseAIsEnabled ? stepA : -1);
+            reverseActiveStepB.store (reverseBIsEnabled ? stepB : -1);
+        }
+
+        const auto reverseTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (reverseLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return reverseSerialBipolar
+                    ? 2.0f * reverseSerialCanonical - 1.0f
+                    : reverseSerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                reverseBipolarAValue
+                    ? reverseCanonicalA : reverseUnipolarA,
+                reverseAIsEnabled && targetIsActive (0, target), target,
+                reverseBipolarAValue,
+                reverseBipolarBValue
+                    ? reverseCanonicalB : reverseUnipolarB,
+                reverseBIsEnabled && targetIsActive (1, target), target,
+                reverseBipolarBValue, assigned);
+        };
+
+        auto retriggerUnipolarA = 1.0f;
+        auto retriggerUnipolarB = 1.0f;
+        auto retriggerCanonicalA = 1.0f;
+        auto retriggerCanonicalB = 1.0f;
+        auto retriggerSerialUnipolar = 1.0f;
+        auto retriggerSerialCanonical = 1.0f;
+        const auto retriggerEnvelopeValues = modulatedEnvelopeValues (
+            retriggerIsProcessing,
+            retriggerUnipolarPatternA, retriggerUnipolarPatternB,
+            retriggerCanonicalPatternA, retriggerCanonicalPatternB,
+            retriggerUnipolarSubdivisionsA,
+            retriggerUnipolarSubdivisionsB,
+            retriggerCanonicalSubdivisionsA,
+            retriggerCanonicalSubdivisionsB,
+            retriggerPhase, retriggerSampleRange, retriggerTraversalMode,
+            retriggerLinked, retriggerSerialBipolar,
+            retriggerBipolarAValue, retriggerBipolarBValue,
+            retriggerAIsEnabled, retriggerBIsEnabled,
+            seqwencer::SequencerEngine::retrigger,
+            seqwencer::sequencerEnvelopeTargets (
+                seqwencer::SequencerEngine::retrigger),
+            { retriggerAttackAValue, retriggerReleaseAValue,
+              retriggerAttackBValue, retriggerReleaseBValue });
+        const auto effectiveRetriggerAttackA = retriggerEnvelopeValues[0];
+        const auto effectiveRetriggerReleaseA = retriggerEnvelopeValues[1];
+        const auto effectiveRetriggerAttackB = retriggerEnvelopeValues[2];
+        const auto effectiveRetriggerReleaseB = retriggerEnvelopeValues[3];
+        const auto effectiveRetriggerSerialAttack = retriggerUsesProfileB
+            ? effectiveRetriggerAttackB : effectiveRetriggerAttackA;
+        const auto effectiveRetriggerSerialRelease = retriggerUsesProfileB
+            ? effectiveRetriggerReleaseB : effectiveRetriggerReleaseA;
+        if (retriggerIsProcessing && retriggerLinked)
+        {
+            auto activeBank = 0;
+            auto activeStep = 0;
+            retriggerSerialUnipolar = seqwencer::evaluateSubdividedLinkedRange (
+                retriggerUnipolarPatternA, retriggerUnipolarPatternB,
+                retriggerUnipolarSubdivisionsA,
+                retriggerUnipolarSubdivisionsB,
+                retriggerPhase, retriggerSampleRange,
+                effectiveRetriggerSerialAttack,
+                effectiveRetriggerSerialRelease,
+                effectiveRetriggerSerialAttack,
+                effectiveRetriggerSerialRelease,
+                &activeBank, &activeStep, retriggerTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::retrigger, 2));
+            retriggerSerialCanonical = seqwencer::evaluateSubdividedLinkedRange (
+                retriggerCanonicalPatternA, retriggerCanonicalPatternB,
+                retriggerCanonicalSubdivisionsA,
+                retriggerCanonicalSubdivisionsB,
+                retriggerPhase, retriggerSampleRange,
+                effectiveRetriggerSerialAttack,
+                effectiveRetriggerSerialRelease,
+                effectiveRetriggerSerialAttack,
+                effectiveRetriggerSerialRelease,
+                nullptr, nullptr, retriggerTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::retrigger, 2));
+            retriggerActiveStepA.store (activeBank == 0 ? activeStep : -1);
+            retriggerActiveStepB.store (activeBank == 1 ? activeStep : -1);
+        }
+        else if (retriggerIsProcessing)
+        {
+            auto stepA = 0;
+            auto stepB = 0;
+            retriggerUnipolarA = seqwencer::evaluateSubdividedBankRange (
+                retriggerUnipolarPatternA, retriggerUnipolarSubdivisionsA,
+                retriggerPhase, retriggerSampleRange,
+                effectiveRetriggerAttackA, effectiveRetriggerReleaseA,
+                &stepA, retriggerTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::retrigger, 0));
+            retriggerUnipolarB = seqwencer::evaluateSubdividedBankRange (
+                retriggerUnipolarPatternB, retriggerUnipolarSubdivisionsB,
+                retriggerPhase, retriggerSampleRange,
+                effectiveRetriggerAttackB, effectiveRetriggerReleaseB,
+                &stepB, retriggerTraversalMode, 0.0f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::retrigger, 1));
+            retriggerCanonicalA = seqwencer::evaluateSubdividedBankRange (
+                retriggerCanonicalPatternA, retriggerCanonicalSubdivisionsA,
+                retriggerPhase, retriggerSampleRange,
+                effectiveRetriggerAttackA, effectiveRetriggerReleaseA,
+                nullptr, retriggerTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::retrigger, 0));
+            retriggerCanonicalB = seqwencer::evaluateSubdividedBankRange (
+                retriggerCanonicalPatternB, retriggerCanonicalSubdivisionsB,
+                retriggerPhase, retriggerSampleRange,
+                effectiveRetriggerAttackB, effectiveRetriggerReleaseB,
+                nullptr, retriggerTraversalMode, 0.5f,
+                seqwencer::sequencerRandomStream (
+                    seqwencer::SequencerEngine::retrigger, 1));
+            retriggerActiveStepA.store (retriggerAIsEnabled ? stepA : -1);
+            retriggerActiveStepB.store (retriggerBIsEnabled ? stepB : -1);
+        }
+
+        const auto retriggerTargetDeviation = [&] (
+            seqwencer::ModulationTarget target, bool* assigned = nullptr)
+        {
+            if (retriggerLinked)
+            {
+                const auto active = targetIsActive (0, target);
+                if (assigned != nullptr)
+                    *assigned = active;
+                if (! active)
+                    return 0.0f;
+                return retriggerSerialBipolar
+                    ? 2.0f * retriggerSerialCanonical - 1.0f
+                    : retriggerSerialUnipolar - 1.0f;
+            }
+
+            return seqwencer::combineParallelModulationDeviation (
+                target,
+                retriggerBipolarAValue
+                    ? retriggerCanonicalA : retriggerUnipolarA,
+                retriggerAIsEnabled && targetIsActive (0, target), target,
+                retriggerBipolarAValue,
+                retriggerBipolarBValue
+                    ? retriggerCanonicalB : retriggerUnipolarB,
+                retriggerBIsEnabled && targetIsActive (1, target), target,
+                retriggerBipolarBValue, assigned);
+        };
+
+        const auto activeRetriggerStepA = retriggerActiveStepA.load();
+        const auto activeRetriggerStepB = retriggerActiveStepB.load();
+        const auto retriggerStepOn = seqwencer::retriggerStepIsOn (
+            retriggerModesForA, retriggerModesForB, retriggerLinked,
+            retriggerAIsEnabled, retriggerBIsEnabled,
+            activeRetriggerStepA, activeRetriggerStepB);
+        const auto retriggerModeAt = [] (
+            const seqwencer::RetriggerStepPattern& modes, int step)
+        {
+            return step >= 0 && step < seqwencer::stepsPerBank
+                && modes[static_cast<std::size_t> (step)];
+        };
+        auto retriggerStepWetAmount = 0.0f;
+        if (retriggerLinked)
+        {
+            if (retriggerStepOn)
+                retriggerStepWetAmount = retriggerSerialUnipolar;
+        }
+        else
+        {
+            if (retriggerAIsEnabled
+                && retriggerModeAt (retriggerModesForA,
+                                    activeRetriggerStepA))
+            {
+                retriggerStepWetAmount = retriggerUnipolarA;
+            }
+            if (retriggerBIsEnabled
+                && retriggerModeAt (retriggerModesForB,
+                                    activeRetriggerStepB))
+            {
+                retriggerStepWetAmount = juce::jmax (
+                    retriggerStepWetAmount, retriggerUnipolarB);
+            }
+        }
+        retriggerStepWetAmount = juce::jlimit (
+            0.0f, 1.0f, retriggerStepWetAmount);
+
         const auto processGateStage = [&]
         {
             if (shouldGate && shouldNoiseGate && ! shouldBypass)
@@ -6576,6 +7759,313 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         };
 
+        const auto processReverseStage = [&]
+        {
+            if (! reverseIsProcessing)
+                return;
+            const auto modulatedReverseNormalised = [&] (
+                float baseNormalised, seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = reverseTargetDeviation (
+                    target, &assigned);
+                return assigned
+                    ? seqwencer::applyModulationDepth (
+                        baseNormalised, deviation, 1.0f)
+                    : baseNormalised;
+            };
+
+            const auto timeNormalised = modulatedReverseNormalised (
+                (baseReverseTimeMs - 25.0f) / 1975.0f,
+                seqwencer::ModulationTarget::reverseTime);
+            const auto timeMs = 25.0f + 1975.0f * timeNormalised;
+            const auto pointAValue = modulatedReverseNormalised (
+                baseReversePointA,
+                seqwencer::ModulationTarget::reversePointA);
+            const auto pointBValue = modulatedReverseNormalised (
+                baseReversePointB,
+                seqwencer::ModulationTarget::reversePointB);
+            const auto mixValue = modulatedReverseNormalised (
+                baseReverseMix,
+                seqwencer::ModulationTarget::reverseMix);
+            const auto bufferCapacity = reverseBuffers[0].getNumSamples();
+            reversePendingCaptureSamples = juce::jlimit (
+                2, bufferCapacity,
+                static_cast<int> (std::lround (
+                    timeMs * 0.001f
+                        * static_cast<float> (currentSampleRate))));
+            const auto reverseStepOn = seqwencer::reverseStepIsOn (
+                reverseModesForA, reverseModesForB,
+                reverseLinked, reverseAIsEnabled, reverseBIsEnabled,
+                reverseActiveStepA.load (std::memory_order_relaxed),
+                reverseActiveStepB.load (std::memory_order_relaxed));
+            const auto previousOrdinal = reversePreviousSequencePhase >= 0.0
+                ? static_cast<juce::int64> (std::floor (
+                    reversePreviousSequencePhase))
+                : std::numeric_limits<juce::int64>::min();
+            const auto currentOrdinal = static_cast<juce::int64> (
+                std::floor (reversePhase));
+            const auto sequenceRestarted = reversePreviousSequencePhase >= 0.0
+                && reversePhase + 1.0e-9 < reversePreviousSequencePhase;
+            const auto enteredNewStep = reversePreviousSequencePhase < 0.0
+                || currentOrdinal != previousOrdinal || sequenceRestarted;
+            const auto shouldTriggerReverse = reverseStepOn
+                && (! reverseStepWasOn || enteredNewStep);
+            reversePreviousSequencePhase = reversePhase;
+            reverseStepWasOn = reverseStepOn;
+
+            if (shouldTriggerReverse)
+            {
+                const auto availableSamples = juce::jmin (
+                    reversePendingCaptureSamples,
+                    reverseCaptureAvailableSamples);
+                if (availableSamples >= 2)
+                {
+                    reversePlaybackBufferIndex = reverseCaptureBufferIndex;
+                    reverseCapturedSamples = availableSamples;
+                    reversePlaybackStartPosition =
+                        (reverseCaptureWritePosition - reverseCapturedSamples
+                            + bufferCapacity) % bufferCapacity;
+                    reverseCaptureBufferIndex = 1 - reverseCaptureBufferIndex;
+                    reverseCaptureWritePosition = 0;
+                    reverseCaptureAvailableSamples = 0;
+                    const auto bounds = seqwencer::resolveReverseLoopBounds (
+                        reverseCapturedSamples, pointAValue, pointBValue);
+                    reverseReadPosition = static_cast<double> (bounds.last);
+                    reverseReadDirection = -1;
+                    reverseWetFade = 0.0f;
+                    reverseIsPlaying = true;
+                }
+                else if (reverseIsPlaying && reverseCapturedSamples >= 2)
+                {
+                    const auto bounds = seqwencer::resolveReverseLoopBounds (
+                        reverseCapturedSamples, pointAValue, pointBValue);
+                    reverseReadPosition = static_cast<double> (bounds.last);
+                    reverseReadDirection = -1;
+                    reverseWetFade = 0.0f;
+                }
+            }
+
+            const auto fadeIncrement = static_cast<float> (
+                1.0 / juce::jmax (1.0, currentSampleRate * 0.005));
+            const auto wetTarget = reverseStepOn && reverseIsPlaying
+                ? 1.0f : 0.0f;
+            reverseWetFade = wetTarget > reverseWetFade
+                ? juce::jmin (wetTarget, reverseWetFade + fadeIncrement)
+                : juce::jmax (wetTarget, reverseWetFade - fadeIncrement);
+
+            auto bounds = seqwencer::ReverseLoopBounds {};
+            auto index0 = 0;
+            auto index1 = 1;
+            auto fraction = 0.0f;
+            const auto canPlayReverse = reverseIsPlaying
+                && reverseCapturedSamples >= 2 && reverseWetFade > 0.0f;
+            if (canPlayReverse)
+            {
+                bounds = seqwencer::resolveReverseLoopBounds (
+                    reverseCapturedSamples, pointAValue, pointBValue);
+                reverseReadPosition = juce::jlimit (
+                    static_cast<double> (bounds.first),
+                    static_cast<double> (bounds.last), reverseReadPosition);
+                index0 = juce::jlimit (
+                    bounds.first, bounds.last,
+                    static_cast<int> (std::floor (reverseReadPosition)));
+                index1 = juce::jmin (bounds.last, index0 + 1);
+                fraction = static_cast<float> (
+                    reverseReadPosition - std::floor (reverseReadPosition));
+            }
+
+            auto& captureBuffer = reverseBuffers[static_cast<std::size_t> (
+                reverseCaptureBufferIndex)];
+            const auto& playbackBuffer = reverseBuffers[
+                static_cast<std::size_t> (reversePlaybackBufferIndex)];
+            const auto channels = juce::jmin (
+                buffer.getNumChannels(), captureBuffer.getNumChannels());
+            const auto effectiveMix = mixValue * reverseWetFade;
+            for (int channel = 0; channel < channels; ++channel)
+            {
+                const auto drySample = buffer.getSample (channel, sample);
+                captureBuffer.setSample (
+                    channel, reverseCaptureWritePosition, drySample);
+                if (canPlayReverse)
+                {
+                    const auto physicalIndex0 =
+                        (reversePlaybackStartPosition + index0)
+                            % bufferCapacity;
+                    const auto physicalIndex1 =
+                        (reversePlaybackStartPosition + index1)
+                            % bufferCapacity;
+                    const auto sample0 = playbackBuffer.getSample (
+                        channel, physicalIndex0);
+                    const auto sample1 = playbackBuffer.getSample (
+                        channel, physicalIndex1);
+                    const auto wetSample = sample0
+                                         + fraction * (sample1 - sample0);
+                    buffer.setSample (
+                        channel, sample,
+                        drySample + effectiveMix * (wetSample - drySample));
+                }
+            }
+            reverseCaptureWritePosition =
+                (reverseCaptureWritePosition + 1) % bufferCapacity;
+            reverseCaptureAvailableSamples = juce::jmin (
+                bufferCapacity, reverseCaptureAvailableSamples + 1);
+
+            if (canPlayReverse)
+            {
+                const auto next = seqwencer::advancePingPongPosition (
+                    reverseReadPosition, reverseReadDirection, bounds);
+                reverseReadPosition = next.position;
+                reverseReadDirection = next.direction;
+            }
+        };
+
+        const auto processRetriggerStage = [&]
+        {
+            if (! retriggerIsProcessing)
+                return;
+
+            const auto modulatedRetriggerActual = [&] (
+                float baseValue, float minimumValue, float maximumValue,
+                seqwencer::ModulationTarget target)
+            {
+                bool assigned = false;
+                const auto deviation = retriggerTargetDeviation (
+                    target, &assigned);
+                if (! assigned)
+                    return baseValue;
+                const auto normalised = (baseValue - minimumValue)
+                                      / (maximumValue - minimumValue);
+                return minimumValue + (maximumValue - minimumValue)
+                    * seqwencer::applyModulationDepth (
+                        normalised, deviation, 1.0f);
+            };
+
+            const auto initialRepeatsValue = modulatedRetriggerActual (
+                baseRetriggerInitialSpeed, 1.0f, 16.0f,
+                seqwencer::ModulationTarget::retriggerInitialSpeed);
+            const auto finalRepeatsValue = modulatedRetriggerActual (
+                baseRetriggerFinalSpeed, 1.0f, 16.0f,
+                seqwencer::ModulationTarget::retriggerFinalSpeed);
+            const auto transitionSteps = modulatedRetriggerActual (
+                baseRetriggerTransitionSteps, 0.0f, 16.0f,
+                seqwencer::ModulationTarget::retriggerTransition);
+            const auto decayValue = modulatedRetriggerActual (
+                baseRetriggerDecay, 0.0f, 1.0f,
+                seqwencer::ModulationTarget::retriggerDecay);
+            const auto mixValue = modulatedRetriggerActual (
+                baseRetriggerMix, 0.0f, 1.0f,
+                seqwencer::ModulationTarget::retriggerMix);
+            const auto capacity = retriggerBuffer.getNumSamples();
+            const auto sequencerStepSamples = juce::jmax (
+                2.0, 1.0 / juce::jmax (1.0e-12,
+                                       retriggerPhaseIncrement));
+
+            if (retriggerStepOn && ! retriggerStepWasOn)
+            {
+                retriggerCaptureSamples = 0;
+                retriggerCaptureTargetSamples = 2;
+                retriggerReadPosition = 0;
+                retriggerSamplesUntilRepeat = 0;
+                retriggerPlaybackSamples = 0;
+                retriggerRepeatIndex = 0;
+                retriggerWetFade = 0.0f;
+                retriggerIsPlaying = false;
+                retriggerBlockIsActive = true;
+            }
+            else if (! retriggerStepOn && retriggerStepWasOn)
+            {
+                retriggerBlockIsActive = false;
+            }
+            retriggerStepWasOn = retriggerStepOn;
+
+            const auto fadeIncrement = static_cast<float> (
+                1.0 / juce::jmax (1.0, currentSampleRate * 0.005));
+            const auto wetTarget = retriggerBlockIsActive
+                && retriggerIsPlaying ? retriggerStepWetAmount : 0.0f;
+            if (retriggerWetFade < wetTarget)
+                retriggerWetFade = juce::jmin (
+                    wetTarget, retriggerWetFade + fadeIncrement);
+            else if (retriggerWetFade > wetTarget)
+                retriggerWetFade = juce::jmax (
+                    wetTarget, retriggerWetFade - fadeIncrement);
+
+            if (! retriggerBlockIsActive && retriggerWetFade <= 0.0f)
+            {
+                retriggerCaptureSamples = 0;
+                retriggerIsPlaying = false;
+                return;
+            }
+
+            if (! retriggerIsPlaying)
+            {
+                if (! retriggerBlockIsActive)
+                    return;
+
+                if (retriggerCaptureSamples == 0)
+                {
+                    retriggerCaptureTargetSamples = juce::jlimit (
+                        2, capacity,
+                        seqwencer::retriggerIntervalSamples (
+                            sequencerStepSamples,
+                            juce::jmin (initialRepeatsValue,
+                                        finalRepeatsValue)));
+                }
+
+                const auto channels = juce::jmin (
+                    buffer.getNumChannels(), retriggerBuffer.getNumChannels());
+                for (int channel = 0; channel < channels; ++channel)
+                    retriggerBuffer.setSample (
+                        channel, retriggerCaptureSamples,
+                        buffer.getSample (channel, sample));
+                ++retriggerCaptureSamples;
+                if (retriggerCaptureSamples >= retriggerCaptureTargetSamples)
+                {
+                    retriggerIsPlaying = true;
+                    retriggerReadPosition = 0;
+                    retriggerSamplesUntilRepeat = 0;
+                    retriggerPlaybackSamples = 0;
+                    retriggerRepeatIndex = 0;
+                }
+                return;
+            }
+
+            const auto elapsedSteps = static_cast<double> (
+                retriggerPlaybackSamples) / sequencerStepSamples;
+            const auto currentRepeats = seqwencer::retriggerRepeatsAtStep (
+                initialRepeatsValue, finalRepeatsValue,
+                transitionSteps, elapsedSteps);
+            const auto intervalSamples = seqwencer::retriggerIntervalSamples (
+                sequencerStepSamples, currentRepeats);
+            if (retriggerSamplesUntilRepeat <= 0)
+            {
+                if (retriggerPlaybackSamples > 0)
+                    ++retriggerRepeatIndex;
+                retriggerReadPosition = 0;
+                retriggerSamplesUntilRepeat = intervalSamples;
+            }
+            const auto readIndex = retriggerReadPosition
+                                 % retriggerCaptureTargetSamples;
+            const auto repeatGain = seqwencer::retriggerRepeatGain (
+                decayValue, retriggerRepeatIndex);
+            const auto effectiveMix = mixValue * retriggerWetFade;
+            const auto channels = juce::jmin (
+                buffer.getNumChannels(), retriggerBuffer.getNumChannels());
+            for (int channel = 0; channel < channels; ++channel)
+            {
+                const auto drySample = buffer.getSample (channel, sample);
+                const auto wetSample = repeatGain
+                    * retriggerBuffer.getSample (channel, readIndex);
+                buffer.setSample (
+                    channel, sample,
+                    drySample + effectiveMix * (wetSample - drySample));
+            }
+
+            ++retriggerReadPosition;
+            --retriggerSamplesUntilRepeat;
+            ++retriggerPlaybackSamples;
+        };
+
         for (const auto stage : orderedAudioFx)
         {
             switch (stage)
@@ -6589,6 +8079,8 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 case seqwencer::AudioFxStage::distortion: processDistortionStage(); break;
                 case seqwencer::AudioFxStage::grain:      processGrainStage(); break;
                 case seqwencer::AudioFxStage::compressor: processCompressorStage(); break;
+                case seqwencer::AudioFxStage::reverse:    processReverseStage(); break;
+                case seqwencer::AudioFxStage::retrigger:  processRetriggerStage(); break;
             }
         }
 
@@ -6642,6 +8134,16 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             && (mayAdvance || compressorRetriggersFromPlayedNotes))
         {
             compressorFreeRunningPhase += compressorPhaseIncrement;
+        }
+        if (reverseIsProcessing && ! reverseUseHostPosition
+            && (mayAdvance || reverseRetriggersFromPlayedNotes))
+        {
+            reverseFreeRunningPhase += reversePhaseIncrement;
+        }
+        if (retriggerIsProcessing && ! retriggerUseHostPosition
+            && (mayAdvance || retriggerRetriggersFromPlayedNotes))
+        {
+            retriggerFreeRunningPhase += retriggerPhaseIncrement;
         }
     }
 
@@ -6706,6 +8208,20 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         compressorFreeRunningPhase = seqwencer::unwrappedPhaseFromQuarterNotes (
             hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
             compressorStepBeats);
+    }
+    if (reverseIsProcessing && reverseUseHostPosition
+        && hostTimelineAdvancing)
+    {
+        reverseFreeRunningPhase = seqwencer::unwrappedPhaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            reverseStepBeats);
+    }
+    if (retriggerIsProcessing && retriggerUseHostPosition
+        && hostTimelineAdvancing)
+    {
+        retriggerFreeRunningPhase = seqwencer::unwrappedPhaseFromQuarterNotes (
+            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+            retriggerStepBeats);
     }
 
     if (shouldSendPhiBridge && buffer.getNumSamples() > 0)

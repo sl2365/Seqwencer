@@ -40,7 +40,9 @@ private:
         distortion,
         grain,
         compressor,
-        phi
+        reverse,
+        phi,
+        retrigger
     };
 
     void timerCallback() override;
@@ -97,6 +99,8 @@ private:
     std::unique_ptr<FxSelectorButton> distortionFxButton;
     std::unique_ptr<FxSelectorButton> grainFxButton;
     std::unique_ptr<FxSelectorButton> compressorFxButton;
+    std::unique_ptr<FxSelectorButton> reverseFxButton;
+    std::unique_ptr<FxSelectorButton> retriggerFxButton;
     std::unique_ptr<FxSelectorButton> phiFxButton;
     std::unique_ptr<ModulationParameterLabel> baseParameterLabel;
     std::unique_ptr<ModulationParameterLabel> depthParameterLabel;
@@ -137,6 +141,15 @@ private:
     std::unique_ptr<ModulationParameterLabel> compressorReleaseParameterLabel;
     std::unique_ptr<ModulationParameterLabel> compressorMakeupParameterLabel;
     std::unique_ptr<ModulationParameterLabel> compressorMixParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> reverseTimeParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> reversePointAParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> reversePointBParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> reverseMixParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> retriggerInitialParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> retriggerFinalParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> retriggerTransitionParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> retriggerDecayParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> retriggerMixParameterLabel;
     std::unique_ptr<ModulationParameterLabel> startParameterLabel;
     std::unique_ptr<ModulationParameterLabel> endParameterLabel;
     std::unique_ptr<TargetList> targetListA;
@@ -157,6 +170,10 @@ private:
     std::unique_ptr<TargetList> grainTargetListB;
     std::unique_ptr<TargetList> compressorTargetListA;
     std::unique_ptr<TargetList> compressorTargetListB;
+    std::unique_ptr<TargetList> reverseTargetListA;
+    std::unique_ptr<TargetList> reverseTargetListB;
+    std::unique_ptr<TargetList> retriggerTargetListA;
+    std::unique_ptr<TargetList> retriggerTargetListB;
     juce::Component::SafePointer<juce::DialogWindow> presetWindow;
     juce::RangedAudioParameter* seqAEnabledParameter = nullptr;
     juce::RangedAudioParameter* seqBEnabledParameter = nullptr;
@@ -224,6 +241,15 @@ private:
     juce::Slider compressorReleaseSlider;
     juce::Slider compressorMakeupSlider;
     juce::Slider compressorMixSlider;
+    juce::Slider reverseTimeSlider;
+    juce::Slider reversePointASlider;
+    juce::Slider reversePointBSlider;
+    juce::Slider reverseMixSlider;
+    juce::Slider retriggerInitialSlider;
+    juce::Slider retriggerFinalSlider;
+    juce::Slider retriggerTransitionSlider;
+    juce::Slider retriggerDecaySlider;
+    juce::Slider retriggerMixSlider;
     juce::Slider attackASlider;
     juce::Slider releaseASlider;
     juce::Slider attackBSlider;
@@ -257,6 +283,8 @@ private:
     std::unique_ptr<ButtonAttachment> distortionAttachment;
     std::unique_ptr<ButtonAttachment> grainAttachment;
     std::unique_ptr<ButtonAttachment> compressorAttachment;
+    std::unique_ptr<ButtonAttachment> reverseAttachment;
+    std::unique_ptr<ButtonAttachment> retriggerAttachment;
     std::unique_ptr<ButtonAttachment> phiBridgeAttachment;
     std::unique_ptr<ButtonAttachment> noiseGateAttachment;
     std::unique_ptr<ButtonAttachment> rangeLinkAttachment;
@@ -300,6 +328,15 @@ private:
     std::unique_ptr<SliderAttachment> compressorReleaseAttachment;
     std::unique_ptr<SliderAttachment> compressorMakeupAttachment;
     std::unique_ptr<SliderAttachment> compressorMixAttachment;
+    std::unique_ptr<SliderAttachment> reverseTimeAttachment;
+    std::unique_ptr<SliderAttachment> reversePointAAttachment;
+    std::unique_ptr<SliderAttachment> reversePointBAttachment;
+    std::unique_ptr<SliderAttachment> reverseMixAttachment;
+    std::unique_ptr<SliderAttachment> retriggerInitialAttachment;
+    std::unique_ptr<SliderAttachment> retriggerFinalAttachment;
+    std::unique_ptr<SliderAttachment> retriggerTransitionAttachment;
+    std::unique_ptr<SliderAttachment> retriggerDecayAttachment;
+    std::unique_ptr<SliderAttachment> retriggerMixAttachment;
     std::unique_ptr<SliderAttachment> attackAAttachment;
     std::unique_ptr<SliderAttachment> releaseAAttachment;
     std::unique_ptr<SliderAttachment> attackBAttachment;

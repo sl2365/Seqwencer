@@ -131,7 +131,7 @@ int main (int argumentCount, char* arguments[])
         return true;
     };
     const juce::String defaultAudioFxOrder {
-        "Gate,Delay,Reverb,Pan,Filter,Pitch,Distortion,Grain,Compressor" };
+        "Gate,Delay,Reverb,Pan,Filter,Pitch,Distortion,Grain,Compressor,Reverse,Retrigger" };
     if (readAudioFxOrder() != defaultAudioFxOrder)
     {
         std::cout << "FAIL: the default top-to-bottom FX routing was not stored\n";
@@ -297,6 +297,45 @@ int main (int argumentCount, char* arguments[])
         "Compressor Sequencer A Step 1");
     auto* compressorStepA2 = findParameterByName (
         "Compressor Sequencer A Step 2");
+    auto* reverseEnabled = findParameterByName ("Reverse Enabled");
+    auto* reverseTime = findParameterByName ("Reverse Time");
+    auto* reversePointA = findParameterByName ("Reverse Point A");
+    auto* reversePointB = findParameterByName ("Reverse Point B");
+    auto* reverseMix = findParameterByName ("Reverse Mix");
+    auto* reverseRate = findParameterByName ("Reverse Rate");
+    auto* reverseStartStep = findParameterByName ("Reverse Start Step");
+    auto* reverseEndStep = findParameterByName ("Reverse End Step");
+    auto* reverseSequenceMode = findParameterByName ("Reverse Direction");
+    auto* reverseStepA1 = findParameterByName (
+        "Reverse Sequencer A Step 1");
+    auto* reverseStepA2 = findParameterByName (
+        "Reverse Sequencer A Step 2");
+    auto* reverseModeA1 = findParameterByName (
+        "Reverse Sequencer A Reverse Step 1");
+    auto* reverseModeA2 = findParameterByName (
+        "Reverse Sequencer A Reverse Step 2");
+    auto* reverseModeB1 = findParameterByName (
+        "Reverse Sequencer B Reverse Step 1");
+    auto* retriggerEnabled = findParameterByName ("Retrigger Enabled");
+    auto* retriggerInitial = findParameterByName ("Retrigger Initial Speed");
+    auto* retriggerFinal = findParameterByName ("Retrigger Final Speed");
+    auto* retriggerTransition = findParameterByName ("Retrigger Transition");
+    auto* retriggerDecay = findParameterByName ("Retrigger Decay");
+    auto* retriggerMix = findParameterByName ("Retrigger Mix");
+    auto* retriggerRate = findParameterByName ("Retrigger Rate");
+    auto* retriggerStartStep = findParameterByName ("Retrigger Start Step");
+    auto* retriggerEndStep = findParameterByName ("Retrigger End Step");
+    auto* retriggerSequenceMode = findParameterByName ("Retrigger Direction");
+    auto* retriggerStepA1 = findParameterByName (
+        "Retrigger Sequencer A Step 1");
+    auto* retriggerStepA2 = findParameterByName (
+        "Retrigger Sequencer A Step 2");
+    auto* retriggerModeA1 = findParameterByName (
+        "Retrigger Sequencer A Retrigger Step 1");
+    auto* retriggerModeA2 = findParameterByName (
+        "Retrigger Sequencer A Retrigger Step 2");
+    auto* retriggerModeB1 = findParameterByName (
+        "Retrigger Sequencer B Retrigger Step 1");
     if (startStep == nullptr || endStep == nullptr || serialProfile == nullptr
         || bipolarA == nullptr || bipolarB == nullptr || rate == nullptr
         || hostSync == nullptr || phiBridge == nullptr
@@ -353,7 +392,21 @@ int main (int argumentCount, char* arguments[])
         || compressorMix == nullptr || compressorRate == nullptr
         || compressorStartStep == nullptr || compressorEndStep == nullptr
         || compressorSequenceMode == nullptr || compressorStepA1 == nullptr
-        || compressorStepA2 == nullptr)
+        || compressorStepA2 == nullptr || reverseEnabled == nullptr
+        || reverseTime == nullptr || reversePointA == nullptr
+        || reversePointB == nullptr || reverseMix == nullptr
+        || reverseRate == nullptr || reverseStartStep == nullptr
+        || reverseEndStep == nullptr || reverseSequenceMode == nullptr
+        || reverseStepA1 == nullptr || reverseStepA2 == nullptr
+        || reverseModeA1 == nullptr || reverseModeA2 == nullptr
+        || reverseModeB1 == nullptr || retriggerEnabled == nullptr
+        || retriggerInitial == nullptr || retriggerFinal == nullptr
+        || retriggerTransition == nullptr || retriggerDecay == nullptr
+        || retriggerMix == nullptr || retriggerRate == nullptr
+        || retriggerStartStep == nullptr || retriggerEndStep == nullptr
+        || retriggerSequenceMode == nullptr || retriggerStepA1 == nullptr
+        || retriggerStepA2 == nullptr || retriggerModeA1 == nullptr
+        || retriggerModeA2 == nullptr || retriggerModeB1 == nullptr)
     {
         std::cout << "FAIL: an FX engine parameter was not found\n";
         return 1;
@@ -364,9 +417,10 @@ int main (int argumentCount, char* arguments[])
         return 1;
     }
 
-    const std::array<juce::String, 10> rangeParameterPrefixes {
+    const std::array<juce::String, 12> rangeParameterPrefixes {
         juce::String {}, "PHI ", "Delay ", "Reverb ", "Pan ",
-        "Filter ", "Pitch ", "Distortion ", "Grain ", "Compressor "
+        "Filter ", "Pitch ", "Distortion ", "Grain ", "Compressor ",
+        "Reverse ", "Retrigger "
     };
     for (const auto& prefix : rangeParameterPrefixes)
     {
@@ -385,9 +439,9 @@ int main (int argumentCount, char* arguments[])
     std::cout << "PASS: every FX exposes an independent Link and Length state"
               << std::endl;
 
-    const std::array<juce::String, 9> internalEngineNames {
+    const std::array<juce::String, 11> internalEngineNames {
         "Gate", "Delay", "Reverb", "Pan", "Filter", "Pitch",
-        "Distortion", "Grain", "Compressor"
+        "Distortion", "Grain", "Compressor", "Reverse", "Retrigger"
     };
     for (const auto& engineName : internalEngineNames)
     {
@@ -471,7 +525,7 @@ int main (int argumentCount, char* arguments[])
         sequenceMode, phiSequenceMode, delaySequenceMode,
         reverbSequenceMode, panSequenceMode, filterSequenceMode,
         pitchSequenceMode, distortionSequenceMode, grainSequenceMode,
-        compressorSequenceMode
+        compressorSequenceMode, reverseSequenceMode, retriggerSequenceMode
     };
     for (auto* directionParameter : directionParameters)
     {
@@ -528,7 +582,7 @@ int main (int argumentCount, char* arguments[])
         return 1;
     }
     if (filterEnabled->getValue() >= 0.5f
-        || filterType->getNumSteps() != 5
+        || filterType->getNumSteps() != 6
         || filterType->getCurrentValueAsText() != "Low Pass"
         || filterRate->getNumSteps() != seqwencer::rateChoiceCount
         || filterSequenceMode->getNumSteps() != 5)
@@ -538,10 +592,11 @@ int main (int argumentCount, char* arguments[])
     }
     int filterTypeIndex = 0;
     for (const auto* expectedName : {
-             "Low Pass", "High Pass", "Band Pass", "Band Reject", "Peaking" })
+             "Low Pass", "High Pass", "Band Pass", "Band Reject", "Peaking",
+             "Comb" })
     {
         filterType->setValueNotifyingHost (
-            static_cast<float> (filterTypeIndex++) / 4.0f);
+            static_cast<float> (filterTypeIndex++) / 5.0f);
         if (filterType->getCurrentValueAsText() != expectedName)
         {
             std::cout << "FAIL: Filter Type did not expose the expected response: "
@@ -618,7 +673,67 @@ int main (int argumentCount, char* arguments[])
         std::cout << "FAIL: Compressor did not restore its safe state or complete controls\n";
         return 1;
     }
+    if (reverseEnabled->getValue() >= 0.5f
+        || reverseRate->getNumSteps() != seqwencer::rateChoiceCount
+        || reverseSequenceMode->getNumSteps() != 5
+        || std::abs (reverseTime->getValue()
+                     - reverseTime->getDefaultValue()) > 0.001f
+        || std::abs (reversePointA->getValue()
+                     - reversePointA->getDefaultValue()) > 0.001f
+        || std::abs (reversePointB->getValue()
+                     - reversePointB->getDefaultValue()) > 0.001f
+        || std::abs (reverseMix->getValue()
+                     - reverseMix->getDefaultValue()) > 0.001f
+        || reverseModeA1->getValue() >= 0.5f
+        || reverseModeA2->getValue() >= 0.5f
+        || reverseModeB1->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: Reverse did not restore its safe state or complete controls\n";
+        return 1;
+    }
+    if (retriggerEnabled->getValue() >= 0.5f
+        || retriggerRate->getNumSteps() != seqwencer::rateChoiceCount
+        || retriggerSequenceMode->getNumSteps() != 5
+        || std::abs (retriggerInitial->getValue()
+                     - retriggerInitial->getDefaultValue()) > 0.001f
+        || std::abs (retriggerFinal->getValue()
+                     - retriggerFinal->getDefaultValue()) > 0.001f
+        || std::abs (retriggerTransition->getValue()
+                     - retriggerTransition->getDefaultValue()) > 0.001f
+        || std::abs (retriggerDecay->getValue()
+                     - retriggerDecay->getDefaultValue()) > 0.001f
+        || std::abs (retriggerMix->getValue()
+                     - retriggerMix->getDefaultValue()) > 0.001f
+        || retriggerModeA1->getValue() >= 0.5f
+        || retriggerModeA2->getValue() >= 0.5f
+        || retriggerModeB1->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: Retrigger did not restore its safe state or complete controls\n";
+        return 1;
+    }
     std::cout << "PASS: all FX engine controls are exposed" << std::endl;
+
+    reverseModeA1->setValueNotifyingHost (1.0f);
+    if (reverseModeA1->getValue() < 0.5f
+        || reverseModeA2->getValue() >= 0.5f
+        || reverseModeB1->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: Reverse On/Off steps are not independent\n";
+        return 1;
+    }
+    reverseModeA1->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: Reverse On/Off steps default Off and remain independent" << std::endl;
+
+    retriggerModeA1->setValueNotifyingHost (1.0f);
+    if (retriggerModeA1->getValue() < 0.5f
+        || retriggerModeA2->getValue() >= 0.5f
+        || retriggerModeB1->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: Retrigger On/Off steps are not independent\n";
+        return 1;
+    }
+    retriggerModeA1->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: Retrigger On/Off steps default Off and remain independent" << std::endl;
 
     rate->setValueNotifyingHost (5.0f / 13.0f);
     phiRate->setValueNotifyingHost (9.0f / 13.0f);
@@ -629,6 +744,8 @@ int main (int argumentCount, char* arguments[])
     distortionRate->setValueNotifyingHost (12.0f / 13.0f);
     grainRate->setValueNotifyingHost (10.0f / 13.0f);
     compressorRate->setValueNotifyingHost (7.0f / 13.0f);
+    reverseRate->setValueNotifyingHost (2.0f / 13.0f);
+    retriggerRate->setValueNotifyingHost (4.0f / 13.0f);
     phiStepA1->setValueNotifyingHost (0.80f);
     delayStepA1->setValueNotifyingHost (0.65f);
     reverbStepA1->setValueNotifyingHost (0.35f);
@@ -637,6 +754,8 @@ int main (int argumentCount, char* arguments[])
     distortionStepA1->setValueNotifyingHost (0.45f);
     grainStepA1->setValueNotifyingHost (0.75f);
     compressorStepA1->setValueNotifyingHost (0.60f);
+    reverseStepA1->setValueNotifyingHost (0.85f);
+    retriggerStepA1->setValueNotifyingHost (0.30f);
     auto* gateStepA1ForIndependence = findParameterByName (
         "Sequencer A Step 1");
     if (gateStepA1ForIndependence == nullptr)
@@ -654,6 +773,8 @@ int main (int argumentCount, char* arguments[])
         || distortionRate->getCurrentValueAsText() != "1/2"
         || grainRate->getCurrentValueAsText() != "1/4"
         || compressorRate->getCurrentValueAsText() != "1/8T"
+        || reverseRate->getCurrentValueAsText() != "1/64"
+        || retriggerRate->getCurrentValueAsText() != "1/32"
         || std::abs (gateStepA1ForIndependence->getValue() - 0.20f) > 0.001f
         || std::abs (phiStepA1->getValue() - 0.80f) > 0.001f
         || std::abs (delayStepA1->getValue() - 0.65f) > 0.001f
@@ -662,7 +783,9 @@ int main (int argumentCount, char* arguments[])
         || std::abs (pitchStepA1->getValue() - 0.55f) > 0.001f
         || std::abs (distortionStepA1->getValue() - 0.45f) > 0.001f
         || std::abs (grainStepA1->getValue() - 0.75f) > 0.001f
-        || std::abs (compressorStepA1->getValue() - 0.60f) > 0.001f)
+        || std::abs (compressorStepA1->getValue() - 0.60f) > 0.001f
+        || std::abs (reverseStepA1->getValue() - 0.85f) > 0.001f
+        || std::abs (retriggerStepA1->getValue() - 0.30f) > 0.001f)
     {
         std::cout << "FAIL: FX timing or step data were coupled\n";
         return 1;
@@ -676,6 +799,8 @@ int main (int argumentCount, char* arguments[])
     distortionRate->setValueNotifyingHost (6.0f / 13.0f);
     grainRate->setValueNotifyingHost (6.0f / 13.0f);
     compressorRate->setValueNotifyingHost (6.0f / 13.0f);
+    reverseRate->setValueNotifyingHost (6.0f / 13.0f);
+    retriggerRate->setValueNotifyingHost (6.0f / 13.0f);
     gateStepA1ForIndependence->setValueNotifyingHost (1.0f);
     phiStepA1->setValueNotifyingHost (1.0f);
     delayStepA1->setValueNotifyingHost (1.0f);
@@ -685,6 +810,8 @@ int main (int argumentCount, char* arguments[])
     distortionStepA1->setValueNotifyingHost (1.0f);
     grainStepA1->setValueNotifyingHost (1.0f);
     compressorStepA1->setValueNotifyingHost (1.0f);
+    reverseStepA1->setValueNotifyingHost (1.0f);
+    retriggerStepA1->setValueNotifyingHost (1.0f);
     std::cout << "PASS: all FX sequencer engines are independent" << std::endl;
 
     for (const auto* name : {
@@ -943,6 +1070,90 @@ int main (int argumentCount, char* arguments[])
     }
     compressorThresholdTargetA->setValueNotifyingHost (0.0f);
     std::cout << "PASS: Threshold, Ratio, Attack, Release, Makeup and Mix expose independent Compressor targets" << std::endl;
+
+    for (const auto* name : {
+             "Reverse Sequencer A TIME Target",
+             "Reverse Sequencer A TIME Target Enabled",
+             "Reverse Sequencer A POINT A Target",
+             "Reverse Sequencer A POINT A Target Enabled",
+             "Reverse Sequencer A POINT B Target",
+             "Reverse Sequencer A POINT B Target Enabled",
+             "Reverse Sequencer A MIX Target",
+             "Reverse Sequencer A MIX Target Enabled",
+             "Reverse Sequencer B TIME Target",
+             "Reverse Sequencer B TIME Target Enabled",
+             "Reverse Sequencer B POINT A Target",
+             "Reverse Sequencer B POINT A Target Enabled",
+             "Reverse Sequencer B POINT B Target",
+             "Reverse Sequencer B POINT B Target Enabled",
+             "Reverse Sequencer B MIX Target",
+             "Reverse Sequencer B MIX Target Enabled" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Reverse target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    auto* reverseTimeTargetA = findParameterByName (
+        "Reverse Sequencer A TIME Target");
+    auto* reverseTimeTargetB = findParameterByName (
+        "Reverse Sequencer B TIME Target");
+    reverseTimeTargetA->setValueNotifyingHost (1.0f);
+    reverseTimeTargetB->setValueNotifyingHost (0.0f);
+    if (reverseTimeTargetA->getValue() < 0.5f
+        || reverseTimeTargetB->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: assigning Reverse Time to A also changed B\n";
+        return 1;
+    }
+    reverseTimeTargetA->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: Time, Point A, Point B and Mix expose independent Reverse targets" << std::endl;
+
+    for (const auto* name : {
+             "Retrigger Sequencer A INITIAL Target",
+             "Retrigger Sequencer A INITIAL Target Enabled",
+             "Retrigger Sequencer A FINAL Target",
+             "Retrigger Sequencer A FINAL Target Enabled",
+             "Retrigger Sequencer A TRANSITION Target",
+             "Retrigger Sequencer A TRANSITION Target Enabled",
+             "Retrigger Sequencer A DECAY Target",
+             "Retrigger Sequencer A DECAY Target Enabled",
+             "Retrigger Sequencer A MIX Target",
+             "Retrigger Sequencer A MIX Target Enabled",
+             "Retrigger Sequencer B INITIAL Target",
+             "Retrigger Sequencer B INITIAL Target Enabled",
+             "Retrigger Sequencer B FINAL Target",
+             "Retrigger Sequencer B FINAL Target Enabled",
+             "Retrigger Sequencer B TRANSITION Target",
+             "Retrigger Sequencer B TRANSITION Target Enabled",
+             "Retrigger Sequencer B DECAY Target",
+             "Retrigger Sequencer B DECAY Target Enabled",
+             "Retrigger Sequencer B MIX Target",
+             "Retrigger Sequencer B MIX Target Enabled" })
+    {
+        if (findParameterByName (name) == nullptr)
+        {
+            std::cout << "FAIL: assignable Retrigger target parameter was not found: "
+                      << name << "\n";
+            return 1;
+        }
+    }
+    auto* retriggerInitialTargetA = findParameterByName (
+        "Retrigger Sequencer A INITIAL Target");
+    auto* retriggerInitialTargetB = findParameterByName (
+        "Retrigger Sequencer B INITIAL Target");
+    retriggerInitialTargetA->setValueNotifyingHost (1.0f);
+    retriggerInitialTargetB->setValueNotifyingHost (0.0f);
+    if (retriggerInitialTargetA->getValue() < 0.5f
+        || retriggerInitialTargetB->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: assigning Retrigger Initial to A also changed B\n";
+        return 1;
+    }
+    retriggerInitialTargetA->setValueNotifyingHost (0.0f);
+    std::cout << "PASS: Initial, Final, Transition, Decay and Mix expose independent Retrigger targets" << std::endl;
 
     auto* gateEnabled = findParameterByName ("Gate Enabled");
     auto* gateVolume = findParameterByName ("Gate Volume");
@@ -1304,14 +1515,33 @@ int main (int argumentCount, char* arguments[])
             squaredTotal / static_cast<double> (measuredSamples)));
     };
 
-    const auto highPassDcRms = measureFilterRms (0.25f, true);
-    const auto bandPassRms = measureFilterRms (0.50f, false);
-    const auto bandRejectRms = measureFilterRms (0.75f, false);
-    const auto peakingRms = measureFilterRms (1.0f, false);
+    const auto highPassDcRms = measureFilterRms (0.20f, true);
+    const auto bandPassRms = measureFilterRms (0.40f, false);
+    const auto bandRejectRms = measureFilterRms (0.60f, false);
+    const auto peakingRms = measureFilterRms (0.80f, false);
     if (highPassDcRms > 0.01f || bandPassRms < 0.10f
         || bandRejectRms > 0.05f || peakingRms < 0.30f)
     {
         std::cout << "FAIL: one or more Filter Type responses were incorrect\n";
+        return 1;
+    }
+
+    filterType->setValueNotifyingHost (1.0f);
+    filterCutoff->setValueNotifyingHost (0.0f);
+    filterResonance->setValueNotifyingHost (1.0f);
+    juce::AudioBuffer<float> combAudio (2, filterTestSampleCount);
+    combAudio.clear();
+    for (int channel = 0; channel < combAudio.getNumChannels(); ++channel)
+        combAudio.setSample (channel, 0, 1.0f);
+    instance->prepareToPlay (48000.0, filterTestSampleCount);
+    instance->processBlock (combAudio, midi);
+    instance->releaseResources();
+    const auto combRepeat = combAudio.getSample (0, 2400);
+    if (std::abs (combAudio.getSample (0, 1200)) > 0.00001f
+        || combRepeat < 0.040f || combRepeat > 0.055f)
+    {
+        std::cout << "FAIL: Comb Filter did not repeat at its Cutoff-tuned delay ("
+                  << combRepeat << ")\n";
         return 1;
     }
 
@@ -1340,7 +1570,7 @@ int main (int argumentCount, char* arguments[])
         std::cout << "FAIL: disabled Filter still altered the audio\n";
         return 1;
     }
-    std::cout << "PASS: all five Filter Types process correctly and disable cleanly" << std::endl;
+    std::cout << "PASS: all six Filter Types, including Comb, process correctly and disable cleanly" << std::endl;
 
     gateEnabled->setValueNotifyingHost (0.0f);
     delayEnabled->setValueNotifyingHost (0.0f);
@@ -1663,6 +1893,174 @@ int main (int argumentCount, char* arguments[])
     }
     std::cout << "PASS: Compressor applies stereo-linked gain reduction and disables cleanly" << std::endl;
 
+    gateEnabled->setValueNotifyingHost (0.0f);
+    noiseGateEnabled->setValueNotifyingHost (0.0f);
+    delayEnabled->setValueNotifyingHost (0.0f);
+    reverbEnabled->setValueNotifyingHost (0.0f);
+    panEnabled->setValueNotifyingHost (0.0f);
+    filterEnabled->setValueNotifyingHost (0.0f);
+    pitchEnabled->setValueNotifyingHost (0.0f);
+    distortionEnabled->setValueNotifyingHost (0.0f);
+    grainEnabled->setValueNotifyingHost (0.0f);
+    compressorEnabled->setValueNotifyingHost (0.0f);
+    reverseTime->setValueNotifyingHost (0.0f);   // 25 ms = 1200 samples.
+    reversePointA->setValueNotifyingHost (0.0f);
+    reversePointB->setValueNotifyingHost (1.0f);
+    reverseMix->setValueNotifyingHost (1.0f);
+    reverseEnabled->setValueNotifyingHost (1.0f);
+    constexpr int reverseTestSampleCount = 2400;
+    constexpr int reverseTestBlockSize = 480;
+    constexpr int reverseCaptureSamples = 1200;
+    juce::AudioBuffer<float> reverseFxAudio (2, reverseTestSampleCount);
+    reverseFxAudio.clear();
+    for (int channel = 0; channel < reverseFxAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < reverseCaptureSamples; ++sample)
+            reverseFxAudio.setSample (
+                channel, sample,
+                static_cast<float> (sample)
+                    / static_cast<float> (reverseCaptureSamples - 1));
+    instance->prepareToPlay (48000.0, reverseTestBlockSize);
+    for (int offset = 0; offset < reverseCaptureSamples;
+         offset += reverseTestBlockSize)
+    {
+        const auto blockSamples = std::min (
+            reverseTestBlockSize, reverseCaptureSamples - offset);
+        juce::AudioBuffer<float> reverseBlock (
+            reverseFxAudio.getArrayOfWritePointers(),
+            reverseFxAudio.getNumChannels(), offset, blockSamples);
+        juce::MidiBuffer reverseMidi;
+        instance->processBlock (reverseBlock, reverseMidi);
+    }
+    reverseModeA1->setValueNotifyingHost (1.0f);
+    for (int offset = reverseCaptureSamples; offset < reverseTestSampleCount;
+         offset += reverseTestBlockSize)
+    {
+        const auto blockSamples = std::min (
+            reverseTestBlockSize, reverseTestSampleCount - offset);
+        juce::AudioBuffer<float> reverseBlock (
+            reverseFxAudio.getArrayOfWritePointers(),
+            reverseFxAudio.getNumChannels(), offset, blockSamples);
+        juce::MidiBuffer reverseMidi;
+        instance->processBlock (reverseBlock, reverseMidi);
+    }
+    instance->releaseResources();
+    const auto earlierReverseSample = reverseFxAudio.getSample (0, 1450);
+    const auto laterReverseSample = reverseFxAudio.getSample (0, 1650);
+    if (earlierReverseSample < 0.70f
+        || laterReverseSample > 0.70f
+        || earlierReverseSample - laterReverseSample < 0.10f)
+    {
+        std::cout << "FAIL: Reverse did not play the captured ramp backward ("
+                  << earlierReverseSample << " then "
+                  << laterReverseSample << ")\n";
+        return 1;
+    }
+
+    reverseModeA1->setValueNotifyingHost (0.0f);
+    reverseEnabled->setValueNotifyingHost (0.0f);
+    juce::AudioBuffer<float> bypassedReverseAudio (2, offTestSampleCount);
+    for (int channel = 0; channel < bypassedReverseAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+            bypassedReverseAudio.setSample (
+                channel, sample, (sample & 1) == 0 ? 0.25f : -0.25f);
+    instance->prepareToPlay (48000.0, offTestSampleCount);
+    instance->processBlock (bypassedReverseAudio, midi);
+    instance->releaseResources();
+    auto reverseBypassError = 0.0f;
+    for (int channel = 0; channel < bypassedReverseAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+        {
+            const auto expected = (sample & 1) == 0 ? 0.25f : -0.25f;
+            reverseBypassError = std::max (
+                reverseBypassError,
+                std::abs (bypassedReverseAudio.getSample (channel, sample)
+                          - expected));
+        }
+    if (reverseBypassError > 0.00001f)
+    {
+        std::cout << "FAIL: disabled Reverse still altered the audio\n";
+        return 1;
+    }
+    std::cout << "PASS: an enabled Reverse step plays preceding audio backward and disabled Reverse bypasses cleanly" << std::endl;
+
+    retriggerInitial->setValueNotifyingHost (
+        retriggerInitial->getDefaultValue());
+    retriggerFinal->setValueNotifyingHost (
+        retriggerFinal->getDefaultValue());
+    retriggerTransition->setValueNotifyingHost (0.0f);
+    retriggerDecay->setValueNotifyingHost (1.0f);
+    retriggerMix->setValueNotifyingHost (1.0f);
+    // Canonical 0.75 is a visible 50% height in the Unipolar step grid.
+    retriggerStepA1->setValueNotifyingHost (0.75f);
+    retriggerStepA2->setValueNotifyingHost (0.75f);
+    retriggerModeA1->setValueNotifyingHost (1.0f);
+    retriggerModeA2->setValueNotifyingHost (1.0f);
+    retriggerEnabled->setValueNotifyingHost (1.0f);
+    constexpr int retriggerTestSampleCount = 18000;
+    constexpr int retriggerTestBlockSize = 480;
+    constexpr int retriggerCaptureSamples = 3000; // Default 2 repeats per step.
+    juce::AudioBuffer<float> retriggerAudio (2, retriggerTestSampleCount);
+    retriggerAudio.clear();
+    for (int channel = 0; channel < retriggerAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < retriggerCaptureSamples; ++sample)
+            retriggerAudio.setSample (
+                channel, sample,
+                static_cast<float> (sample)
+                    / static_cast<float> (retriggerCaptureSamples - 1));
+    instance->prepareToPlay (48000.0, retriggerTestBlockSize);
+    for (int offset = 0; offset < retriggerTestSampleCount;
+         offset += retriggerTestBlockSize)
+    {
+        const auto blockSamples = std::min (
+            retriggerTestBlockSize, retriggerTestSampleCount - offset);
+        juce::AudioBuffer<float> retriggerBlock (
+            retriggerAudio.getArrayOfWritePointers(),
+            retriggerAudio.getNumChannels(), offset, blockSamples);
+        juce::MidiBuffer retriggerMidi;
+        instance->processBlock (retriggerBlock, retriggerMidi);
+    }
+    instance->releaseResources();
+    const auto firstRetrigger = retriggerAudio.getSample (0, 3500);
+    const auto decayedRetrigger = retriggerAudio.getSample (0, 6500);
+    if (firstRetrigger < 0.075f || firstRetrigger > 0.095f
+        || decayedRetrigger < 0.035f || decayedRetrigger > 0.050f
+        || decayedRetrigger >= firstRetrigger)
+    {
+        std::cout << "FAIL: Retrigger step height, repeat or decay was incorrect ("
+                  << firstRetrigger << " then " << decayedRetrigger << ")\n";
+        return 1;
+    }
+
+    retriggerEnabled->setValueNotifyingHost (0.0f);
+    retriggerModeA1->setValueNotifyingHost (0.0f);
+    retriggerModeA2->setValueNotifyingHost (0.0f);
+    retriggerStepA1->setValueNotifyingHost (1.0f);
+    retriggerStepA2->setValueNotifyingHost (1.0f);
+    juce::AudioBuffer<float> bypassedRetriggerAudio (2, offTestSampleCount);
+    for (int channel = 0; channel < bypassedRetriggerAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+            bypassedRetriggerAudio.setSample (
+                channel, sample, (sample & 1) == 0 ? 0.25f : -0.25f);
+    instance->prepareToPlay (48000.0, offTestSampleCount);
+    instance->processBlock (bypassedRetriggerAudio, midi);
+    instance->releaseResources();
+    auto retriggerBypassError = 0.0f;
+    for (int channel = 0; channel < bypassedRetriggerAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < offTestSampleCount; ++sample)
+        {
+            const auto expected = (sample & 1) == 0 ? 0.25f : -0.25f;
+            retriggerBypassError = std::max (
+                retriggerBypassError,
+                std::abs (bypassedRetriggerAudio.getSample (channel, sample)
+                          - expected));
+        }
+    if (retriggerBypassError > 0.00001f)
+    {
+        std::cout << "FAIL: disabled Retrigger still altered the audio\n";
+        return 1;
+    }
+    std::cout << "PASS: Retrigger step height scales its repeats, Decay fades them, and disabled steps bypass cleanly" << std::endl;
+
     delayEnabled->setValueNotifyingHost (0.0f);
     reverbEnabled->setValueNotifyingHost (0.0f);
     panEnabled->setValueNotifyingHost (0.0f);
@@ -1670,6 +2068,8 @@ int main (int argumentCount, char* arguments[])
     pitchEnabled->setValueNotifyingHost (0.0f);
     grainEnabled->setValueNotifyingHost (0.0f);
     compressorEnabled->setValueNotifyingHost (0.0f);
+    reverseEnabled->setValueNotifyingHost (0.0f);
+    retriggerEnabled->setValueNotifyingHost (0.0f);
     noiseGateEnabled->setValueNotifyingHost (0.0f);
     gateEnabled->setValueNotifyingHost (1.0f);
     gateVolume->setValueNotifyingHost (0.25f);
@@ -1726,7 +2126,7 @@ int main (int argumentCount, char* arguments[])
     }
     const auto gateThenDistortion = measureRoutedOutput();
     const juce::String distortionFirstOrder {
-        "Distortion,Gate,Delay,Reverb,Pan,Filter,Pitch,Grain,Compressor" };
+        "Distortion,Gate,Delay,Reverb,Pan,Filter,Pitch,Grain,Compressor,Reverse,Retrigger" };
     if (! setAudioFxOrder (distortionFirstOrder)
         || readAudioFxOrder() != distortionFirstOrder)
     {

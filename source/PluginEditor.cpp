@@ -25,6 +25,8 @@ constexpr auto pitchAccent = 0xff66d9ff;
 constexpr auto distortionAccent = 0xffff684f;
 constexpr auto grainAccent = 0xffa8e063;
 constexpr auto compressorAccent = 0xff8f9cff;
+constexpr auto reverseAccent = 0xfff2b35d;
+constexpr auto retriggerAccent = 0xffe57ad7;
 constexpr auto phiAccent = 0xff68a8ff;
 constexpr auto targetDragPrefix = "seqwencer-target:";
 constexpr int designWidth = 1280;
@@ -170,6 +172,39 @@ constexpr std::array<seqwencer::ModulationTarget,
         seqwencer::ModulationTarget::compressorSequencerStart,
         seqwencer::ModulationTarget::compressorSequencerEnd,
         seqwencer::ModulationTarget::compressorSequencerLength
+    };
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::reverseModulationTargetCount>
+    reverseTargets {
+        seqwencer::ModulationTarget::reverseTime,
+        seqwencer::ModulationTarget::reversePointA,
+        seqwencer::ModulationTarget::reversePointB,
+        seqwencer::ModulationTarget::reverseMix,
+        seqwencer::ModulationTarget::reverseSequencerAAttack,
+        seqwencer::ModulationTarget::reverseSequencerARelease,
+        seqwencer::ModulationTarget::reverseSequencerBAttack,
+        seqwencer::ModulationTarget::reverseSequencerBRelease,
+        seqwencer::ModulationTarget::reverseSequencerStart,
+        seqwencer::ModulationTarget::reverseSequencerEnd,
+        seqwencer::ModulationTarget::reverseSequencerLength
+    };
+
+constexpr std::array<seqwencer::ModulationTarget,
+                     seqwencer::retriggerModulationTargetCount>
+    retriggerTargets {
+        seqwencer::ModulationTarget::retriggerInitialSpeed,
+        seqwencer::ModulationTarget::retriggerFinalSpeed,
+        seqwencer::ModulationTarget::retriggerTransition,
+        seqwencer::ModulationTarget::retriggerDecay,
+        seqwencer::ModulationTarget::retriggerMix,
+        seqwencer::ModulationTarget::retriggerSequencerAAttack,
+        seqwencer::ModulationTarget::retriggerSequencerARelease,
+        seqwencer::ModulationTarget::retriggerSequencerBAttack,
+        seqwencer::ModulationTarget::retriggerSequencerBRelease,
+        seqwencer::ModulationTarget::retriggerSequencerStart,
+        seqwencer::ModulationTarget::retriggerSequencerEnd,
+        seqwencer::ModulationTarget::retriggerSequencerLength
     };
 
 juce::String targetDragID (seqwencer::ModulationTarget target)
@@ -495,7 +530,11 @@ public:
     {
         auto& state = processor.getParameterState();
         gateEnabledParameter = state.getParameter ("gate_enabled");
+        reverseEnabledParameter = state.getParameter ("reverse_enabled");
+        retriggerEnabledParameter = state.getParameter ("retrigger_enabled");
         jassert (gateEnabledParameter != nullptr);
+        jassert (reverseEnabledParameter != nullptr);
+        jassert (retriggerEnabledParameter != nullptr);
         setEngine (seqwencer::SequencerEngine::gate);
         setMouseCursor (juce::MouseCursor::CrosshairCursor);
     }
@@ -582,6 +621,10 @@ public:
                 return "grain_" + gateID;
             if (newEngine == seqwencer::SequencerEngine::compressor)
                 return "compressor_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::reverse)
+                return "reverse_" + gateID;
+            if (newEngine == seqwencer::SequencerEngine::retrigger)
+                return "retrigger_" + gateID;
             return gateID;
         };
 
@@ -617,6 +660,12 @@ public:
                 if (newEngine == seqwencer::SequencerEngine::compressor)
                     return SeqwencerAudioProcessor::compressorStepParameterID (
                         stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::reverse)
+                    return SeqwencerAudioProcessor::reverseStepParameterID (
+                        stepBank, stepIndex);
+                if (newEngine == seqwencer::SequencerEngine::retrigger)
+                    return SeqwencerAudioProcessor::retriggerStepParameterID (
+                        stepBank, stepIndex);
                 return SeqwencerAudioProcessor::stepParameterID (
                     stepBank, stepIndex);
             };
@@ -625,8 +674,14 @@ public:
                 stepID (bank == 0 ? 1 : 0, step));
             gateModeParameters[index] = state.getParameter (
                 SeqwencerAudioProcessor::gateModeParameterID (bank, step));
+            reverseModeParameters[index] = state.getParameter (
+                SeqwencerAudioProcessor::reverseModeParameterID (bank, step));
+            retriggerModeParameters[index] = state.getParameter (
+                SeqwencerAudioProcessor::retriggerModeParameterID (bank, step));
             jassert (stepParameters[index] != nullptr);
             jassert (otherBankStepParameters[index] != nullptr);
+            jassert (reverseModeParameters[index] != nullptr);
+            jassert (retriggerModeParameters[index] != nullptr);
         }
 
         attackAParameter = state.getParameter (parameterID ("seq_a_attack"));
@@ -726,6 +781,48 @@ public:
                                             modeIsActive ? 1.0f : 0.55f));
                 graphics.drawRoundedRectangle (cell, 2.0f,
                                                step == activeStep ? 1.4f : 0.8f);
+
+                if (! isStepInPlaybackRange (step))
+                {
+                    graphics.setColour (juce::Colour (0xb0101419));
+                    graphics.fillRoundedRectangle (cell, 2.0f);
+                }
+            }
+        }
+        else if (engine == seqwencer::SequencerEngine::reverse
+                 || engine == seqwencer::SequencerEngine::retrigger)
+        {
+            const auto stepModes = engine == seqwencer::SequencerEngine::reverse
+                ? readReverseModes() : readRetriggerModes();
+            const auto modeRow = getGateModeBounds();
+            const auto modeIsActive = engine == seqwencer::SequencerEngine::reverse
+                ? isReverseModeActive() : isRetriggerModeActive();
+            for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+            {
+                const auto left = modeRow.getX()
+                                + columnWidth * static_cast<float> (step);
+                const auto cell = juce::Rectangle<float> {
+                    left + 1.0f, modeRow.getY(),
+                    juce::jmax (1.0f, columnWidth - 2.0f), modeRow.getHeight()
+                };
+                const auto on = stepModes[static_cast<std::size_t> (step)];
+                const auto cellAccent = accent.withMultipliedAlpha (
+                    modeIsActive ? (step == activeStep ? 0.95f : 0.72f) : 0.22f);
+
+                graphics.setColour (juce::Colour (0xff111820));
+                graphics.fillRoundedRectangle (cell, 2.0f);
+                if (on)
+                {
+                    graphics.setColour (cellAccent);
+                    graphics.fillRoundedRectangle (cell.reduced (2.0f), 1.5f);
+                }
+                graphics.setColour ((on
+                                         ? cellAccent.brighter (0.18f)
+                                         : juce::Colour (panelOutline))
+                                        .withMultipliedAlpha (
+                                            modeIsActive ? 1.0f : 0.55f));
+                graphics.drawRoundedRectangle (
+                    cell, 2.0f, step == activeStep ? 1.4f : 0.8f);
 
                 if (! isStepInPlaybackRange (step))
                 {
@@ -919,10 +1016,17 @@ public:
     {
         const auto inGateModeRow = engine == seqwencer::SequencerEngine::gate
                                 && getGateModeBounds().contains (event.position);
+        const auto inReverseModeRow =
+            engine == seqwencer::SequencerEngine::reverse
+            && getGateModeBounds().contains (event.position);
+        const auto inRetriggerModeRow =
+            engine == seqwencer::SequencerEngine::retrigger
+            && getGateModeBounds().contains (event.position);
         const auto inSubdivisionRow = getSubdivisionBounds().contains (
             event.position);
         const auto inGraph = getGraphBounds().contains (event.position);
-        if (! inGateModeRow && ! inSubdivisionRow && ! inGraph)
+        if (! inGateModeRow && ! inReverseModeRow && ! inRetriggerModeRow
+            && ! inSubdivisionRow && ! inGraph)
             return;
 
         const auto step = stepAtPosition (event.position);
@@ -940,6 +1044,22 @@ public:
                 showGateMenu();
             else if (event.mods.isLeftButtonDown())
                 cycleGateMode (step);
+            return;
+        }
+        if (inReverseModeRow)
+        {
+            if (event.mods.isRightButtonDown())
+                showReverseMenu();
+            else if (event.mods.isLeftButtonDown())
+                toggleReverseMode (step);
+            return;
+        }
+        if (inRetriggerModeRow)
+        {
+            if (event.mods.isRightButtonDown())
+                showRetriggerMenu();
+            else if (event.mods.isLeftButtonDown())
+                toggleRetriggerMode (step);
             return;
         }
 
@@ -1034,7 +1154,15 @@ private:
         subdivisionOff = 201,
         subdivisionHalf,
         subdivisionTwo,
-        subdivisionThree
+        subdivisionThree,
+        reverseAllOff = 301,
+        reverseAllOn,
+        retriggerAllOff = 401,
+        retriggerAllOn,
+        retriggerRandom,
+        retriggerReset,
+        retriggerCopy,
+        retriggerPaste
     };
 
     juce::Rectangle<float> getGateModeBounds() const
@@ -1062,7 +1190,9 @@ private:
     juce::Rectangle<float> getGraphBounds() const
     {
         const auto inner = getLocalBounds().toFloat().reduced (7.0f);
-        const auto graphTop = engine == seqwencer::SequencerEngine::gate
+        const auto graphTop = (engine == seqwencer::SequencerEngine::gate
+                            || engine == seqwencer::SequencerEngine::reverse
+                            || engine == seqwencer::SequencerEngine::retrigger)
             ? getGateModeBounds().getBottom() + 4.0f
             : inner.getY() + 9.0f;
         const auto graphBottom = getSubdivisionBounds().getY() - 4.0f;
@@ -1131,6 +1261,22 @@ private:
         return modes;
     }
 
+    seqwencer::ReverseStepPattern readReverseModes() const
+    {
+        seqwencer::ReverseStepPattern modes {};
+        for (std::size_t step = 0; step < modes.size(); ++step)
+            modes[step] = readParameter (reverseModeParameters[step]) >= 0.5f;
+        return modes;
+    }
+
+    seqwencer::RetriggerStepPattern readRetriggerModes() const
+    {
+        seqwencer::RetriggerStepPattern modes {};
+        for (std::size_t step = 0; step < modes.size(); ++step)
+            modes[step] = readParameter (retriggerModeParameters[step]) >= 0.5f;
+        return modes;
+    }
+
     static float readParameter (const juce::RangedAudioParameter* parameter,
                                 float fallback = 0.0f)
     {
@@ -1146,6 +1292,16 @@ private:
     bool isGateModeActive() const
     {
         return readParameter (gateEnabledParameter) >= 0.5f;
+    }
+
+    bool isReverseModeActive() const
+    {
+        return readParameter (reverseEnabledParameter) >= 0.5f;
+    }
+
+    bool isRetriggerModeActive() const
+    {
+        return readParameter (retriggerEnabledParameter) >= 0.5f;
     }
 
     seqwencer::StepRange getPlaybackRange() const
@@ -1383,6 +1539,36 @@ private:
         repaint();
     }
 
+    void toggleReverseMode (int step)
+    {
+        const auto index = static_cast<std::size_t> (
+            juce::jlimit (0, seqwencer::stepsPerBank - 1, step));
+        auto* parameter = reverseModeParameters[index];
+        if (parameter == nullptr)
+            return;
+
+        const auto next = readParameter (parameter) >= 0.5f ? 0.0f : 1.0f;
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost (parameter->convertTo0to1 (next));
+        parameter->endChangeGesture();
+        repaint();
+    }
+
+    void toggleRetriggerMode (int step)
+    {
+        const auto index = static_cast<std::size_t> (
+            juce::jlimit (0, seqwencer::stepsPerBank - 1, step));
+        auto* parameter = retriggerModeParameters[index];
+        if (parameter == nullptr)
+            return;
+
+        const auto next = readParameter (parameter) >= 0.5f ? 0.0f : 1.0f;
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost (parameter->convertTo0to1 (next));
+        parameter->endChangeGesture();
+        repaint();
+    }
+
     void setCanonicalStepValues (const seqwencer::Pattern& values)
     {
         endGestures();
@@ -1410,6 +1596,38 @@ private:
             parameter->beginChangeGesture();
             parameter->setValueNotifyingHost (parameter->convertTo0to1 (
                 static_cast<float> (modes[step])));
+            parameter->endChangeGesture();
+        }
+        repaint();
+    }
+
+    void setReverseModes (const seqwencer::ReverseStepPattern& modes)
+    {
+        endGestures();
+        for (std::size_t step = 0; step < modes.size(); ++step)
+        {
+            auto* parameter = reverseModeParameters[step];
+            if (parameter == nullptr)
+                continue;
+            parameter->beginChangeGesture();
+            parameter->setValueNotifyingHost (parameter->convertTo0to1 (
+                modes[step] ? 1.0f : 0.0f));
+            parameter->endChangeGesture();
+        }
+        repaint();
+    }
+
+    void setRetriggerModes (const seqwencer::RetriggerStepPattern& modes)
+    {
+        endGestures();
+        for (std::size_t step = 0; step < modes.size(); ++step)
+        {
+            auto* parameter = retriggerModeParameters[step];
+            if (parameter == nullptr)
+                continue;
+            parameter->beginChangeGesture();
+            parameter->setValueNotifyingHost (parameter->convertTo0to1 (
+                modes[step] ? 1.0f : 0.0f));
             parameter->endChangeGesture();
         }
         repaint();
@@ -1471,6 +1689,47 @@ private:
             {
                 if (safeThis != nullptr && result != 0)
                     safeThis->performGateMenuCommand (result);
+            });
+    }
+
+    void showReverseMenu()
+    {
+        endGestures();
+        juce::PopupMenu menu;
+        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
+        menu.addItem (reverseAllOn, "All On");
+        menu.addItem (reverseAllOff, "All Off");
+        juce::Component::SafePointer<StepGrid> safeThis (this);
+        menu.showMenuAsync (
+            juce::PopupMenu::Options().withTargetComponent (this),
+            [safeThis] (int result)
+            {
+                if (safeThis != nullptr && result != 0)
+                    safeThis->performReverseMenuCommand (result);
+            });
+    }
+
+    void showRetriggerMenu()
+    {
+        endGestures();
+        juce::PopupMenu menu;
+        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
+        menu.addItem (retriggerAllOff, "All Off");
+        menu.addItem (retriggerAllOn, "All On");
+        menu.addItem (retriggerRandom, "Random");
+        menu.addSeparator();
+        menu.addItem (retriggerReset, "Reset");
+        menu.addSeparator();
+        menu.addItem (retriggerCopy, "Copy");
+        menu.addItem (retriggerPaste, "Paste",
+                      hasRetriggerClipboard && retriggerClipboardBank != bank);
+        juce::Component::SafePointer<StepGrid> safeThis (this);
+        menu.showMenuAsync (
+            juce::PopupMenu::Options().withTargetComponent (this),
+            [safeThis] (int result)
+            {
+                if (safeThis != nullptr && result != 0)
+                    safeThis->performRetriggerMenuCommand (result);
             });
     }
 
@@ -1598,6 +1857,48 @@ private:
         setGateModes (modes);
     }
 
+    void performReverseMenuCommand (int command)
+    {
+        seqwencer::ReverseStepPattern modes {};
+        modes.fill (command == reverseAllOn);
+        setReverseModes (modes);
+    }
+
+    void performRetriggerMenuCommand (int command)
+    {
+        if (command == retriggerCopy)
+        {
+            retriggerClipboard = readRetriggerModes();
+            retriggerClipboardBank = bank;
+            hasRetriggerClipboard = true;
+            return;
+        }
+        if (command == retriggerPaste)
+        {
+            if (hasRetriggerClipboard && retriggerClipboardBank != bank)
+                setRetriggerModes (retriggerClipboard);
+            return;
+        }
+        if (command == retriggerReset)
+        {
+            restoreFromPreset (true);
+            return;
+        }
+
+        seqwencer::RetriggerStepPattern modes {};
+        if (command == retriggerRandom)
+        {
+            auto& random = juce::Random::getSystemRandom();
+            for (auto& mode : modes)
+                mode = random.nextBool();
+        }
+        else
+        {
+            modes.fill (command == retriggerAllOn);
+        }
+        setRetriggerModes (modes);
+    }
+
     void performSubdivisionMenuCommand (int command)
     {
         const auto targetMode = command == subdivisionHalf
@@ -1635,11 +1936,11 @@ private:
         setSubdivisions (subdivisions);
     }
 
-    void restoreFromPreset (bool gateModesOnly)
+    void restoreFromPreset (bool stepModesOnly)
     {
         juce::String error;
         if (! processor.restoreSequenceFromCurrentPreset (
-                engine, bank, gateModesOnly, error))
+                engine, bank, stepModesOnly, error))
         {
             juce::AlertWindow::showMessageBoxAsync (
                 juce::MessageBoxIconType::WarningIcon,
@@ -1663,10 +1964,10 @@ private:
         }
 
         const auto suggestedFile = sequenceDirectory.getNonexistentChildFile (
-            bank == 0 ? "Sequence A" : "Sequence B", ".sqwseq", false);
+            bank == 0 ? "Sequence A" : "Sequence B", ".ini", false);
         sequenceFileChooser = std::make_unique<juce::FileChooser> (
             bank == 0 ? "Save Sequencer A" : "Save Sequencer B",
-            suggestedFile, "*.sqwseq", true, false, this);
+            suggestedFile, "*.ini", true, false, this);
         juce::Component::SafePointer<StepGrid> safeThis (this);
         sequenceFileChooser->launchAsync (
             juce::FileBrowserComponent::saveMode
@@ -1679,8 +1980,8 @@ private:
                 auto file = chooser.getResult();
                 if (file.getFullPathName().isEmpty())
                     return;
-                if (! file.hasFileExtension (".sqwseq"))
-                    file = file.withFileExtension (".sqwseq");
+                if (! file.hasFileExtension (".ini"))
+                    file = file.withFileExtension (".ini");
 
                 juce::String error;
                 if (! safeThis->processor.savePortableSequence (
@@ -1753,6 +2054,10 @@ private:
         otherBankStepParameters {};
     std::array<juce::RangedAudioParameter*, seqwencer::stepsPerBank>
         gateModeParameters {};
+    std::array<juce::RangedAudioParameter*, seqwencer::stepsPerBank>
+        reverseModeParameters {};
+    std::array<juce::RangedAudioParameter*, seqwencer::stepsPerBank>
+        retriggerModeParameters {};
     std::array<bool, seqwencer::stepsPerBank> gestureActive {};
     juce::RangedAudioParameter* attackAParameter = nullptr;
     juce::RangedAudioParameter* releaseAParameter = nullptr;
@@ -1767,6 +2072,8 @@ private:
     juce::RangedAudioParameter* bipolarAParameter = nullptr;
     juce::RangedAudioParameter* bipolarBParameter = nullptr;
     juce::RangedAudioParameter* gateEnabledParameter = nullptr;
+    juce::RangedAudioParameter* reverseEnabledParameter = nullptr;
+    juce::RangedAudioParameter* retriggerEnabledParameter = nullptr;
     bool dragging = false;
     bool hasLastDragPosition = false;
     juce::Point<float> lastDragPosition;
@@ -1774,12 +2081,15 @@ private:
     inline static seqwencer::Pattern stepClipboard {};
     inline static seqwencer::StepSubdivisionPattern subdivisionClipboard {};
     inline static seqwencer::GateModePattern gateClipboard {};
+    inline static seqwencer::RetriggerStepPattern retriggerClipboard {};
     inline static seqwencer::SequencerEngine stepClipboardEngine =
         seqwencer::SequencerEngine::gate;
     inline static int stepClipboardBank = -1;
     inline static int gateClipboardBank = -1;
+    inline static int retriggerClipboardBank = -1;
     inline static bool hasStepClipboard = false;
     inline static bool hasGateClipboard = false;
+    inline static bool hasRetriggerClipboard = false;
 };
 
 class SeqwencerAudioProcessorEditor::PatternNudgeControls final
@@ -1824,7 +2134,7 @@ public:
         if (gateVisible)
             graphics.drawText ("GATE", 0, 0, 49, rowHeight,
                                juce::Justification::centredRight, false);
-        graphics.drawText ("STEPS", 0, rowHeight, 49, rowHeight,
+        graphics.drawText ("STEPS", 0, stepsRowY, 49, rowHeight,
                            juce::Justification::centredRight, false);
     }
 
@@ -1832,8 +2142,8 @@ public:
     {
         gateLeft.setBounds (55, 1, 31, rowHeight - 2);
         gateRight.setBounds (92, 1, 31, rowHeight - 2);
-        stepsLeft.setBounds (55, rowHeight + 1, 31, rowHeight - 2);
-        stepsRight.setBounds (92, rowHeight + 1, 31, rowHeight - 2);
+        stepsLeft.setBounds (55, stepsRowY + 1, 31, rowHeight - 2);
+        stepsRight.setBounds (92, stepsRowY + 1, 31, rowHeight - 2);
     }
 
 private:
@@ -1850,6 +2160,8 @@ private:
     }
 
     static constexpr int rowHeight = 22;
+    static constexpr int rowGap = 5;
+    static constexpr int stepsRowY = rowHeight + rowGap;
     StepGrid& grid;
     juce::Colour accent;
     bool gateVisible = true;
@@ -2847,6 +3159,32 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     compressorMixParameterLabel =
         std::make_unique<ModulationParameterLabel> (
             processor, seqwencer::ModulationTarget::compressorMix);
+    reverseTimeParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::reverseTime);
+    reversePointAParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::reversePointA, "POINT A");
+    reversePointBParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::reversePointB, "POINT B");
+    reverseMixParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::reverseMix);
+    retriggerInitialParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::retriggerInitialSpeed,
+            "INITIAL");
+    retriggerFinalParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::retriggerFinalSpeed,
+            "FINAL");
+    retriggerTransitionParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::retriggerTransition,
+            "TRANSITION");
+    retriggerDecayParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::retriggerDecay);
+    retriggerMixParameterLabel =
+        std::make_unique<ModulationParameterLabel> (
+            processor, seqwencer::ModulationTarget::retriggerMix);
     attackAParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::gateSequencerAAttack,
         "ATTACK");
@@ -2941,6 +3279,26 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         std::vector<seqwencer::ModulationTarget> (
             compressorTargets.begin(), compressorTargets.end()),
         "compressor_playback_mode");
+    reverseTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            reverseTargets.begin(), reverseTargets.end()),
+        "reverse_playback_mode");
+    reverseTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            reverseTargets.begin(), reverseTargets.end()),
+        "reverse_playback_mode");
+    retriggerTargetListA = std::make_unique<TargetList> (
+        processor, 0, laneAColour,
+        std::vector<seqwencer::ModulationTarget> (
+            retriggerTargets.begin(), retriggerTargets.end()),
+        "retrigger_playback_mode");
+    retriggerTargetListB = std::make_unique<TargetList> (
+        processor, 1, laneBColour,
+        std::vector<seqwencer::ModulationTarget> (
+            retriggerTargets.begin(), retriggerTargets.end()),
+        "retrigger_playback_mode");
     gateFxButton = std::make_unique<FxSelectorButton> (
         "GATE", juce::Colour (gateAccent),
         static_cast<int> (seqwencer::AudioFxStage::gate));
@@ -2968,6 +3326,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     compressorFxButton = std::make_unique<FxSelectorButton> (
         "COMP", juce::Colour (compressorAccent),
         static_cast<int> (seqwencer::AudioFxStage::compressor));
+    reverseFxButton = std::make_unique<FxSelectorButton> (
+        "REVRSE", juce::Colour (reverseAccent),
+        static_cast<int> (seqwencer::AudioFxStage::reverse));
+    retriggerFxButton = std::make_unique<FxSelectorButton> (
+        "RETRIG", juce::Colour (retriggerAccent),
+        static_cast<int> (seqwencer::AudioFxStage::retrigger));
     phiFxButton = std::make_unique<FxSelectorButton> (
         "PHI", juce::Colour (phiAccent));
     content.addAndMakeVisible (*baseParameterLabel);
@@ -3005,6 +3369,15 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*compressorReleaseParameterLabel);
     content.addAndMakeVisible (*compressorMakeupParameterLabel);
     content.addAndMakeVisible (*compressorMixParameterLabel);
+    content.addAndMakeVisible (*reverseTimeParameterLabel);
+    content.addAndMakeVisible (*reversePointAParameterLabel);
+    content.addAndMakeVisible (*reversePointBParameterLabel);
+    content.addAndMakeVisible (*reverseMixParameterLabel);
+    content.addAndMakeVisible (*retriggerInitialParameterLabel);
+    content.addAndMakeVisible (*retriggerFinalParameterLabel);
+    content.addAndMakeVisible (*retriggerTransitionParameterLabel);
+    content.addAndMakeVisible (*retriggerDecayParameterLabel);
+    content.addAndMakeVisible (*retriggerMixParameterLabel);
     content.addAndMakeVisible (*attackAParameterLabel);
     content.addAndMakeVisible (*releaseAParameterLabel);
     content.addAndMakeVisible (*attackBParameterLabel);
@@ -3030,6 +3403,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*grainTargetListB);
     content.addAndMakeVisible (*compressorTargetListA);
     content.addAndMakeVisible (*compressorTargetListB);
+    content.addAndMakeVisible (*reverseTargetListA);
+    content.addAndMakeVisible (*reverseTargetListB);
+    content.addAndMakeVisible (*retriggerTargetListA);
+    content.addAndMakeVisible (*retriggerTargetListB);
     content.addAndMakeVisible (*gateFxButton);
     content.addAndMakeVisible (*delayFxButton);
     content.addAndMakeVisible (*reverbFxButton);
@@ -3039,6 +3416,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*distortionFxButton);
     content.addAndMakeVisible (*grainFxButton);
     content.addAndMakeVisible (*compressorFxButton);
+    content.addAndMakeVisible (*reverseFxButton);
+    content.addAndMakeVisible (*retriggerFxButton);
     content.addAndMakeVisible (*phiFxButton);
     content.addAndMakeVisible (presetsButton);
     presetsButton.setTooltip ("Open the portable Seqwencer preset browser");
@@ -3060,6 +3439,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     filterTypeBox.addItem ("BAND PASS", 3);
     filterTypeBox.addItem ("BAND REJECT", 4);
     filterTypeBox.addItem ("PEAKING", 5);
+    filterTypeBox.addItem ("COMB", 6);
     filterTypeBox.setTooltip ("Choose the Filter response");
     content.addAndMakeVisible (filterTypeBox);
     distortionTypeBox.addItem ("SOFT CLIP", 1);
@@ -3173,6 +3553,18 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     compressorFxButton->onClick = [this] {
         selectFx (SelectedFx::compressor);
     };
+    reverseFxButton->setTooltip (
+        "Show the Reverse controls; drag to change its audio-chain position");
+    reverseFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Reverse effect and its sequencer on or off");
+    reverseFxButton->onClick = [this] { selectFx (SelectedFx::reverse); };
+    retriggerFxButton->setTooltip (
+        "Show the Retrigger controls; drag to change its audio-chain position");
+    retriggerFxButton->getEnableButton().setTooltip (
+        "Turn the built-in Retrigger effect and its sequencer on or off");
+    retriggerFxButton->onClick = [this] {
+        selectFx (SelectedFx::retrigger);
+    };
     phiFxButton->setTooltip (
         "Show the PHI integration controls; PHI remains fixed below the audio chain");
     phiFxButton->getEnableButton().setTooltip (
@@ -3239,6 +3631,15 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureKnob (compressorReleaseSlider);
     configureKnob (compressorMakeupSlider);
     configureKnob (compressorMixSlider);
+    configureKnob (reverseTimeSlider);
+    configureKnob (reversePointASlider);
+    configureKnob (reversePointBSlider);
+    configureKnob (reverseMixSlider);
+    configureKnob (retriggerInitialSlider);
+    configureKnob (retriggerFinalSlider);
+    configureKnob (retriggerTransitionSlider);
+    configureKnob (retriggerDecaySlider);
+    configureKnob (retriggerMixSlider);
     panPositionSlider.setRange (-1.0, 1.0, 0.001);
     delayTimeSlider.setTextBoxStyle (
         juce::Slider::TextBoxBelow, false, 64, 15);
@@ -3262,6 +3663,13 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     compressorAttackSlider.setRange (0.1, 100.0, 0.1);
     compressorReleaseSlider.setRange (10.0, 1000.0, 1.0);
     compressorMakeupSlider.setRange (0.0, 24.0, 0.1);
+    reverseTimeSlider.setRange (25.0, 2000.0, 1.0);
+    reversePointASlider.setRange (0.0, 1.0, 0.001);
+    reversePointBSlider.setRange (0.0, 1.0, 0.001);
+    retriggerInitialSlider.setRange (1.0, 16.0, 1.0);
+    retriggerFinalSlider.setRange (1.0, 16.0, 1.0);
+    retriggerTransitionSlider.setRange (0.0, 16.0, 1.0);
+    retriggerDecaySlider.setRange (0.0, 1.0, 0.001);
     shortLengthSlider.setTooltip (
         "Length of every Gate step set to Short (10-60% of one step)");
     longLengthSlider.setTooltip (
@@ -3286,9 +3694,9 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     panPositionSlider.setTooltip (
         "Stereo position from full left through centre to full right");
     filterCutoffSlider.setTooltip (
-        "Filter cutoff frequency from 20 Hz to 20 kHz");
+        "Filter cutoff frequency; in Comb mode this sets the fundamental pitch");
     filterResonanceSlider.setTooltip (
-        "Emphasis around the Filter cutoff frequency");
+        "Emphasis around cutoff; in Comb mode this controls feedback");
     filterMixSlider.setTooltip (
         "Balance between dry input and filtered signal");
     pitchShiftSlider.setTooltip (
@@ -3321,6 +3729,24 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         "Output gain added after compression");
     compressorMixSlider.setTooltip (
         "Balance between dry input and compressed signal");
+    reverseTimeSlider.setTooltip (
+        "Length of audio captured by the Reverse effect from 25 to 2000 milliseconds");
+    reversePointASlider.setTooltip (
+        "Start point of the ping-pong playback range inside the capture");
+    reversePointBSlider.setTooltip (
+        "End point of the ping-pong playback range inside the capture");
+    reverseMixSlider.setTooltip (
+        "Balance between dry input and reversed signal");
+    retriggerInitialSlider.setTooltip (
+        "Repeats per sequencer step when a Retrigger block begins");
+    retriggerFinalSlider.setTooltip (
+        "Repeats per sequencer step reached after Transition");
+    retriggerTransitionSlider.setTooltip (
+        "Sequencer steps taken to move from Initial to Final; zero is immediate");
+    retriggerDecaySlider.setTooltip (
+        "Amount each successive repeat fades toward silence");
+    retriggerMixSlider.setTooltip (
+        "Balance between dry input and repeated signal");
     configureKnob (attackASlider);
     configureKnob (releaseASlider);
     configureKnob (attackBSlider);
@@ -3405,6 +3831,19 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         slider->setColour (juce::Slider::rotarySliderFillColourId,
                            juce::Colour (compressorAccent));
     }
+    for (auto* slider : { &reverseTimeSlider, &reversePointASlider,
+                          &reversePointBSlider, &reverseMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (reverseAccent));
+    }
+    for (auto* slider : { &retriggerInitialSlider, &retriggerFinalSlider,
+                          &retriggerTransitionSlider, &retriggerDecaySlider,
+                          &retriggerMixSlider })
+    {
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           juce::Colour (retriggerAccent));
+    }
     attackASlider.setColour (juce::Slider::rotarySliderFillColourId,
                              laneAColour);
     releaseASlider.setColour (juce::Slider::rotarySliderFillColourId,
@@ -3453,6 +3892,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "grain_enabled", grainFxButton->getEnableButton());
     compressorAttachment = std::make_unique<ButtonAttachment> (
         state, "compressor_enabled", compressorFxButton->getEnableButton());
+    reverseAttachment = std::make_unique<ButtonAttachment> (
+        state, "reverse_enabled", reverseFxButton->getEnableButton());
+    retriggerAttachment = std::make_unique<ButtonAttachment> (
+        state, "retrigger_enabled", retriggerFxButton->getEnableButton());
     phiBridgeAttachment = std::make_unique<ButtonAttachment> (
         state, "phi_bridge_enabled", phiFxButton->getEnableButton());
     noiseGateAttachment = std::make_unique<ButtonAttachment> (
@@ -3531,6 +3974,24 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "compressor_makeup", compressorMakeupSlider);
     compressorMixAttachment = std::make_unique<SliderAttachment> (
         state, "compressor_mix", compressorMixSlider);
+    reverseTimeAttachment = std::make_unique<SliderAttachment> (
+        state, "reverse_time", reverseTimeSlider);
+    reversePointAAttachment = std::make_unique<SliderAttachment> (
+        state, "reverse_point_a", reversePointASlider);
+    reversePointBAttachment = std::make_unique<SliderAttachment> (
+        state, "reverse_point_b", reversePointBSlider);
+    reverseMixAttachment = std::make_unique<SliderAttachment> (
+        state, "reverse_mix", reverseMixSlider);
+    retriggerInitialAttachment = std::make_unique<SliderAttachment> (
+        state, "retrigger_initial_speed", retriggerInitialSlider);
+    retriggerFinalAttachment = std::make_unique<SliderAttachment> (
+        state, "retrigger_final_speed", retriggerFinalSlider);
+    retriggerTransitionAttachment = std::make_unique<SliderAttachment> (
+        state, "retrigger_transition", retriggerTransitionSlider);
+    retriggerDecayAttachment = std::make_unique<SliderAttachment> (
+        state, "retrigger_decay", retriggerDecaySlider);
+    retriggerMixAttachment = std::make_unique<SliderAttachment> (
+        state, "retrigger_mix", retriggerMixSlider);
     panPositionSlider.textFromValueFunction = [] (double value)
     {
         if (std::abs (value) < 0.0005)
@@ -3594,6 +4055,32 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     {
         return juce::String (value, 1) + " dB";
     };
+    reverseTimeSlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (value, 0) + " ms";
+    };
+    const auto reversePointText = [] (double value)
+    {
+        return juce::String (std::lround (value * 100.0)) + "%";
+    };
+    reversePointASlider.textFromValueFunction = reversePointText;
+    reversePointBSlider.textFromValueFunction = reversePointText;
+    const auto retriggerSpeedText = [] (double value)
+    {
+        return juce::String (std::lround (value)) + "x";
+    };
+    retriggerInitialSlider.textFromValueFunction = retriggerSpeedText;
+    retriggerFinalSlider.textFromValueFunction = retriggerSpeedText;
+    retriggerTransitionSlider.textFromValueFunction = [] (double value)
+    {
+        const auto steps = static_cast<int> (std::lround (value));
+        return steps == 0 ? juce::String ("Off")
+                          : juce::String (steps) + (steps == 1 ? " step" : " steps");
+    };
+    retriggerDecaySlider.textFromValueFunction = [] (double value)
+    {
+        return juce::String (std::lround (value * 100.0)) + "%";
+    };
     const auto gateLengthText = [] (double value)
     {
         return juce::String (std::lround (value * 100.0)) + "%";
@@ -3650,6 +4137,13 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         if (parameter != nullptr)
             parameter->endChangeGesture();
     };
+
+    const auto storedSelectedFx = juce::jlimit (
+        static_cast<int> (SelectedFx::gate),
+        static_cast<int> (SelectedFx::retrigger),
+        static_cast<int> (state.state.getProperty (
+            "selected_fx_page", static_cast<int> (SelectedFx::gate))));
+    selectedFx = static_cast<SelectedFx> (storedSelectedFx);
 
     setResizable (true, true);
     setResizeLimits (960, 510, 1600, 850);
@@ -3936,6 +4430,8 @@ SeqwencerAudioProcessorEditor::buttonForAudioFxStage (
         case seqwencer::AudioFxStage::distortion: return distortionFxButton.get();
         case seqwencer::AudioFxStage::grain:      return grainFxButton.get();
         case seqwencer::AudioFxStage::compressor: return compressorFxButton.get();
+        case seqwencer::AudioFxStage::reverse:    return reverseFxButton.get();
+        case seqwencer::AudioFxStage::retrigger:  return retriggerFxButton.get();
     }
     return nullptr;
 }
@@ -3944,12 +4440,12 @@ void SeqwencerAudioProcessorEditor::updateFxSelectorBounds()
 {
     displayedAudioFxOrder = processor.getAudioFxOrder();
     constexpr auto buttonTop = 182;
-    constexpr auto buttonSpacing = 39;
+    constexpr auto buttonSpacing = 31;
     for (int index = 0; index < seqwencer::audioFxStageCount; ++index)
         if (auto* button = buttonForAudioFxStage (
                 displayedAudioFxOrder[static_cast<std::size_t> (index)]))
             button->setBounds (
-                20, buttonTop + buttonSpacing * index, 74, 31);
+                20, buttonTop + buttonSpacing * index, 74, 27);
     phiFxButton->setBounds (20, 533, 74, 31);
 }
 
@@ -3979,7 +4475,7 @@ void SeqwencerAudioProcessorEditor::itemDragMove (
         newDropIndex = juce::jlimit (
             0, seqwencer::audioFxStageCount - 1,
             static_cast<int> (std::lround (
-                (static_cast<double> (designPosition.y) - 182.0) / 39.0)));
+                (static_cast<double> (designPosition.y) - 182.0) / 31.0)));
     }
 
     if (newDropIndex != fxDropIndex)
@@ -4027,6 +4523,8 @@ void SeqwencerAudioProcessorEditor::selectFx (SelectedFx fx)
         return;
 
     selectedFx = fx;
+    processor.getParameterState().state.setProperty (
+        "selected_fx_page", static_cast<int> (selectedFx), nullptr);
     bindSelectedEngine();
     updateFxPanel();
     resized();
@@ -4059,6 +4557,10 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
             return "grain_" + gateID;
         if (selectedFx == SelectedFx::compressor)
             return "compressor_" + gateID;
+        if (selectedFx == SelectedFx::reverse)
+            return "reverse_" + gateID;
+        if (selectedFx == SelectedFx::retrigger)
+            return "retrigger_" + gateID;
         return gateID;
     };
 
@@ -4117,6 +4619,10 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
                 ? seqwencer::SequencerEngine::grain
             : selectedFx == SelectedFx::compressor
                 ? seqwencer::SequencerEngine::compressor
+            : selectedFx == SelectedFx::reverse
+                ? seqwencer::SequencerEngine::reverse
+            : selectedFx == SelectedFx::retrigger
+                ? seqwencer::SequencerEngine::retrigger
                 : seqwencer::SequencerEngine::gate;
     const auto envelopeTargets = seqwencer::sequencerEnvelopeTargets (engine);
     boundRangeTargets = seqwencer::sequencerRangeTargets (engine);
@@ -4144,6 +4650,8 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     if (! phiAvailable && selectedFx == SelectedFx::phi)
     {
         selectedFx = SelectedFx::gate;
+        processor.getParameterState().state.setProperty (
+            "selected_fx_page", static_cast<int> (selectedFx), nullptr);
         bindSelectedEngine();
         resized();
     }
@@ -4157,6 +4665,8 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     const auto distortionSelected = selectedFx == SelectedFx::distortion;
     const auto grainSelected = selectedFx == SelectedFx::grain;
     const auto compressorSelected = selectedFx == SelectedFx::compressor;
+    const auto reverseSelected = selectedFx == SelectedFx::reverse;
+    const auto retriggerSelected = selectedFx == SelectedFx::retrigger;
     const auto phiSelected = selectedFx == SelectedFx::phi;
     gateFxButton->setSelected (gateSelected);
     delayFxButton->setSelected (delaySelected);
@@ -4167,6 +4677,8 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     distortionFxButton->setSelected (distortionSelected);
     grainFxButton->setSelected (grainSelected);
     compressorFxButton->setSelected (compressorSelected);
+    reverseFxButton->setSelected (reverseSelected);
+    retriggerFxButton->setSelected (retriggerSelected);
     phiFxButton->setSelected (phiSelected);
     phiFxButton->setVisible (phiAvailable);
 
@@ -4263,6 +4775,28 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     compressorMixSlider.setVisible (compressorSelected);
     compressorTargetListA->setVisible (compressorSelected);
     compressorTargetListB->setVisible (compressorSelected);
+    reverseTimeParameterLabel->setVisible (reverseSelected);
+    reverseTimeSlider.setVisible (reverseSelected);
+    reversePointAParameterLabel->setVisible (reverseSelected);
+    reversePointASlider.setVisible (reverseSelected);
+    reversePointBParameterLabel->setVisible (reverseSelected);
+    reversePointBSlider.setVisible (reverseSelected);
+    reverseMixParameterLabel->setVisible (reverseSelected);
+    reverseMixSlider.setVisible (reverseSelected);
+    reverseTargetListA->setVisible (reverseSelected);
+    reverseTargetListB->setVisible (reverseSelected);
+    retriggerInitialParameterLabel->setVisible (retriggerSelected);
+    retriggerInitialSlider.setVisible (retriggerSelected);
+    retriggerFinalParameterLabel->setVisible (retriggerSelected);
+    retriggerFinalSlider.setVisible (retriggerSelected);
+    retriggerTransitionParameterLabel->setVisible (retriggerSelected);
+    retriggerTransitionSlider.setVisible (retriggerSelected);
+    retriggerDecayParameterLabel->setVisible (retriggerSelected);
+    retriggerDecaySlider.setVisible (retriggerSelected);
+    retriggerMixParameterLabel->setVisible (retriggerSelected);
+    retriggerMixSlider.setVisible (retriggerSelected);
+    retriggerTargetListA->setVisible (retriggerSelected);
+    retriggerTargetListB->setVisible (retriggerSelected);
     phiTargetButton.setVisible (phiAvailable && phiSelected);
     nudgeControlsA->setGateVisible (gateSelected);
     nudgeControlsB->setGateVisible (gateSelected);
@@ -4275,7 +4809,9 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
         : pitchSelected ? pitchAccent
         : distortionSelected ? distortionAccent
         : grainSelected ? grainAccent
-        : compressorSelected ? compressorAccent : phiAccent);
+        : compressorSelected ? compressorAccent
+        : reverseSelected ? reverseAccent
+        : retriggerSelected ? retriggerAccent : phiAccent);
     rangeLinkButton->setAccentColour (laneColour);
     const juce::String fxName = gateSelected ? "GATE"
                               : delaySelected ? "DELAY"
@@ -4285,7 +4821,9 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
                               : pitchSelected ? "PITCH"
                               : distortionSelected ? "DISTORTION"
                               : grainSelected ? "GRAIN"
-                              : compressorSelected ? "COMPRESSOR" : "PHI";
+                              : compressorSelected ? "COMPRESSOR"
+                              : reverseSelected ? "REVERSE"
+                              : retriggerSelected ? "RETRIGGER" : "PHI";
     laneATitle.setText (fxName + " A",
                         juce::dontSendNotification);
     laneBTitle.setText (fxName + " B",
@@ -4378,6 +4916,25 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
                                laneColour);
         }
     }
+    else if (reverseSelected)
+    {
+        for (auto* slider : { &reverseTimeSlider, &reversePointASlider,
+                              &reversePointBSlider, &reverseMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
+    else if (retriggerSelected)
+    {
+        for (auto* slider : { &retriggerInitialSlider, &retriggerFinalSlider,
+                              &retriggerTransitionSlider,
+                              &retriggerDecaySlider, &retriggerMixSlider })
+        {
+            slider->setColour (juce::Slider::rotarySliderFillColourId,
+                               laneColour);
+        }
+    }
 
     if (lastPhiAvailability != phiAvailable)
     {
@@ -4428,7 +4985,16 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
              compressorAttackParameterLabel.get(),
              compressorReleaseParameterLabel.get(),
              compressorMakeupParameterLabel.get(),
-             compressorMixParameterLabel.get(), attackAParameterLabel.get(),
+             compressorMixParameterLabel.get(),
+             reverseTimeParameterLabel.get(),
+             reversePointAParameterLabel.get(),
+             reversePointBParameterLabel.get(),
+             reverseMixParameterLabel.get(),
+             retriggerInitialParameterLabel.get(),
+             retriggerFinalParameterLabel.get(),
+             retriggerTransitionParameterLabel.get(),
+             retriggerDecayParameterLabel.get(),
+             retriggerMixParameterLabel.get(), attackAParameterLabel.get(),
              releaseAParameterLabel.get(), attackBParameterLabel.get(),
              releaseBParameterLabel.get(), startParameterLabel.get(),
              endParameterLabel.get() })
@@ -4459,6 +5025,10 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
     grainTargetListB->setAccentColour (laneBColour);
     compressorTargetListA->setAccentColour (laneAColour);
     compressorTargetListB->setAccentColour (laneBColour);
+    reverseTargetListA->setAccentColour (laneAColour);
+    reverseTargetListB->setAccentColour (laneBColour);
+    retriggerTargetListA->setAccentColour (laneAColour);
+    retriggerTargetListB->setAccentColour (laneBColour);
 
     for (auto* button : { &enableAButton, &bipolarAButton })
         button->setColour (juce::ToggleButton::tickColourId, laneAColour);
@@ -4554,7 +5124,7 @@ bool SeqwencerAudioProcessorEditor::populateUserSequenceMenu (
     }
 
     auto sequenceFiles = directory.findChildFiles (
-        juce::File::findFiles, false, "*.sqwseq");
+        juce::File::findFiles, false, "*.ini");
     std::sort (
         sequenceFiles.begin(), sequenceFiles.end(),
         [] (const juce::File& first, const juce::File& second)
@@ -4620,6 +5190,8 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
             : selectedFx == SelectedFx::distortion ? "distortion_enabled"
             : selectedFx == SelectedFx::grain ? "grain_enabled"
             : selectedFx == SelectedFx::compressor ? "compressor_enabled"
+            : selectedFx == SelectedFx::reverse ? "reverse_enabled"
+            : selectedFx == SelectedFx::retrigger ? "retrigger_enabled"
                                                : "phi_bridge_enabled");
     auto* noiseGateEnabledParameter =
         processor.getParameterState().getParameter ("noise_gate_enabled");
@@ -4710,6 +5282,24 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     compressorMakeupSlider.setAlpha (gateControlsAlpha);
     compressorMixParameterLabel->setAlpha (gateControlsAlpha);
     compressorMixSlider.setAlpha (gateControlsAlpha);
+    reverseTimeParameterLabel->setAlpha (gateControlsAlpha);
+    reverseTimeSlider.setAlpha (gateControlsAlpha);
+    reversePointAParameterLabel->setAlpha (gateControlsAlpha);
+    reversePointASlider.setAlpha (gateControlsAlpha);
+    reversePointBParameterLabel->setAlpha (gateControlsAlpha);
+    reversePointBSlider.setAlpha (gateControlsAlpha);
+    reverseMixParameterLabel->setAlpha (gateControlsAlpha);
+    reverseMixSlider.setAlpha (gateControlsAlpha);
+    retriggerInitialParameterLabel->setAlpha (gateControlsAlpha);
+    retriggerInitialSlider.setAlpha (gateControlsAlpha);
+    retriggerFinalParameterLabel->setAlpha (gateControlsAlpha);
+    retriggerFinalSlider.setAlpha (gateControlsAlpha);
+    retriggerTransitionParameterLabel->setAlpha (gateControlsAlpha);
+    retriggerTransitionSlider.setAlpha (gateControlsAlpha);
+    retriggerDecayParameterLabel->setAlpha (gateControlsAlpha);
+    retriggerDecaySlider.setAlpha (gateControlsAlpha);
+    retriggerMixParameterLabel->setAlpha (gateControlsAlpha);
+    retriggerMixSlider.setAlpha (gateControlsAlpha);
 
     enableAButton.setEnabled (true);
     enableBButton.setEnabled (true);
@@ -4756,6 +5346,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         grainTargetListB->setAlpha (gateControlsAlpha);
         compressorTargetListA->setAlpha (gateControlsAlpha);
         compressorTargetListB->setAlpha (gateControlsAlpha);
+        reverseTargetListA->setAlpha (gateControlsAlpha);
+        reverseTargetListB->setAlpha (gateControlsAlpha);
+        retriggerTargetListA->setAlpha (gateControlsAlpha);
+        retriggerTargetListB->setAlpha (gateControlsAlpha);
         setControlAlpha (gateControlsAlpha * (profileB ? 0.30f : 1.0f),
                          attackASlider, *attackAParameterLabel,
                          releaseASlider, *releaseAParameterLabel);
@@ -4799,6 +5393,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         grainTargetListB->setAlpha (alphaB);
         compressorTargetListA->setAlpha (alphaA);
         compressorTargetListB->setAlpha (alphaB);
+        reverseTargetListA->setAlpha (alphaA);
+        reverseTargetListB->setAlpha (alphaB);
+        retriggerTargetListA->setAlpha (alphaA);
+        retriggerTargetListB->setAlpha (alphaB);
         setControlAlpha (alphaA, attackASlider, *attackAParameterLabel,
                          releaseASlider, *releaseAParameterLabel);
         setControlAlpha (alphaB, attackBSlider, *attackBParameterLabel,
@@ -4840,7 +5438,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.20.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.23.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -4882,11 +5480,15 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                            : selectedFx == SelectedFx::pitch
                                ? "PITCH CONTROLS"
                            : selectedFx == SelectedFx::distortion
-                               ? "DISTORTION CONTROLS"
+                               ? "DIST CONTROLS"
                            : selectedFx == SelectedFx::grain
                                ? "GRAIN CONTROLS"
                            : selectedFx == SelectedFx::compressor
-                               ? "COMPRESSOR CONTROLS" : "PHI CONTROLS",
+                               ? "COMP CONTROLS"
+                           : selectedFx == SelectedFx::reverse
+                               ? "REV CONTROLS"
+                           : selectedFx == SelectedFx::retrigger
+                               ? "RETRIG CONTROLS" : "PHI CONTROLS",
                        20, static_cast<int> (bottomPanelY) + 8,
                        92, 15, juce::Justification::centredLeft, false);
 
@@ -4906,10 +5508,10 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centred, false);
     if (fxDropIndex >= 0)
     {
-        const auto targetY = 182.0f + 39.0f * static_cast<float> (fxDropIndex);
+        const auto targetY = 182.0f + 31.0f * static_cast<float> (fxDropIndex);
         graphics.setColour (juce::Colour (globalAccent).withAlpha (0.75f));
         graphics.drawRoundedRectangle (
-            juce::Rectangle<float> (15.0f, targetY - 3.0f, 84.0f, 37.0f),
+            juce::Rectangle<float> (15.0f, targetY - 2.0f, 84.0f, 31.0f),
             6.0f, 2.0f);
     }
 
@@ -4940,7 +5542,11 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                 : selectedFx == SelectedFx::grain
                     ? grainAccent
                 : selectedFx == SelectedFx::compressor
-                    ? compressorAccent : phiAccent);
+                    ? compressorAccent
+                : selectedFx == SelectedFx::reverse
+                    ? reverseAccent
+                : selectedFx == SelectedFx::retrigger
+                    ? retriggerAccent : phiAccent);
         graphics.setColour (moduleAccent.withAlpha (outlineAlpha));
         graphics.drawRoundedRectangle (bounds, 8.0f, 1.2f);
     }
@@ -5082,6 +5688,31 @@ void SeqwencerAudioProcessorEditor::resized()
     compressorMixParameterLabel->setBounds (864, bottomPanelY + 4, 76, 14);
     compressorMixSlider.setBounds (870, bottomPanelY + 15, 64, 59);
 
+    reverseTimeParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
+    reverseTimeSlider.setBounds (448, bottomPanelY + 15, 64, 59);
+    reversePointAParameterLabel->setBounds (526, bottomPanelY + 4, 88, 14);
+    reversePointASlider.setBounds (538, bottomPanelY + 15, 64, 59);
+    reversePointBParameterLabel->setBounds (616, bottomPanelY + 4, 88, 14);
+    reversePointBSlider.setBounds (628, bottomPanelY + 15, 64, 59);
+    reverseMixParameterLabel->setBounds (706, bottomPanelY + 4, 88, 14);
+    reverseMixSlider.setBounds (718, bottomPanelY + 15, 64, 59);
+
+    retriggerInitialParameterLabel->setBounds (
+        434, bottomPanelY + 4, 76, 14);
+    retriggerInitialSlider.setBounds (440, bottomPanelY + 15, 64, 59);
+    retriggerFinalParameterLabel->setBounds (
+        520, bottomPanelY + 4, 76, 14);
+    retriggerFinalSlider.setBounds (526, bottomPanelY + 15, 64, 59);
+    retriggerTransitionParameterLabel->setBounds (
+        598, bottomPanelY + 4, 92, 14);
+    retriggerTransitionSlider.setBounds (612, bottomPanelY + 15, 64, 59);
+    retriggerDecayParameterLabel->setBounds (
+        692, bottomPanelY + 4, 76, 14);
+    retriggerDecaySlider.setBounds (698, bottomPanelY + 15, 64, 59);
+    retriggerMixParameterLabel->setBounds (
+        778, bottomPanelY + 4, 76, 14);
+    retriggerMixSlider.setBounds (784, bottomPanelY + 15, 64, 59);
+
     constexpr int laneTop = 150;
     constexpr int laneGap = 10;
     const auto laneAreaBottom = bottomPanelY - laneGap;
@@ -5116,7 +5747,7 @@ void SeqwencerAudioProcessorEditor::resized()
         releaseLabel.setBounds (laneX + 78, y + 61, 60, 13);
         release.setBounds (laneX + 78, y + 72, 60,
                            juce::jmax (35, juce::jmin (70, laneHeight - 84)));
-        nudgeControls.setBounds (laneX + 13, y + 149, 125, 44);
+        nudgeControls.setBounds (laneX + 13, y + 149, 125, 49);
 
         const auto gateSelected = selectedFx == SelectedFx::gate;
         const auto delaySelected = selectedFx == SelectedFx::delay;
@@ -5127,11 +5758,14 @@ void SeqwencerAudioProcessorEditor::resized()
         const auto distortionSelected = selectedFx == SelectedFx::distortion;
         const auto grainSelected = selectedFx == SelectedFx::grain;
         const auto compressorSelected = selectedFx == SelectedFx::compressor;
+        const auto reverseSelected = selectedFx == SelectedFx::reverse;
+        const auto retriggerSelected = selectedFx == SelectedFx::retrigger;
         const auto hasInternalTargets = gateSelected || delaySelected
                                      || reverbSelected || panSelected
                                      || filterSelected || pitchSelected
                                      || distortionSelected || grainSelected
-                                     || compressorSelected;
+                                     || compressorSelected || reverseSelected
+                                     || retriggerSelected;
         const auto targetX = hasInternalTargets
             ? designWidth - 10 - innerMargin - targetWidth
             : designWidth - 10 - innerMargin;
@@ -5152,6 +5786,10 @@ void SeqwencerAudioProcessorEditor::resized()
             ? *grainTargetListA : *grainTargetListB;
         auto& selectedCompressorTargetList = lane == 0
             ? *compressorTargetListA : *compressorTargetListB;
+        auto& selectedReverseTargetList = lane == 0
+            ? *reverseTargetListA : *reverseTargetListB;
+        auto& selectedRetriggerTargetList = lane == 0
+            ? *retriggerTargetListA : *retriggerTargetListB;
         gateTargetList.setBounds (targetX, y + innerMargin,
                                   gateSelected ? targetWidth : 0,
                                   laneHeight - 2 * innerMargin);
@@ -5181,6 +5819,14 @@ void SeqwencerAudioProcessorEditor::resized()
         selectedCompressorTargetList.setBounds (
             targetX, y + innerMargin,
             compressorSelected ? targetWidth : 0,
+            laneHeight - 2 * innerMargin);
+        selectedReverseTargetList.setBounds (
+            targetX, y + innerMargin,
+            reverseSelected ? targetWidth : 0,
+            laneHeight - 2 * innerMargin);
+        selectedRetriggerTargetList.setBounds (
+            targetX, y + innerMargin,
+            retriggerSelected ? targetWidth : 0,
             laneHeight - 2 * innerMargin);
         const auto gridX = laneX + controlsWidth + innerMargin;
         grid.setBounds (gridX, y + innerMargin,
@@ -5238,6 +5884,15 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     compressorReleaseParameterLabel->repaint();
     compressorMakeupParameterLabel->repaint();
     compressorMixParameterLabel->repaint();
+    reverseTimeParameterLabel->repaint();
+    reversePointAParameterLabel->repaint();
+    reversePointBParameterLabel->repaint();
+    reverseMixParameterLabel->repaint();
+    retriggerInitialParameterLabel->repaint();
+    retriggerFinalParameterLabel->repaint();
+    retriggerTransitionParameterLabel->repaint();
+    retriggerDecayParameterLabel->repaint();
+    retriggerMixParameterLabel->repaint();
     attackAParameterLabel->repaint();
     releaseAParameterLabel->repaint();
     attackBParameterLabel->repaint();
@@ -5263,6 +5918,10 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     grainTargetListB->refresh();
     compressorTargetListA->refresh();
     compressorTargetListB->refresh();
+    reverseTargetListA->refresh();
+    reverseTargetListB->refresh();
+    retriggerTargetListA->refresh();
+    retriggerTargetListB->refresh();
     gridA->repaint();
     gridB->repaint();
 }

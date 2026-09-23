@@ -66,6 +66,10 @@ public:
             return grainActiveStepA.load();
         if (engine == seqwencer::SequencerEngine::compressor)
             return compressorActiveStepA.load();
+        if (engine == seqwencer::SequencerEngine::reverse)
+            return reverseActiveStepA.load();
+        if (engine == seqwencer::SequencerEngine::retrigger)
+            return retriggerActiveStepA.load();
         return gateActiveStepA.load();
     }
     int getActiveStepB (
@@ -89,6 +93,10 @@ public:
             return grainActiveStepB.load();
         if (engine == seqwencer::SequencerEngine::compressor)
             return compressorActiveStepB.load();
+        if (engine == seqwencer::SequencerEngine::reverse)
+            return reverseActiveStepB.load();
+        if (engine == seqwencer::SequencerEngine::retrigger)
+            return retriggerActiveStepB.load();
         return gateActiveStepB.load();
     }
     bool isPhiHostPresent() const noexcept
@@ -126,6 +134,10 @@ public:
     static juce::String distortionStepParameterID (int bank, int step);
     static juce::String grainStepParameterID (int bank, int step);
     static juce::String compressorStepParameterID (int bank, int step);
+    static juce::String reverseStepParameterID (int bank, int step);
+    static juce::String retriggerStepParameterID (int bank, int step);
+    static juce::String reverseModeParameterID (int bank, int step);
+    static juce::String retriggerModeParameterID (int bank, int step);
     static juce::String gateModeParameterID (int bank, int step);
     static juce::String targetAssignedParameterID (
         int bank, seqwencer::ModulationTarget target);
@@ -152,7 +164,7 @@ public:
         juce::String& errorMessage);
     bool restoreSequenceFromCurrentPreset (
         seqwencer::SequencerEngine engine, int bank,
-        bool gateModesOnly, juce::String& errorMessage);
+        bool stepModesOnly, juce::String& errorMessage);
     void resetToInitialPreset();
     juce::String getCurrentPresetName() const;
 
@@ -184,6 +196,14 @@ private:
                                          bool bipolar) const noexcept;
     seqwencer::Pattern readCompressorPattern (int bank,
                                               bool bipolar) const noexcept;
+    seqwencer::Pattern readReversePattern (int bank,
+                                           bool bipolar) const noexcept;
+    seqwencer::Pattern readRetriggerPattern (int bank,
+                                             bool bipolar) const noexcept;
+    seqwencer::ReverseStepPattern readReverseModes (
+        int bank) const noexcept;
+    seqwencer::RetriggerStepPattern readRetriggerModes (
+        int bank) const noexcept;
     seqwencer::GateModePattern readGateModes (int bank) const noexcept;
     seqwencer::StepSubdivisionPattern readStepSubdivisions (
         seqwencer::SequencerEngine engine, int bank,
@@ -194,6 +214,8 @@ private:
     void migrateStepStorageIfNeeded();
     void syncAudioFxOrderFromState();
     void resetFilterProcessor() noexcept;
+    void resetReverseProcessor() noexcept;
+    void resetRetriggerProcessor() noexcept;
     float processFilterSample (int channel, float input,
                                float cutoffHz, float resonance,
                                int type) noexcept;
@@ -403,6 +425,49 @@ private:
     std::atomic<float>* compressorSeqBBipolar = nullptr;
     std::atomic<float>* compressorSeqBAttack = nullptr;
     std::atomic<float>* compressorSeqBRelease = nullptr;
+    std::atomic<float>* reverseEnabled = nullptr;
+    std::atomic<float>* reverseTime = nullptr;
+    std::atomic<float>* reversePointA = nullptr;
+    std::atomic<float>* reversePointB = nullptr;
+    std::atomic<float>* reverseMix = nullptr;
+    std::atomic<float>* reversePlaybackMode = nullptr;
+    std::atomic<float>* reverseSerialProfile = nullptr;
+    std::atomic<float>* reverseStartStep = nullptr;
+    std::atomic<float>* reverseEndStep = nullptr;
+    std::atomic<float>* reverseRangeLength = nullptr;
+    std::atomic<float>* reverseRangeLink = nullptr;
+    std::atomic<float>* reverseRate = nullptr;
+    std::atomic<float>* reverseSequenceMode = nullptr;
+    std::atomic<float>* reverseSeqAEnabled = nullptr;
+    std::atomic<float>* reverseSeqABipolar = nullptr;
+    std::atomic<float>* reverseSeqAAttack = nullptr;
+    std::atomic<float>* reverseSeqARelease = nullptr;
+    std::atomic<float>* reverseSeqBEnabled = nullptr;
+    std::atomic<float>* reverseSeqBBipolar = nullptr;
+    std::atomic<float>* reverseSeqBAttack = nullptr;
+    std::atomic<float>* reverseSeqBRelease = nullptr;
+    std::atomic<float>* retriggerEnabled = nullptr;
+    std::atomic<float>* retriggerInitialSpeed = nullptr;
+    std::atomic<float>* retriggerFinalSpeed = nullptr;
+    std::atomic<float>* retriggerTransition = nullptr;
+    std::atomic<float>* retriggerDecay = nullptr;
+    std::atomic<float>* retriggerMix = nullptr;
+    std::atomic<float>* retriggerPlaybackMode = nullptr;
+    std::atomic<float>* retriggerSerialProfile = nullptr;
+    std::atomic<float>* retriggerStartStep = nullptr;
+    std::atomic<float>* retriggerEndStep = nullptr;
+    std::atomic<float>* retriggerRangeLength = nullptr;
+    std::atomic<float>* retriggerRangeLink = nullptr;
+    std::atomic<float>* retriggerRate = nullptr;
+    std::atomic<float>* retriggerSequenceMode = nullptr;
+    std::atomic<float>* retriggerSeqAEnabled = nullptr;
+    std::atomic<float>* retriggerSeqABipolar = nullptr;
+    std::atomic<float>* retriggerSeqAAttack = nullptr;
+    std::atomic<float>* retriggerSeqARelease = nullptr;
+    std::atomic<float>* retriggerSeqBEnabled = nullptr;
+    std::atomic<float>* retriggerSeqBBipolar = nullptr;
+    std::atomic<float>* retriggerSeqBAttack = nullptr;
+    std::atomic<float>* retriggerSeqBRelease = nullptr;
     std::atomic<float>* seqAEnabled = nullptr;
     std::atomic<float>* seqATarget = nullptr;
     std::atomic<float>* seqATargetEnabled = nullptr;
@@ -443,6 +508,14 @@ private:
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> grainStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> compressorStepsA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> compressorStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> reverseStepsA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> reverseStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> reverseModesA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> reverseModesB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> retriggerStepsA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> retriggerStepsB {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> retriggerModesA {};
+    std::array<std::atomic<float>*, seqwencer::stepsPerBank> retriggerModesB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> gateModesB {};
     struct StoredStepSubdivision
@@ -474,6 +547,8 @@ private:
     double distortionFreeRunningPhase = 0.0;
     double grainFreeRunningPhase = 0.0;
     double compressorFreeRunningPhase = 0.0;
+    double reverseFreeRunningPhase = 0.0;
+    double retriggerFreeRunningPhase = 0.0;
     double previousHostPpq = 0.0;
     juce::int64 previousHostTimeInSamples = 0;
     bool previousHostPpqValid = false;
@@ -503,6 +578,10 @@ private:
     std::atomic<int> grainActiveStepB { -1 };
     std::atomic<int> compressorActiveStepA { 0 };
     std::atomic<int> compressorActiveStepB { -1 };
+    std::atomic<int> reverseActiveStepA { 0 };
+    std::atomic<int> reverseActiveStepB { -1 };
+    std::atomic<int> retriggerActiveStepA { 0 };
+    std::atomic<int> retriggerActiveStepB { -1 };
     juce::AudioBuffer<float> delayBuffer;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>
         smoothedDelaySamples;
@@ -511,6 +590,9 @@ private:
     juce::Reverb reverbProcessor;
     bool reverbWasActive = false;
     std::array<FilterState, 2> filterStates {};
+    juce::AudioBuffer<float> filterCombBuffer;
+    std::array<int, 2> filterCombWritePositions {};
+    int filterPreviousType = -1;
     bool filterWasActive = false;
     juce::AudioBuffer<float> pitchBuffer;
     int pitchWritePosition = 0;
@@ -525,6 +607,33 @@ private:
     bool grainWasActive = false;
     float compressorGain = 1.0f;
     bool compressorWasActive = false;
+    std::array<juce::AudioBuffer<float>, 2> reverseBuffers;
+    int reverseCaptureBufferIndex = 0;
+    int reversePlaybackBufferIndex = 1;
+    int reverseCaptureWritePosition = 0;
+    int reverseCaptureAvailableSamples = 0;
+    int reverseCapturedSamples = 0;
+    int reversePendingCaptureSamples = 0;
+    int reversePlaybackStartPosition = 0;
+    double reverseReadPosition = 0.0;
+    double reversePreviousSequencePhase = -1.0;
+    int reverseReadDirection = 1;
+    float reverseWetFade = 0.0f;
+    bool reverseIsPlaying = false;
+    bool reverseStepWasOn = false;
+    bool reverseWasActive = false;
+    juce::AudioBuffer<float> retriggerBuffer;
+    int retriggerCaptureSamples = 0;
+    int retriggerCaptureTargetSamples = 0;
+    int retriggerReadPosition = 0;
+    int retriggerSamplesUntilRepeat = 0;
+    juce::int64 retriggerPlaybackSamples = 0;
+    int retriggerRepeatIndex = 0;
+    float retriggerWetFade = 0.0f;
+    bool retriggerIsPlaying = false;
+    bool retriggerStepWasOn = false;
+    bool retriggerBlockIsActive = false;
+    bool retriggerWasActive = false;
     std::atomic<bool> phiHostPresent { false };
     std::atomic<bool> phiTargetBrowserRequestPending { false };
 

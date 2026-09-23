@@ -48,9 +48,9 @@ int main()
     expectEqual ("default FX routing begins with Gate",
                  static_cast<int> (defaultFxOrder.front()),
                  static_cast<int> (seqwencer::AudioFxStage::gate));
-    expectEqual ("default FX routing ends with Compressor",
+    expectEqual ("default FX routing ends with Retrigger",
                  static_cast<int> (defaultFxOrder.back()),
-                 static_cast<int> (seqwencer::AudioFxStage::compressor));
+                 static_cast<int> (seqwencer::AudioFxStage::retrigger));
 
     const auto compressorFirst = seqwencer::moveAudioFxStage (
         defaultFxOrder, seqwencer::AudioFxStage::compressor, 0);
@@ -63,15 +63,106 @@ int main()
 
     const auto repairedFxOrder = seqwencer::sanitiseAudioFxOrder (
         std::array<int, seqwencer::audioFxStageCount> {
-            8, 8, -1, 2, 99, 0, 5, 4, 3 });
+            8, 8, -1, 2, 99, 0, 5, 4, 3, 9, 10 });
     std::array<bool, seqwencer::audioFxStageCount> repairedStages {};
     for (const auto stage : repairedFxOrder)
         repairedStages[static_cast<std::size_t> (
             static_cast<int> (stage))] = true;
-    expectEqual ("invalid saved FX routing is repaired to nine unique stages",
+    expectEqual ("invalid saved FX routing is repaired to eleven unique stages",
                  static_cast<int> (std::count (
                      repairedStages.begin(), repairedStages.end(), true)),
                  seqwencer::audioFxStageCount);
+
+    expectNear ("Retrigger repeats begin at Initial",
+                seqwencer::retriggerRepeatsAtStep (4.0f, 16.0f, 2.0f, 0.0f),
+                4.0f);
+    expectNear ("Retrigger repeats glide halfway to Final",
+                seqwencer::retriggerRepeatsAtStep (4.0f, 16.0f, 2.0f, 1.0f),
+                10.0f);
+    expectNear ("Retrigger repeats reach Final after Transition",
+                seqwencer::retriggerRepeatsAtStep (4.0f, 16.0f, 2.0f, 3.0f),
+                16.0f);
+    expectEqual ("Retrigger interval divides a sequencer step into repeats",
+                 seqwencer::retriggerIntervalSamples (6000.0, 2.0f),
+                 3000);
+    expectNear ("Retrigger Decay applies a gentle per-repeat fade",
+                seqwencer::retriggerRepeatGain (0.25f, 2),
+                0.91728f);
+
+    expectNear ("Comb Cutoff converts 1 kHz to a 48-sample delay",
+                static_cast<float> (seqwencer::combDelaySamples (
+                    48000.0, 1000.0f, 4096)),
+                48.0f);
+    expectNear ("Comb Resonance minimum has no feedback",
+                seqwencer::combFeedbackFromResonance (0.10f), 0.0f);
+    expectNear ("Comb Resonance maximum remains safely below unity",
+                seqwencer::combFeedbackFromResonance (10.0f), 0.95f);
+
+    const auto fullReverseBounds = seqwencer::resolveReverseLoopBounds (
+        101, 0.0f, 1.0f);
+    expectEqual ("Reverse Point A reaches the first captured sample",
+                 fullReverseBounds.first, 0);
+    expectEqual ("Reverse Point B reaches the final captured sample",
+                 fullReverseBounds.last, 100);
+    const auto swappedReverseBounds = seqwencer::resolveReverseLoopBounds (
+        101, 0.80f, 0.20f);
+    expectEqual ("Reverse points are safely ordered",
+                 swappedReverseBounds.first, 20);
+    expectEqual ("Reverse points preserve the selected upper boundary",
+                 swappedReverseBounds.last, 80);
+    const auto reverseBounceAtStart = seqwencer::advancePingPongPosition (
+        0.0, -1, { 0, 4 });
+    expectNear ("Reverse playback reflects after Point A",
+                static_cast<float> (reverseBounceAtStart.position), 1.0f);
+    expectEqual ("Reverse playback moves forward after Point A",
+                 reverseBounceAtStart.direction, 1);
+    expectEqual ("Reverse playback reports a completed ping-pong cycle",
+                 reverseBounceAtStart.reachedStart ? 1 : 0, 1);
+
+    seqwencer::ReverseStepPattern reverseModesA {};
+    seqwencer::ReverseStepPattern reverseModesB {};
+    reverseModesA[3] = true;
+    reverseModesB[7] = true;
+    expectEqual ("Parallel Reverse uses an enabled A step",
+                 seqwencer::reverseStepIsOn (
+                     reverseModesA, reverseModesB, false,
+                     true, false, 3, 7) ? 1 : 0,
+                 1);
+    expectEqual ("Parallel Reverse ignores a disabled lane",
+                 seqwencer::reverseStepIsOn (
+                     reverseModesA, reverseModesB, false,
+                     false, false, 3, 7) ? 1 : 0,
+                 0);
+    expectEqual ("Serial Reverse follows the active B step",
+                 seqwencer::reverseStepIsOn (
+                     reverseModesA, reverseModesB, true,
+                     true, false, -1, 7) ? 1 : 0,
+                 1);
+    expectEqual ("Reverse remains Off for an unselected step",
+                 seqwencer::reverseStepIsOn (
+                     reverseModesA, reverseModesB, true,
+                     true, true, 2, -1) ? 1 : 0,
+                 0);
+
+    seqwencer::RetriggerStepPattern retriggerModesA {};
+    seqwencer::RetriggerStepPattern retriggerModesB {};
+    retriggerModesA[3] = true;
+    retriggerModesB[7] = true;
+    expectEqual ("Parallel Retrigger uses an enabled A step",
+                 seqwencer::retriggerStepIsOn (
+                     retriggerModesA, retriggerModesB, false,
+                     true, false, 3, 7) ? 1 : 0,
+                 1);
+    expectEqual ("Parallel Retrigger ignores a disabled lane",
+                 seqwencer::retriggerStepIsOn (
+                     retriggerModesA, retriggerModesB, false,
+                     false, false, 3, 7) ? 1 : 0,
+                 0);
+    expectEqual ("Serial Retrigger follows the active B step",
+                 seqwencer::retriggerStepIsOn (
+                     retriggerModesA, retriggerModesB, true,
+                     true, false, -1, 7) ? 1 : 0,
+                 1);
 
     seqwencer::Pattern numberedSteps {};
     for (int step = 0; step < seqwencer::stepsPerBank; ++step)
@@ -932,7 +1023,7 @@ int main()
                  static_cast<int> (seqwencer::targetFromChoice (1.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::gateLevel));
     expectEqual ("unknown target choice restores safely as None",
-                 static_cast<int> (seqwencer::targetFromChoice (99.0f)),
+                 static_cast<int> (seqwencer::targetFromChoice (122.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::none));
     expectEqual ("Depth target choice restores",
                  static_cast<int> (seqwencer::targetFromChoice (2.0f)),
@@ -1039,6 +1130,28 @@ int main()
                  static_cast<int> (seqwencer::targetFromChoice (98.0f)),
                  static_cast<int> (
                      seqwencer::ModulationTarget::compressorSequencerLength));
+    expectEqual ("Reverse Time target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (99.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::reverseTime));
+    expectEqual ("Reverse Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (102.0f)),
+                 static_cast<int> (seqwencer::ModulationTarget::reverseMix));
+    expectEqual ("Reverse Length target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (109.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::reverseSequencerLength));
+    expectEqual ("Retrigger Initial target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (110.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::retriggerInitialSpeed));
+    expectEqual ("Retrigger Mix target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (114.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::retriggerMix));
+    expectEqual ("Retrigger Length target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (121.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::retriggerSequencerLength));
     const auto filterEnvelopeTargets = seqwencer::sequencerEnvelopeTargets (
         seqwencer::SequencerEngine::filter);
     expectEqual ("Filter exposes A Attack as its first envelope target",
@@ -1067,6 +1180,24 @@ int main()
                  static_cast<int> (seqwencer::sequencerEnvelopeTargets (
                      seqwencer::SequencerEngine::phi)[0]),
                  static_cast<int> (seqwencer::ModulationTarget::none));
+    expectEqual ("Reverse envelope targets identify their owning engine",
+                 static_cast<int> (
+                     seqwencer::sequencerEnvelopeTargetEngine (
+                         seqwencer::ModulationTarget::reverseSequencerBAttack)),
+                 static_cast<int> (seqwencer::SequencerEngine::reverse));
+    expectEqual ("Reverse envelope targets identify Sequencer B",
+                 seqwencer::sequencerEnvelopeTargetBank (
+                     seqwencer::ModulationTarget::reverseSequencerBRelease),
+                 1);
+    expectEqual ("Retrigger envelope targets identify their owning engine",
+                 static_cast<int> (
+                     seqwencer::sequencerEnvelopeTargetEngine (
+                         seqwencer::ModulationTarget::retriggerSequencerAAttack)),
+                 static_cast<int> (seqwencer::SequencerEngine::retrigger));
+    expectEqual ("Retrigger envelope targets identify Sequencer B",
+                 seqwencer::sequencerEnvelopeTargetBank (
+                     seqwencer::ModulationTarget::retriggerSequencerBRelease),
+                 1);
     const auto pitchRangeTargets = seqwencer::sequencerRangeTargets (
         seqwencer::SequencerEngine::pitch);
     expectEqual ("Pitch exposes Start as its first range target",
@@ -1090,6 +1221,24 @@ int main()
                  static_cast<int> (seqwencer::sequencerRangeTargets (
                      seqwencer::SequencerEngine::phi)[0]),
                  static_cast<int> (seqwencer::ModulationTarget::none));
+    expectEqual ("Reverse range targets identify their owning engine",
+                 static_cast<int> (seqwencer::sequencerRangeTargetEngine (
+                     seqwencer::ModulationTarget::reverseSequencerEnd)),
+                 static_cast<int> (seqwencer::SequencerEngine::reverse));
+    expectEqual ("Reverse Length is identified as a length target",
+                 seqwencer::sequencerRangeTargetIsLength (
+                     seqwencer::ModulationTarget::reverseSequencerLength)
+                     ? 1 : 0,
+                 1);
+    expectEqual ("Retrigger range targets identify their owning engine",
+                 static_cast<int> (seqwencer::sequencerRangeTargetEngine (
+                     seqwencer::ModulationTarget::retriggerSequencerEnd)),
+                 static_cast<int> (seqwencer::SequencerEngine::retrigger));
+    expectEqual ("Retrigger Length is identified as a length target",
+                 seqwencer::sequencerRangeTargetIsLength (
+                     seqwencer::ModulationTarget::retriggerSequencerLength)
+                     ? 1 : 0,
+                 1);
     expectEqual ("Gate Volume remains a unipolar destination",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::gateLevel) ? 1 : 0,
@@ -1129,6 +1278,14 @@ int main()
     expectEqual ("Compressor targets accept bipolar movement",
                  seqwencer::targetSupportsBipolar (
                      seqwencer::ModulationTarget::compressorThreshold) ? 1 : 0,
+                 1);
+    expectEqual ("Reverse targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::reversePointA) ? 1 : 0,
+                 1);
+    expectEqual ("Retrigger targets accept bipolar movement",
+                 seqwencer::targetSupportsBipolar (
+                     seqwencer::ModulationTarget::retriggerFinalSpeed) ? 1 : 0,
                  1);
     expectEqual ("Sequencer envelope targets accept bipolar movement",
                  seqwencer::targetSupportsBipolar (

@@ -2,6 +2,115 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.23.0 features
+
+- Added Comb as the sixth Filter Type without changing the existing five type
+  indices
+- In Comb mode, Cutoff tunes the delay's fundamental frequency from 20 Hz to
+  20 kHz, Resonance controls stable feedback, and Mix remains dry/wet
+- Cutoff, Resonance and Mix retain their existing Sequencer A/B target support
+  in Comb mode
+- Added fractional-delay interpolation and safe state clearing when the Filter
+  is enabled, disabled or switched between response types
+- Expanded core and VST3 probe coverage for Comb tuning, feedback limits,
+  response selection and audio processing
+
+## v1.3.22.2 refinement
+
+- Renamed the compact Reverse FX selector from `REV` to `REVRSE` so it is
+  immediately distinguishable from Reverb
+
+## v1.3.22.1 refinements
+
+- Added an independent On/Off Retrigger button above every lane step; all
+  buttons default to Off and adjacent On steps form one continuous block
+- Made step height directly control the wet strength of an active Retrigger
+  step, with the sequencer's Attack/Release shaping its movement
+- Changed Initial and Final to an intuitive 1x-16x repeats-per-step range and
+  changed Transition to Off through 16 sequencer steps
+- Reworked playback so repeats restart the captured audio at normal pitch
+  instead of changing pitch to reach a repeat frequency
+- Rebalanced Decay to a gradual per-repeat dB curve and reset it at the start
+  of every new Retrigger block
+- Added All Off, All On, Random, Reset, Copy and Paste to the Retrigger-row
+  context menu
+- Renamed the compact selector from `RTRIG` to `RETRIG`
+- Appended Retrigger step switches after the v1.3.22.0 parameter list so all
+  existing parameter indices remain unchanged
+- Expanded core and VST3 probe coverage for the step switches, block timing,
+  step-height mix and revised decay behaviour
+
+## v1.3.22.0 features
+
+- Added a compact pink `RTRIG` selector for the new Retrigger audio effect
+- Retrigger captures a slice and repeats it with independently adjustable
+  Initial speed, Final speed, Transition time, repeat Decay and dry/wet Mix
+- Initial and Final cover 1-32 Hz, Transition covers 0-4000 ms, and Decay can
+  fade successive repeats from unchanged to fully silent
+- All five Retrigger controls can be assigned independently to Sequencer A,
+  Sequencer B or both
+- Retrigger has its own A/B patterns, Mode, Rate, Start/End or linked Length,
+  Direction, subdivisions, Bipolar states and Attack/Release controls
+- Retrigger participates in the draggable audio chain and is appended to older
+  routing state without changing any v1.3.21.1 parameter indices
+- Added core and VST3 probe coverage for repeat timing, speed transition,
+  decay, bypass, target assignment and the expanded eleven-stage chain
+
+## v1.3.21.1 refinements
+
+- Added an independent On/Off Reverse button above every lane step, matching
+  the position and size of Gate's step-mode row
+- Reverse buttons default to Off; right-clicking their row offers All On and
+  All Off for the selected lane
+- Off steps pass live audio normally, while On steps restart backward playback
+  from Point B using the most recently captured audio
+- Reworked Reverse around two rolling buffers so consecutive On steps receive
+  fresh preceding audio without a large real-time buffer copy
+- Added short dry/wet transitions at Reverse step boundaries to avoid clicks
+- Preserved the last selected FX page when the plug-in editor loses focus or is
+  recreated instead of returning to Gate
+- Appended all new parameters after the existing parameter list so earlier
+  automation IDs and parameter ordering remain unchanged
+- Expanded core and VST3 probe coverage for Reverse button defaults,
+  independence, lane selection and triggered backward playback
+
+## v1.3.21.0 features
+
+- Added a compact amber `REV` selector for the new Reverse audio effect
+- Reverse captures 25-2000 ms of audio, begins with backward playback and then
+  ping-pongs between independently adjustable Point A and Point B boundaries
+- Time, Point A, Point B and Mix can each be assigned to Sequencer A, B or both
+- Reverse has independent Mode, Rate, Start, End or linked Length, Direction,
+  patterns, subdivisions, Bipolar state and A/B Attack/Release controls
+- Reverse participates in the draggable top-to-bottom audio chain and is
+  appended safely when loading older routing state that predates the effect
+- Reverse parameters are stored in a dedicated `[Reverse]` portable-preset
+  section; saved projects retain the existing parameter IDs for all older FX
+- Added regression coverage for Reverse loop boundaries, ping-pong reflection,
+  targets, routing repair and the expanded ten-stage chain
+
+## v1.3.20.3 GUI trial
+
+- Reduced the draggable audio-FX buttons from 31 to 27 pixels high
+- Reduced their vertical spacing from 39 to 31 pixels, reserving enough room
+  for two additional audio FX without scrolling or increasing the editor size
+- Updated drag-and-drop hit calculations and the insertion outline to match the
+  compact FX-button layout
+
+## v1.3.20.2 refinements
+
+- USER sequence menus now scan only portable `.ini` sequence files; temporary
+  legacy `.sqwseq` compatibility has been removed
+- Added a five-pixel gap between the Gate and Steps nudge-control rows
+- Shortened the bottom-panel headings to `DIST CONTROLS` and `COMP CONTROLS`
+
+## v1.3.20.1 fix
+
+- New user sequences are saved as portable `.ini` files beneath
+  `Data/Sequences`
+- Existing `.sqwseq` sequence files remain visible in the USER menus and load
+  normally for backwards compatibility
+
 ## v1.3.20.0 features
 
 - Added `SEQUENCER A` and `SEQUENCER B` headings to the step, Gate-mode and
@@ -10,7 +119,7 @@ Seqwencer development history, regression notes and planned work.
 - User sequences store only the selected lane's 32 step values, subdivision
   modes and independent divided-segment heights, making them reusable across
   every FX and PHI sequencer
-- User sequences are stored as portable `.sqwseq` files under
+- User sequences were initially stored as portable `.sqwseq` files under
   `Data/Sequences`
 - Added USER A/B selectors that rebuild their menus from `Data/Sequences`
   whenever opened and reproduce manually created folder/subfolder structure

@@ -35,11 +35,13 @@ The current development build includes:
 - Distortion
 - Grain Shifter
 - Compressor
+- Reverse
+- Retrigger
 
 ## Audio routing
 
 Audio flows through the internal FX from top to bottom in the left rail. Drag
-the body of any Gate-through-Compressor selector up or down to change its
+the body of any Gate-through-Retrigger selector up or down to change its
 position in the chain. Its small LED remains the independent on/off control.
 The order can therefore be changed between arrangements such as Gate into
 Compressor and Compressor into Gate without changing either effect's settings.
@@ -47,7 +49,8 @@ Compressor and Compressor into Gate without changing either effect's settings.
 PHI remains fixed at the bottom and cannot be dragged because it sends parameter
 modulation rather than processing audio inside Seqwencer. The chosen internal
 FX order is stored in DAW projects and portable presets. Older projects and
-presets that contain no routing order use the original Gate-to-Compressor order.
+presets that contain no routing order use the original order with Reverse and
+Retrigger added after Compressor.
 
 ## Sequencers
 
@@ -66,7 +69,7 @@ presets that contain no routing order use the original Gate-to-Compressor order.
 - Waveform drawing presets for each lane
 - Portable user sequences for each lane, including subdivision modes and
   independent segment heights
-- Right-click bulk menus for step values and Gate modes
+- Right-click bulk menus for step values, Gate modes and Retrigger blocks
 - Independent left/right nudging for step values and Gate modes
 - Per-lane target lists with temporary enable checkboxes and remove buttons
 - Target captions that follow the adjustable A/B lane colours, with a distinct
@@ -108,13 +111,13 @@ different FX.
 
 Every sequencer right-click menu is headed `SEQUENCER A` or `SEQUENCER B`.
 `Save Sequence...` writes the selected lane's 32 step values, `•/H/2/3` modes
-and independent divided-segment heights to a portable `.sqwseq` file beneath
+and independent divided-segment heights to a portable `.ini` file beneath
 `Data/Sequences`. Rate, Start/End/Length, Direction, Attack/Release, FX
 settings and Gate Short/Long modes are intentionally not included.
 
 The top bar groups the compact A/B waveform selectors beneath `WAVEFORM` and
 the user-sequence selectors beneath `USER`. The USER menu is rebuilt each time
-it opens. Folders and `.sqwseq` files manually arranged inside
+it opens. Folders and `.ini` files manually arranged inside
 `Data/Sequences` therefore appear as the same nested menu structure. Loading
 changes only A or B for the currently displayed FX.
 
@@ -187,10 +190,12 @@ positive values move right and the centre line represents the Pan knob value.
 
 ## Filter
 
-Filter Type offers Low Pass, High Pass, Band Pass, Band Reject and Peaking.
-Cutoff, Resonance and Mix can each be sequenced from A, B or both lanes. The
-Filter has its own patterns, timing, range, direction and envelopes, and its
-private sequencer pauses when the Filter is disabled.
+Filter Type offers Low Pass, High Pass, Band Pass, Band Reject, Peaking and
+Comb. In Comb mode, Cutoff tunes the fundamental frequency of the short delay
+and Resonance controls its feedback, producing metallic pitched resonances and
+sweeps. Cutoff, Resonance and Mix can each be sequenced from A, B or both lanes.
+The Filter has its own patterns, timing, range, direction and envelopes, and
+its private sequencer pauses when the Filter is disabled.
 
 ## Pitch
 
@@ -232,6 +237,41 @@ sidechain input. Compressor has independent patterns, timing, range, direction
 and envelopes; disabling it bypasses processing, resets its detector gain and
 pauses its private sequencer. Drag-to-reorder routing allows positions such as
 Gate into Compressor and Compressor into Gate.
+
+## Reverse
+
+Reverse continuously retains the most recent 25-2000 ms section of the signal
+at its current position in the audio chain. Each lane has an independent row of
+Reverse buttons above its steps, in the same position as Gate's step-mode row.
+An Off button passes live audio normally. An On button restarts backward
+playback from Point B using the preceding captured audio, then ping-pongs
+between Point A and Point B for that step. Consecutive On steps each start with
+a fresh capture. Right-click the Reverse row to set every button to All On or
+All Off; all buttons default to Off. Time, Point A, Point B and Mix can each be
+targeted by either sequencer. Reverse retains its own patterns, timing, range,
+direction, subdivisions and A/B Attack/Release controls.
+
+## Retrigger
+
+Retrigger captures a short slice at its current position in the audio chain and
+then repeats it only where a lane's Retrigger buttons are On. Adjacent On steps
+form one continuous block: the first On step captures the slice, Initial sets
+the starting number of repeats per sequencer step, Final sets the destination,
+and Transition sets how many sequencer steps the change takes. Initial and
+Final each cover 1x-16x; Transition covers Off through 16 steps.
+
+The height of each On step directly sets its wet strength, with the lane's
+existing Attack and Release controls smoothing changes. Decay applies a gentle
+per-repeat fade that restarts with every new block, while Mix remains the
+overall dry/wet control. The first Off step ends the block and restores the live
+signal. Every Retrigger button defaults to Off. Right-clicking the row offers
+All Off, All On, Random, Reset, Copy and Paste for the selected lane.
+
+Initial, Final, Transition, Decay and Mix can each be targeted by Sequencer A,
+B or both. Retrigger also has independent patterns, timing, Start/End or linked
+Length, direction, subdivisions and A/B Attack/Release controls. It starts
+disabled, clears its capture when switched or bypassed, and participates in the
+same draggable top-to-bottom routing as the other internal audio effects.
 
 ## PHI parameter control
 

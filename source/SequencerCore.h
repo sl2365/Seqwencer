@@ -9,7 +9,7 @@ namespace seqwencer
 constexpr int stepsPerBank = 32;
 constexpr int linkedStepCount = 64;
 constexpr int rateChoiceCount = 14;
-constexpr int sequencerEngineCount = 10;
+constexpr int sequencerEngineCount = 12;
 constexpr int maximumSegmentsPerStep = 3;
 using Pattern = std::array<float, stepsPerBank>;
 
@@ -52,7 +52,9 @@ enum class SequencerEngine
     pitch,
     distortion,
     grain,
-    compressor
+    compressor,
+    reverse,
+    retrigger
 };
 
 inline unsigned sequencerRandomStream (SequencerEngine engine,
@@ -134,10 +136,12 @@ enum class AudioFxStage
     pitch,
     distortion,
     grain,
-    compressor
+    compressor,
+    reverse,
+    retrigger
 };
 
-constexpr int audioFxStageCount = 9;
+constexpr int audioFxStageCount = 11;
 using AudioFxOrder = std::array<AudioFxStage, audioFxStageCount>;
 
 inline constexpr AudioFxOrder defaultAudioFxOrder() noexcept
@@ -150,7 +154,124 @@ inline constexpr AudioFxOrder defaultAudioFxOrder() noexcept
              AudioFxStage::pitch,
              AudioFxStage::distortion,
              AudioFxStage::grain,
-             AudioFxStage::compressor };
+             AudioFxStage::compressor,
+             AudioFxStage::reverse,
+             AudioFxStage::retrigger };
+}
+
+inline float retriggerRepeatsAtStep (float initialRepeats,
+                                     float finalRepeats,
+                                     float transitionSteps,
+                                     double elapsedSteps) noexcept
+{
+    initialRepeats = std::clamp (initialRepeats, 1.0f, 16.0f);
+    finalRepeats = std::clamp (finalRepeats, 1.0f, 16.0f);
+    const auto progress = transitionSteps <= 0.0f
+        ? 1.0f
+        : std::clamp (static_cast<float> (
+              elapsedSteps / static_cast<double> (transitionSteps)),
+                      0.0f, 1.0f);
+    return initialRepeats + progress * (finalRepeats - initialRepeats);
+}
+
+inline int retriggerIntervalSamples (double sequencerStepSamples,
+                                     float repeatsPerStep) noexcept
+{
+    sequencerStepSamples = std::max (2.0, sequencerStepSamples);
+    repeatsPerStep = std::clamp (repeatsPerStep, 1.0f, 16.0f);
+    return std::max (2, static_cast<int> (std::lround (
+        sequencerStepSamples / static_cast<double> (repeatsPerStep))));
+}
+
+inline float retriggerRepeatGain (float decay,
+                                  int repeatIndex) noexcept
+{
+    decay = std::clamp (decay, 0.0f, 1.0f);
+    const auto decibelsPerRepeat = 6.0f * decay * decay;
+    return std::pow (10.0f, -decibelsPerRepeat
+        * static_cast<float> (std::max (0, repeatIndex)) / 20.0f);
+}
+
+inline double combDelaySamples (double sampleRate,
+                                float frequencyHz,
+                                int bufferCapacity) noexcept
+{
+    sampleRate = std::max (1.0, sampleRate);
+    frequencyHz = std::clamp (frequencyHz, 20.0f, 20000.0f);
+    bufferCapacity = std::max (4, bufferCapacity);
+    return std::clamp (
+        sampleRate / static_cast<double> (frequencyHz),
+        2.0, static_cast<double> (bufferCapacity - 2));
+}
+
+inline float combFeedbackFromResonance (float resonance) noexcept
+{
+    const auto normalised = std::clamp (
+        (resonance - 0.10f) / 9.90f, 0.0f, 1.0f);
+    return 0.95f * std::sqrt (normalised);
+}
+
+struct ReverseLoopBounds
+{
+    int first = 0;
+    int last = 1;
+};
+
+inline ReverseLoopBounds resolveReverseLoopBounds (
+    int capturedSamples, float pointA, float pointB) noexcept
+{
+    capturedSamples = std::max (2, capturedSamples);
+    pointA = std::clamp (pointA, 0.0f, 1.0f);
+    pointB = std::clamp (pointB, 0.0f, 1.0f);
+
+    auto first = static_cast<int> (std::lround (
+        pointA * static_cast<float> (capturedSamples - 1)));
+    auto last = static_cast<int> (std::lround (
+        pointB * static_cast<float> (capturedSamples - 1)));
+    if (first > last)
+        std::swap (first, last);
+    if (first == last)
+    {
+        if (last < capturedSamples - 1)
+            ++last;
+        else
+            --first;
+    }
+    return { first, last };
+}
+
+struct PingPongPosition
+{
+    double position = 0.0;
+    int direction = 1;
+    bool reachedStart = false;
+};
+
+inline PingPongPosition advancePingPongPosition (
+    double position, int direction, ReverseLoopBounds bounds) noexcept
+{
+    const auto first = static_cast<double> (bounds.first);
+    const auto last = static_cast<double> (std::max (bounds.first + 1,
+                                                     bounds.last));
+    direction = direction < 0 ? -1 : 1;
+    position += static_cast<double> (direction);
+    auto reachedStart = false;
+
+    while (position > last || position < first)
+    {
+        if (position > last)
+        {
+            position = last - (position - last);
+            direction = -1;
+        }
+        else
+        {
+            position = first + (first - position);
+            direction = 1;
+            reachedStart = true;
+        }
+    }
+    return { position, direction, reachedStart };
 }
 
 inline AudioFxOrder sanitiseAudioFxOrder (
@@ -307,6 +428,52 @@ private:
 };
 
 using GateModePattern = std::array<GateStepMode, stepsPerBank>;
+using ReverseStepPattern = std::array<bool, stepsPerBank>;
+using RetriggerStepPattern = std::array<bool, stepsPerBank>;
+
+inline bool reverseStepIsOn (
+    const ReverseStepPattern& a,
+    const ReverseStepPattern& b,
+    bool serialPlayback,
+    bool laneAEnabled,
+    bool laneBEnabled,
+    int activeStepA,
+    int activeStepB) noexcept
+{
+    const auto enabledAt = [] (const ReverseStepPattern& pattern, int step)
+    {
+        return step >= 0 && step < stepsPerBank
+            && pattern[static_cast<std::size_t> (step)];
+    };
+
+    if (serialPlayback)
+        return enabledAt (a, activeStepA) || enabledAt (b, activeStepB);
+
+    return (laneAEnabled && enabledAt (a, activeStepA))
+        || (laneBEnabled && enabledAt (b, activeStepB));
+}
+
+inline bool retriggerStepIsOn (
+    const RetriggerStepPattern& a,
+    const RetriggerStepPattern& b,
+    bool serialPlayback,
+    bool laneAEnabled,
+    bool laneBEnabled,
+    int activeStepA,
+    int activeStepB) noexcept
+{
+    const auto enabledAt = [] (const RetriggerStepPattern& pattern, int step)
+    {
+        return step >= 0 && step < stepsPerBank
+            && pattern[static_cast<std::size_t> (step)];
+    };
+
+    if (serialPlayback)
+        return enabledAt (a, activeStepA) || enabledAt (b, activeStepB);
+
+    return (laneAEnabled && enabledAt (a, activeStepA))
+        || (laneBEnabled && enabledAt (b, activeStepB));
+}
 
 constexpr float shortGateOpenFraction = 0.50f;
 constexpr float longGateOpenFraction = 0.90f;
@@ -564,7 +731,30 @@ enum class ModulationTarget
     grainSequencerLength = 95,
     compressorSequencerStart = 96,
     compressorSequencerEnd = 97,
-    compressorSequencerLength = 98
+    compressorSequencerLength = 98,
+    reverseTime = 99,
+    reversePointA = 100,
+    reversePointB = 101,
+    reverseMix = 102,
+    reverseSequencerAAttack = 103,
+    reverseSequencerARelease = 104,
+    reverseSequencerBAttack = 105,
+    reverseSequencerBRelease = 106,
+    reverseSequencerStart = 107,
+    reverseSequencerEnd = 108,
+    reverseSequencerLength = 109,
+    retriggerInitialSpeed = 110,
+    retriggerFinalSpeed = 111,
+    retriggerTransition = 112,
+    retriggerDecay = 113,
+    retriggerMix = 114,
+    retriggerSequencerAAttack = 115,
+    retriggerSequencerARelease = 116,
+    retriggerSequencerBAttack = 117,
+    retriggerSequencerBRelease = 118,
+    retriggerSequencerStart = 119,
+    retriggerSequencerEnd = 120,
+    retriggerSequencerLength = 121
 };
 
 constexpr int sequencerEnvelopeTargetCount = 4;
@@ -578,14 +768,26 @@ constexpr int pitchModulationTargetCount = 9;
 constexpr int distortionModulationTargetCount = 10;
 constexpr int grainModulationTargetCount = 11;
 constexpr int compressorModulationTargetCount = 13;
-constexpr int modulationTargetCount = 98;
+constexpr int reverseModulationTargetCount = 11;
+constexpr int retriggerModulationTargetCount = 12;
+constexpr int modulationTargetCount = 121;
 
 inline bool isSequencerEnvelopeTarget (ModulationTarget target) noexcept
 {
     const auto value = static_cast<int> (target);
-    return value >= static_cast<int> (ModulationTarget::gateSequencerAAttack)
+    const auto isOriginalTarget = value >= static_cast<int> (
+        ModulationTarget::gateSequencerAAttack)
         && value <= static_cast<int> (
             ModulationTarget::compressorSequencerBRelease);
+    const auto isReverseTarget = value >= static_cast<int> (
+        ModulationTarget::reverseSequencerAAttack)
+        && value <= static_cast<int> (
+            ModulationTarget::reverseSequencerBRelease);
+    const auto isRetriggerTarget = value >= static_cast<int> (
+        ModulationTarget::retriggerSequencerAAttack)
+        && value <= static_cast<int> (
+            ModulationTarget::retriggerSequencerBRelease);
+    return isOriginalTarget || isReverseTarget || isRetriggerTarget;
 }
 
 inline SequencerEngine sequencerEnvelopeTargetEngine (
@@ -593,6 +795,11 @@ inline SequencerEngine sequencerEnvelopeTargetEngine (
 {
     if (! isSequencerEnvelopeTarget (target))
         return SequencerEngine::phi;
+    if (target >= ModulationTarget::retriggerSequencerAAttack)
+        return SequencerEngine::retrigger;
+    if (target >= ModulationTarget::reverseSequencerAAttack
+        && target <= ModulationTarget::reverseSequencerBRelease)
+        return SequencerEngine::reverse;
 
     const auto group = (static_cast<int> (target)
         - static_cast<int> (ModulationTarget::gateSequencerAAttack))
@@ -616,8 +823,13 @@ inline int sequencerEnvelopeTargetBank (ModulationTarget target) noexcept
 {
     if (! isSequencerEnvelopeTarget (target))
         return -1;
+    const auto first = target >= ModulationTarget::retriggerSequencerAAttack
+        ? ModulationTarget::retriggerSequencerAAttack
+        : target >= ModulationTarget::reverseSequencerAAttack
+            ? ModulationTarget::reverseSequencerAAttack
+            : ModulationTarget::gateSequencerAAttack;
     const auto offset = (static_cast<int> (target)
-        - static_cast<int> (ModulationTarget::gateSequencerAAttack))
+        - static_cast<int> (first))
         % sequencerEnvelopeTargetCount;
     return offset >= 2 ? 1 : 0;
 }
@@ -627,8 +839,13 @@ inline bool sequencerEnvelopeTargetIsAttack (
 {
     if (! isSequencerEnvelopeTarget (target))
         return false;
+    const auto first = target >= ModulationTarget::retriggerSequencerAAttack
+        ? ModulationTarget::retriggerSequencerAAttack
+        : target >= ModulationTarget::reverseSequencerAAttack
+            ? ModulationTarget::reverseSequencerAAttack
+            : ModulationTarget::gateSequencerAAttack;
     const auto offset = (static_cast<int> (target)
-        - static_cast<int> (ModulationTarget::gateSequencerAAttack))
+        - static_cast<int> (first))
         % sequencerEnvelopeTargetCount;
     return offset == 0 || offset == 2;
 }
@@ -668,6 +885,14 @@ sequencerEnvelopeTargets (SequencerEngine engine) noexcept
             first = static_cast<int> (
                 ModulationTarget::compressorSequencerAAttack);
             break;
+        case SequencerEngine::reverse:
+            first = static_cast<int> (
+                ModulationTarget::reverseSequencerAAttack);
+            break;
+        case SequencerEngine::retrigger:
+            first = static_cast<int> (
+                ModulationTarget::retriggerSequencerAAttack);
+            break;
         case SequencerEngine::phi:
             break;
     }
@@ -684,9 +909,19 @@ sequencerEnvelopeTargets (SequencerEngine engine) noexcept
 inline bool isSequencerRangeTarget (ModulationTarget target) noexcept
 {
     const auto value = static_cast<int> (target);
-    return value >= static_cast<int> (ModulationTarget::gateSequencerStart)
+    const auto isOriginalTarget = value >= static_cast<int> (
+        ModulationTarget::gateSequencerStart)
         && value <= static_cast<int> (
             ModulationTarget::compressorSequencerLength);
+    const auto isReverseTarget = value >= static_cast<int> (
+        ModulationTarget::reverseSequencerStart)
+        && value <= static_cast<int> (
+            ModulationTarget::reverseSequencerLength);
+    const auto isRetriggerTarget = value >= static_cast<int> (
+        ModulationTarget::retriggerSequencerStart)
+        && value <= static_cast<int> (
+            ModulationTarget::retriggerSequencerLength);
+    return isOriginalTarget || isReverseTarget || isRetriggerTarget;
 }
 
 inline SequencerEngine sequencerRangeTargetEngine (
@@ -694,6 +929,11 @@ inline SequencerEngine sequencerRangeTargetEngine (
 {
     if (! isSequencerRangeTarget (target))
         return SequencerEngine::phi;
+    if (target >= ModulationTarget::retriggerSequencerStart)
+        return SequencerEngine::retrigger;
+    if (target >= ModulationTarget::reverseSequencerStart
+        && target <= ModulationTarget::reverseSequencerLength)
+        return SequencerEngine::reverse;
 
     const auto group = (static_cast<int> (target)
         - static_cast<int> (ModulationTarget::gateSequencerStart))
@@ -715,25 +955,40 @@ inline SequencerEngine sequencerRangeTargetEngine (
 
 inline bool sequencerRangeTargetIsStart (ModulationTarget target) noexcept
 {
+    const auto first = target >= ModulationTarget::retriggerSequencerStart
+        ? ModulationTarget::retriggerSequencerStart
+        : target >= ModulationTarget::reverseSequencerStart
+            ? ModulationTarget::reverseSequencerStart
+            : ModulationTarget::gateSequencerStart;
     return isSequencerRangeTarget (target)
         && (static_cast<int> (target)
-            - static_cast<int> (ModulationTarget::gateSequencerStart))
+            - static_cast<int> (first))
                % sequencerRangeTargetCount == 0;
 }
 
 inline bool sequencerRangeTargetIsEnd (ModulationTarget target) noexcept
 {
+    const auto first = target >= ModulationTarget::retriggerSequencerStart
+        ? ModulationTarget::retriggerSequencerStart
+        : target >= ModulationTarget::reverseSequencerStart
+            ? ModulationTarget::reverseSequencerStart
+            : ModulationTarget::gateSequencerStart;
     return isSequencerRangeTarget (target)
         && (static_cast<int> (target)
-            - static_cast<int> (ModulationTarget::gateSequencerStart))
+            - static_cast<int> (first))
                % sequencerRangeTargetCount == 1;
 }
 
 inline bool sequencerRangeTargetIsLength (ModulationTarget target) noexcept
 {
+    const auto first = target >= ModulationTarget::retriggerSequencerStart
+        ? ModulationTarget::retriggerSequencerStart
+        : target >= ModulationTarget::reverseSequencerStart
+            ? ModulationTarget::reverseSequencerStart
+            : ModulationTarget::gateSequencerStart;
     return isSequencerRangeTarget (target)
         && (static_cast<int> (target)
-            - static_cast<int> (ModulationTarget::gateSequencerStart))
+            - static_cast<int> (first))
                % sequencerRangeTargetCount == 2;
 }
 
@@ -772,6 +1027,14 @@ sequencerRangeTargets (SequencerEngine engine) noexcept
             first = static_cast<int> (
                 ModulationTarget::compressorSequencerStart);
             break;
+        case SequencerEngine::reverse:
+            first = static_cast<int> (
+                ModulationTarget::reverseSequencerStart);
+            break;
+        case SequencerEngine::retrigger:
+            first = static_cast<int> (
+                ModulationTarget::retriggerSequencerStart);
+            break;
         case SequencerEngine::phi:
             break;
     }
@@ -789,7 +1052,7 @@ inline ModulationTarget targetFromChoice (float choice) noexcept
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
             && target <= static_cast<int> (
-                ModulationTarget::compressorSequencerLength)
+                ModulationTarget::retriggerSequencerLength)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -1685,6 +1948,15 @@ inline bool targetSupportsBipolar (ModulationTarget target) noexcept
         case ModulationTarget::compressorRelease:
         case ModulationTarget::compressorMakeup:
         case ModulationTarget::compressorMix:
+        case ModulationTarget::reverseTime:
+        case ModulationTarget::reversePointA:
+        case ModulationTarget::reversePointB:
+        case ModulationTarget::reverseMix:
+        case ModulationTarget::retriggerInitialSpeed:
+        case ModulationTarget::retriggerFinalSpeed:
+        case ModulationTarget::retriggerTransition:
+        case ModulationTarget::retriggerDecay:
+        case ModulationTarget::retriggerMix:
             return true;
         case ModulationTarget::none:
         case ModulationTarget::gateLevel:
