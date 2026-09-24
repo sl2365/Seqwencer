@@ -48,8 +48,9 @@ public:
     int getActiveStepA (
         seqwencer::SequencerEngine engine = seqwencer::SequencerEngine::gate) const noexcept
     {
-        if (engine == seqwencer::SequencerEngine::phi)
-            return phiActiveStepA.load();
+        if (seqwencer::isPhiSequencerEngine (engine))
+            return phiActiveSteps[static_cast<std::size_t> (
+                seqwencer::phiLaneForEngineBank (engine, 0))].load();
         if (engine == seqwencer::SequencerEngine::delay)
             return delayActiveStepA.load();
         if (engine == seqwencer::SequencerEngine::reverb)
@@ -75,8 +76,9 @@ public:
     int getActiveStepB (
         seqwencer::SequencerEngine engine = seqwencer::SequencerEngine::gate) const noexcept
     {
-        if (engine == seqwencer::SequencerEngine::phi)
-            return phiActiveStepB.load();
+        if (seqwencer::isPhiSequencerEngine (engine))
+            return phiActiveSteps[static_cast<std::size_t> (
+                seqwencer::phiLaneForEngineBank (engine, 1))].load();
         if (engine == seqwencer::SequencerEngine::delay)
             return delayActiveStepB.load();
         if (engine == seqwencer::SequencerEngine::reverb)
@@ -125,7 +127,11 @@ public:
         int extraIndex, float canonicalValue) noexcept;
 
     static juce::String stepParameterID (int bank, int step);
-    static juce::String phiStepParameterID (int bank, int step);
+    static juce::String phiPairParameterID (
+        int pair, const juce::String& suffix);
+    static juce::String phiLaneParameterID (
+        int lane, const juce::String& suffix);
+    static juce::String phiStepParameterID (int lane, int step);
     static juce::String delayStepParameterID (int bank, int step);
     static juce::String reverbStepParameterID (int bank, int step);
     static juce::String panStepParameterID (int bank, int step);
@@ -178,7 +184,7 @@ private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     seqwencer::Pattern readPattern (
         int bank, seqwencer::ModulationTarget target) const noexcept;
-    seqwencer::Pattern readPhiPattern (int bank,
+    seqwencer::Pattern readPhiPattern (int lane,
                                        bool bipolar) const noexcept;
     seqwencer::Pattern readDelayPattern (int bank,
                                          bool bipolar) const noexcept;
@@ -245,22 +251,30 @@ private:
     std::atomic<float>* noiseGateRelease = nullptr;
     std::atomic<float>* noiseGateRange = nullptr;
     std::atomic<float>* phiBridgeEnabled = nullptr;
-    std::atomic<float>* phiPlaybackMode = nullptr;
-    std::atomic<float>* phiSerialProfile = nullptr;
-    std::atomic<float>* phiStartStep = nullptr;
-    std::atomic<float>* phiEndStep = nullptr;
-    std::atomic<float>* phiRangeLength = nullptr;
-    std::atomic<float>* phiRangeLink = nullptr;
-    std::atomic<float>* phiRate = nullptr;
-    std::atomic<float>* phiSequenceMode = nullptr;
-    std::atomic<float>* phiSeqAEnabled = nullptr;
-    std::atomic<float>* phiSeqABipolar = nullptr;
-    std::atomic<float>* phiSeqAAttack = nullptr;
-    std::atomic<float>* phiSeqARelease = nullptr;
-    std::atomic<float>* phiSeqBEnabled = nullptr;
-    std::atomic<float>* phiSeqBBipolar = nullptr;
-    std::atomic<float>* phiSeqBAttack = nullptr;
-    std::atomic<float>* phiSeqBRelease = nullptr;
+    std::array<std::atomic<float>*, seqwencer::phiSequencerPairCount>
+        phiPlaybackModes {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerPairCount>
+        phiSerialProfiles {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerPairCount>
+        phiStartSteps {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerPairCount>
+        phiEndSteps {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerPairCount>
+        phiRangeLengths {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerPairCount>
+        phiRangeLinks {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerPairCount>
+        phiRates {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerPairCount>
+        phiSequenceModes {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerLaneCount>
+        phiSeqEnabled {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerLaneCount>
+        phiSeqBipolar {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerLaneCount>
+        phiSeqAttack {};
+    std::array<std::atomic<float>*, seqwencer::phiSequencerLaneCount>
+        phiSeqRelease {};
     std::atomic<float>* delayEnabled = nullptr;
     std::atomic<float>* delayTime = nullptr;
     std::atomic<float>* delayFeedback = nullptr;
@@ -490,8 +504,8 @@ private:
         targetsEnabledB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> stepsA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> stepsB {};
-    std::array<std::atomic<float>*, seqwencer::stepsPerBank> phiStepsA {};
-    std::array<std::atomic<float>*, seqwencer::stepsPerBank> phiStepsB {};
+    std::array<std::array<std::atomic<float>*, seqwencer::stepsPerBank>,
+               seqwencer::phiSequencerLaneCount> phiSteps {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> delayStepsA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> delayStepsB {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> reverbStepsA {};
@@ -538,7 +552,8 @@ private:
 
     double currentSampleRate = 44100.0;
     double gateFreeRunningPhase = 0.0;
-    double phiFreeRunningPhase = 0.0;
+    std::array<double, seqwencer::phiSequencerPairCount>
+        phiFreeRunningPhases {};
     double delayFreeRunningPhase = 0.0;
     double reverbFreeRunningPhase = 0.0;
     double panFreeRunningPhase = 0.0;
@@ -560,8 +575,8 @@ private:
     seqwencer::NotePhraseTracker notePhraseTracker;
     std::atomic<int> gateActiveStepA { 0 };
     std::atomic<int> gateActiveStepB { -1 };
-    std::atomic<int> phiActiveStepA { 0 };
-    std::atomic<int> phiActiveStepB { -1 };
+    std::array<std::atomic<int>, seqwencer::phiSequencerLaneCount>
+        phiActiveSteps {};
     std::atomic<int> delayActiveStepA { 0 };
     std::atomic<int> delayActiveStepB { -1 };
     std::atomic<int> reverbActiveStepA { 0 };

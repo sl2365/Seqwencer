@@ -338,35 +338,55 @@ int main()
                      decodedBridgeValue) ? 1 : 0,
                  0);
     const auto lanePacket = seqwencer_bridge::encodeLaneValue (
-        seqwencer_bridge::sequencerBLane, true, true, 0.25f);
+        seqwencer_bridge::sequencerHLane, true, true, 0.25f, 0x0a);
     auto decodedBipolar = false;
     auto decodedActive = false;
+    auto decodedSerialPairMask = 0;
     expectEqual ("lane bridge packet decodes",
                  seqwencer_bridge::decodeLaneValue (
                      lanePacket.data(), lanePacket.size(),
                      decodedBridgeLane, decodedBipolar,
-                     decodedActive, decodedBridgeValue) ? 1 : 0,
+                     decodedActive, decodedBridgeValue,
+                     decodedSerialPairMask) ? 1 : 0,
                  1);
-    expectEqual ("lane bridge identifies Sequencer B",
-                 decodedBridgeLane, seqwencer_bridge::sequencerBLane);
+    expectEqual ("lane bridge identifies Sequencer H",
+                 decodedBridgeLane, seqwencer_bridge::sequencerHLane);
     expectEqual ("lane bridge preserves Bipolar state",
                  decodedBipolar ? 1 : 0, 1);
     expectEqual ("lane bridge preserves Active state",
                  decodedActive ? 1 : 0, 1);
     expectNear ("lane bridge preserves its normalized value",
                 decodedBridgeValue, 0.25f, 0.0001f);
+    expectEqual ("lane bridge preserves all four SERIAL pair states",
+                 decodedSerialPairMask, 0x0a);
+
+    auto legacySerialPacket = lanePacket;
+    legacySerialPacket[4] = seqwencer_bridge::legacyProtocolVersion;
+    legacySerialPacket[6] = 2;
+    legacySerialPacket[7] = 2;
+    expectEqual ("legacy A/B SERIAL bridge packet still decodes",
+                 seqwencer_bridge::decodeLaneValue (
+                     legacySerialPacket.data(), legacySerialPacket.size(),
+                     decodedBridgeLane, decodedBipolar,
+                     decodedActive, decodedBridgeValue,
+                     decodedSerialPairMask) ? 1 : 0,
+                 1);
+    expectEqual ("legacy SERIAL lane remains distinct from lane C",
+                 decodedBridgeLane, seqwencer_bridge::serialLane);
+    expectEqual ("legacy SERIAL packet selects only the A/B pair",
+                 decodedSerialPairMask, 1);
 
     const auto targetBrowserPacket =
-        seqwencer_bridge::encodeTargetBrowserRequest (true);
-    auto decodedSerialMode = false;
+        seqwencer_bridge::encodeTargetBrowserRequest (0x0d);
+    auto decodedSerialPairMaskFromBrowser = 0;
     expectEqual ("PHI target-browser request decodes",
                  seqwencer_bridge::decodeTargetBrowserRequest (
                      targetBrowserPacket.data(),
                      targetBrowserPacket.size(),
-                     decodedSerialMode) ? 1 : 0,
+                     decodedSerialPairMaskFromBrowser) ? 1 : 0,
                  1);
-    expectEqual ("target-browser request preserves SERIAL mode",
-                 decodedSerialMode ? 1 : 0, 1);
+    expectEqual ("target-browser request preserves four SERIAL pair states",
+                 decodedSerialPairMaskFromBrowser, 0x0d);
     expectEqual ("target-browser request is not modulation data",
                  seqwencer_bridge::decodeModulationValue (
                      targetBrowserPacket.data(),
@@ -401,6 +421,16 @@ int main()
     expectEqual ("SERIAL unassignment preserves the saved Parallel B bit",
                  seqwencer_bridge::updateTargetMask (3, 0, false, true),
                  seqwencer_bridge::targetMaskB);
+    expectEqual ("C/D SERIAL assignment uses the shared C bit",
+                 seqwencer_bridge::updateTargetMask (
+                     seqwencer_bridge::targetMaskD,
+                     seqwencer_bridge::sequencerDLane, true, true),
+                 seqwencer_bridge::targetMaskC
+                     | seqwencer_bridge::targetMaskD);
+    expectEqual ("H Parallel assignment preserves every earlier lane",
+                 seqwencer_bridge::updateTargetMask (
+                     0x7f, seqwencer_bridge::sequencerHLane, true, false),
+                 seqwencer_bridge::allTargetMasks);
     const auto presencePacket = seqwencer_bridge::encodePhiPresence();
     expectEqual ("PHI presence packet decodes",
                  seqwencer_bridge::decodePhiPresence (

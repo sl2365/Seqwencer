@@ -2,6 +2,21 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.24.0 features
+
+- Expanded the PHI page from one A/B sequencer pair to four independently
+  configured pairs: A/B, C/D, E/F and G/H
+- Added four compact pair selectors beside TARGETS; switching pairs changes the
+  displayed patterns and controls without stopping the other PHI sequencers
+- Expanded PHI's Macro Mappings Targets column to A-H so every lane can be
+  assigned independently in Parallel mode
+- Preserved a separate SERIAL assignment for each pair while retaining each
+  second lane's saved Parallel assignment
+- Increased the visible sequencer-title font for clearer A-H lane labels
+- Kept every existing A/B parameter ID and parameter index unchanged; the new
+  C-H controls are appended for project and preset compatibility
+- Added bridge and probe coverage for all eight lanes and all four pair states
+
 ## v1.3.23.0 features
 
 - Added Comb as the sixth Filter Type without changing the existing five type

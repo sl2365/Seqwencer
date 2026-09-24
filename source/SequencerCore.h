@@ -9,7 +9,9 @@ namespace seqwencer
 constexpr int stepsPerBank = 32;
 constexpr int linkedStepCount = 64;
 constexpr int rateChoiceCount = 14;
-constexpr int sequencerEngineCount = 12;
+constexpr int sequencerEngineCount = 15;
+constexpr int phiSequencerPairCount = 4;
+constexpr int phiSequencerLaneCount = phiSequencerPairCount * 2;
 constexpr int maximumSegmentsPerStep = 3;
 using Pattern = std::array<float, stepsPerBank>;
 
@@ -54,8 +56,48 @@ enum class SequencerEngine
     grain,
     compressor,
     reverse,
-    retrigger
+    retrigger,
+    phiCD,
+    phiEF,
+    phiGH
 };
+
+inline bool isPhiSequencerEngine (SequencerEngine engine) noexcept
+{
+    return engine == SequencerEngine::phi
+        || engine == SequencerEngine::phiCD
+        || engine == SequencerEngine::phiEF
+        || engine == SequencerEngine::phiGH;
+}
+
+inline int phiPairFromEngine (SequencerEngine engine) noexcept
+{
+    switch (engine)
+    {
+        case SequencerEngine::phiCD: return 1;
+        case SequencerEngine::phiEF: return 2;
+        case SequencerEngine::phiGH: return 3;
+        case SequencerEngine::phi:
+        default:                     return 0;
+    }
+}
+
+inline SequencerEngine phiEngineForPair (int pair) noexcept
+{
+    switch (std::clamp (pair, 0, phiSequencerPairCount - 1))
+    {
+        case 1:  return SequencerEngine::phiCD;
+        case 2:  return SequencerEngine::phiEF;
+        case 3:  return SequencerEngine::phiGH;
+        case 0:
+        default: return SequencerEngine::phi;
+    }
+}
+
+inline int phiLaneForEngineBank (SequencerEngine engine, int bank) noexcept
+{
+    return phiPairFromEngine (engine) * 2 + std::clamp (bank, 0, 1);
+}
 
 inline unsigned sequencerRandomStream (SequencerEngine engine,
                                        int lane) noexcept
@@ -894,6 +936,9 @@ sequencerEnvelopeTargets (SequencerEngine engine) noexcept
                 ModulationTarget::retriggerSequencerAAttack);
             break;
         case SequencerEngine::phi:
+        case SequencerEngine::phiCD:
+        case SequencerEngine::phiEF:
+        case SequencerEngine::phiGH:
             break;
     }
 
@@ -1036,6 +1081,9 @@ sequencerRangeTargets (SequencerEngine engine) noexcept
                 ModulationTarget::retriggerSequencerStart);
             break;
         case SequencerEngine::phi:
+        case SequencerEngine::phiCD:
+        case SequencerEngine::phiEF:
+        case SequencerEngine::phiGH:
             break;
     }
 

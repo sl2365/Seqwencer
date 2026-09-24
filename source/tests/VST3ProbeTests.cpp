@@ -208,6 +208,17 @@ int main (int argumentCount, char* arguments[])
         "PHI Sequencer B Enabled");
     auto* phiStepA1 = findParameterByName ("PHI Sequencer A Step 1");
     auto* phiStepA2 = findParameterByName ("PHI Sequencer A Step 2");
+    auto* phiStepC1 = findParameterByName ("PHI Sequencer C Step 1");
+    auto* phiStepD1 = findParameterByName ("PHI Sequencer D Step 1");
+    auto* phiStepE1 = findParameterByName ("PHI Sequencer E Step 1");
+    auto* phiStepF1 = findParameterByName ("PHI Sequencer F Step 1");
+    auto* phiStepG1 = findParameterByName ("PHI Sequencer G Step 1");
+    auto* phiStepH1 = findParameterByName ("PHI Sequencer H Step 1");
+    auto* phiSequencerHEnabled = findParameterByName (
+        "PHI Sequencer H Enabled");
+    auto* phiCDRate = findParameterByName ("PHI C/D Rate");
+    auto* phiEFRate = findParameterByName ("PHI E/F Rate");
+    auto* phiGHRate = findParameterByName ("PHI G/H Rate");
     auto* delayEnabled = findParameterByName ("Delay Enabled");
     auto* delayTime = findParameterByName ("Delay Time");
     auto* delayFeedback = findParameterByName ("Delay Feedback");
@@ -350,7 +361,12 @@ int main (int argumentCount, char* arguments[])
         || phiSequenceMode == nullptr || phiAttackA == nullptr
         || phiReleaseA == nullptr || phiSequencerAEnabled == nullptr
         || phiSequencerBEnabled == nullptr || phiStepA1 == nullptr
-        || phiStepA2 == nullptr || delayEnabled == nullptr
+        || phiStepA2 == nullptr || phiStepC1 == nullptr
+        || phiStepD1 == nullptr || phiStepE1 == nullptr
+        || phiStepF1 == nullptr || phiStepG1 == nullptr
+        || phiStepH1 == nullptr || phiSequencerHEnabled == nullptr
+        || phiCDRate == nullptr || phiEFRate == nullptr
+        || phiGHRate == nullptr || delayEnabled == nullptr
         || delayTime == nullptr || delayFeedback == nullptr
         || delayMix == nullptr || delayRate == nullptr
         || delayStartStep == nullptr || delayEndStep == nullptr
@@ -2332,6 +2348,8 @@ int main (int argumentCount, char* arguments[])
     phiAttackA->setValueNotifyingHost (0.0f);
     phiReleaseA->setValueNotifyingHost (0.0f);
     phiStepA1->setValueNotifyingHost (0.875f);
+    phiSequencerHEnabled->setValueNotifyingHost (1.0f);
+    phiStepH1->setValueNotifyingHost (0.625f);
 
     juce::AudioBuffer<float> bridgeAudio (2, 512);
     bridgeAudio.clear();
@@ -2345,7 +2363,9 @@ int main (int argumentCount, char* arguments[])
     instance->processBlock (bridgeAudio, bridgeMidi);
     instance->releaseResources();
 
-    auto bridgePacketFound = false;
+    auto bridgePacketCount = 0;
+    auto bridgeAPacketFound = false;
+    auto bridgeHPacketFound = false;
     for (const auto metadata : bridgeMidi)
     {
         const auto& message = metadata.getMessage();
@@ -2353,12 +2373,20 @@ int main (int argumentCount, char* arguments[])
         bool bipolar = false;
         bool active = false;
         float normalizedValue = 0.0f;
+        auto serialPairMask = -1;
         if (message.isSysEx()
             && seqwencer_bridge::decodeLaneValue (
                 reinterpret_cast<const std::uint8_t*> (message.getSysExData()),
                 static_cast<std::size_t> (message.getSysExDataSize()),
-                sourceLane, bipolar, active, normalizedValue))
+                sourceLane, bipolar, active, normalizedValue,
+                serialPairMask))
         {
+            ++bridgePacketCount;
+            if (serialPairMask != 0)
+            {
+                std::cout << "FAIL: PHI bridge packet contained an unexpected SERIAL pair mask\n";
+                return 1;
+            }
             if (sourceLane == seqwencer_bridge::sequencerALane
                 && (! active || bipolar
                 || std::abs (normalizedValue - 0.75f) > 0.0001f)
@@ -2368,16 +2396,26 @@ int main (int argumentCount, char* arguments[])
                 return 1;
             }
             if (sourceLane == seqwencer_bridge::sequencerALane)
-                bridgePacketFound = true;
+                bridgeAPacketFound = true;
+            if (sourceLane == seqwencer_bridge::sequencerHLane
+                && (! active || bipolar
+                || std::abs (normalizedValue - 0.25f) > 0.0001f))
+            {
+                std::cout << "FAIL: PHI bridge packet contained the wrong H state or value\n";
+                return 1;
+            }
+            if (sourceLane == seqwencer_bridge::sequencerHLane)
+                bridgeHPacketFound = true;
         }
     }
 
-    if (! bridgePacketFound)
+    if (! bridgeAPacketFound || ! bridgeHPacketFound || bridgePacketCount != 8)
     {
-        std::cout << "FAIL: VST3 emitted no PHI bridge packet\n";
+        std::cout << "FAIL: VST3 did not emit all eight PHI bridge lane packets"
+                  << " (packets=" << bridgePacketCount << ")\n";
         return 1;
     }
-    std::cout << "PASS: VST3 emits a 75 percent Sequencer A routing value" << std::endl;
+    std::cout << "PASS: VST3 emits independent Sequencer A-H routing values" << std::endl;
 
     if (! instance->hasEditor())
     {

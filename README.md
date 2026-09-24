@@ -18,9 +18,9 @@ pattern, speed, range and direction do not have to match the other effects.
 
 Seqwencer can also integrate directly with
 [PolyHostInterface (PHI)](https://github.com/sl2365/PolyHostInterface). In PHI,
-its A/B lanes can sequence any automatable parameter exposed by another loaded
-plug-in. This includes synth, arp and third-party effect parameters—not only
-Seqwencer's built-in effects.
+four switchable pairs provide lanes A-H, which can sequence any automatable
+parameter exposed by another loaded plug-in. This includes synth, arp and
+third-party effect parameters—not only Seqwencer's built-in effects.
 
 ## Built-in effects
 
@@ -78,11 +78,11 @@ Retrigger added after Compressor.
 
 Random uses repeatable shuffled passes: every selected step is visited once per
 pass, the order changes between passes, and saved projects recall the same
-sequence reliably. Every FX and PHI A/B lane has its own deterministic Random
+sequence reliably. Every FX and PHI A-H lane has its own deterministic Random
 stream, so Parallel lanes do not follow an identical shuffled order. As with
 independent random sequences, two lanes may still occasionally land on the
-same step by chance. Serial treats A and B as one combined 64-step sequencer
-and therefore uses one Random stream.
+same step by chance. Serial treats the selected pair as one combined 64-step
+sequencer and therefore uses one Random stream for that pair.
 
 ## Basic use
 
@@ -279,14 +279,21 @@ same draggable top-to-bottom routing as the other internal audio effects.
 2. Load Seqwencer as an FX tab after it.
 3. Select Seqwencer's PHI page and enable its LED.
 4. Click `TARGETS` to open PHI's integrated Macro Mappings view.
-5. Find the required plug-in parameter and tick A, B or both in the Targets
-   column. PHI assigns a Macro automatically when required.
-6. Return to Seqwencer and draw the PHI A/B patterns.
+5. Find the required plug-in parameter and tick any required lanes from A-H in
+   the Targets column. PHI assigns a Macro automatically when required.
+6. Return to Seqwencer, choose `A/B`, `C/D`, `E/F` or `G/H` beside TARGETS,
+   and draw that pair's patterns.
 
-In Parallel, A and B are independent. In Serial, they share one 64-step target.
-Unticking a target temporarily stops Seqwencer control while preserving its PHI
-Macro. Removing Seqwencer from PHI hides the Targets column but does not delete
-the saved Macro mappings.
+Each pair has independent Rate, range, Direction, Attack/Release, Bipolar and
+step settings, and all four pairs continue running when another pair is shown.
+In Parallel, both lanes in a pair are independent. In Serial, that pair shares
+one 64-step target. Unticking a target temporarily stops Seqwencer control while
+preserving its PHI Macro. Removing Seqwencer from PHI hides the Targets column
+but does not delete the saved Macro mappings.
+
+PHI 2.5.68 or later is required for lanes C-H and the expanded Targets column.
+The original A/B parameter IDs and ordering remain unchanged; all C-H controls
+are appended so existing Seqwencer projects and presets retain their A/B state.
 
 The PHI selector and TARGETS control are hidden when Seqwencer is used in a host
 that does not support this bridge. The built-in audio effects continue to work

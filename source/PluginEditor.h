@@ -58,6 +58,7 @@ private:
     void updateRangeControls();
     void updateLaneVisuals();
     void selectFx (SelectedFx);
+    void selectPhiPair (int pair);
     void bindSelectedEngine();
     void updateFxPanel();
     void updateLaneColours();
@@ -197,6 +198,10 @@ private:
     juce::Array<juce::File> userSequenceFiles;
     juce::ToggleButton syncButton { "HOST SYNC" };
     juce::ToggleButton phiTargetButton { "TARGETS" };
+    juce::ToggleButton phiPairABButton { "A/B" };
+    juce::ToggleButton phiPairCDButton { "C/D" };
+    juce::ToggleButton phiPairEFButton { "E/F" };
+    juce::ToggleButton phiPairGHButton { "G/H" };
     juce::ToggleButton enableAButton { "A" };
     juce::ToggleButton enableBButton { "B" };
     juce::ToggleButton bipolarAButton { "BIPOLAR" };
@@ -351,6 +356,8 @@ private:
     bool rangeLabelShowsLength = false;
     SelectedFx selectedFx = SelectedFx::gate;
     SelectedFx boundFx = SelectedFx::gate;
+    int selectedPhiPair = 0;
+    int boundPhiPair = -1;
     seqwencer::AudioFxOrder displayedAudioFxOrder =
         seqwencer::defaultAudioFxOrder();
     int fxDropIndex = -1;

@@ -603,8 +603,18 @@ public:
         auto& state = processor.getParameterState();
         const auto parameterID = [newEngine] (const juce::String& gateID)
         {
-            if (newEngine == seqwencer::SequencerEngine::phi)
-                return "phi_" + gateID;
+            if (seqwencer::isPhiSequencerEngine (newEngine))
+            {
+                const auto pair = seqwencer::phiPairFromEngine (newEngine);
+                if (gateID.startsWith ("seq_a_"))
+                    return SeqwencerAudioProcessor::phiLaneParameterID (
+                        pair * 2, gateID.substring (6));
+                if (gateID.startsWith ("seq_b_"))
+                    return SeqwencerAudioProcessor::phiLaneParameterID (
+                        pair * 2 + 1, gateID.substring (6));
+                return SeqwencerAudioProcessor::phiPairParameterID (
+                    pair, gateID);
+            }
             if (newEngine == seqwencer::SequencerEngine::delay)
                 return "delay_" + gateID;
             if (newEngine == seqwencer::SequencerEngine::reverb)
@@ -633,9 +643,10 @@ public:
             const auto index = static_cast<std::size_t> (step);
             const auto stepID = [newEngine] (int stepBank, int stepIndex)
             {
-                if (newEngine == seqwencer::SequencerEngine::phi)
+                if (seqwencer::isPhiSequencerEngine (newEngine))
                     return SeqwencerAudioProcessor::phiStepParameterID (
-                        stepBank, stepIndex);
+                        seqwencer::phiLaneForEngineBank (
+                            newEngine, stepBank), stepIndex);
                 if (newEngine == seqwencer::SequencerEngine::delay)
                     return SeqwencerAudioProcessor::delayStepParameterID (
                         stepBank, stepIndex);
@@ -1640,11 +1651,19 @@ private:
         repaint();
     }
 
+    juce::String getLaneName() const
+    {
+        const auto lane = seqwencer::isPhiSequencerEngine (engine)
+            ? seqwencer::phiLaneForEngineBank (engine, bank) : bank;
+        return juce::String::charToString (
+            static_cast<juce::juce_wchar> ('A' + lane));
+    }
+
     void showStepMenu()
     {
         endGestures();
         juce::PopupMenu menu;
-        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
+        menu.addSectionHeader ("SEQUENCER " + getLaneName());
         menu.addItem (stepZero, "Zero");
         menu.addItem (stepMaximum, "Max");
         menu.addItem (stepMinimum, "Min");
@@ -1672,7 +1691,7 @@ private:
     {
         endGestures();
         juce::PopupMenu menu;
-        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
+        menu.addSectionHeader ("SEQUENCER " + getLaneName());
         menu.addItem (gateShort, "Short");
         menu.addItem (gateLong, "Long");
         menu.addItem (gateRandom, "Random");
@@ -1696,7 +1715,7 @@ private:
     {
         endGestures();
         juce::PopupMenu menu;
-        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
+        menu.addSectionHeader ("SEQUENCER " + getLaneName());
         menu.addItem (reverseAllOn, "All On");
         menu.addItem (reverseAllOff, "All Off");
         juce::Component::SafePointer<StepGrid> safeThis (this);
@@ -1713,7 +1732,7 @@ private:
     {
         endGestures();
         juce::PopupMenu menu;
-        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
+        menu.addSectionHeader ("SEQUENCER " + getLaneName());
         menu.addItem (retriggerAllOff, "All Off");
         menu.addItem (retriggerAllOn, "All On");
         menu.addItem (retriggerRandom, "Random");
@@ -1737,7 +1756,7 @@ private:
     {
         endGestures();
         juce::PopupMenu menu;
-        menu.addSectionHeader (bank == 0 ? "SEQUENCER A" : "SEQUENCER B");
+        menu.addSectionHeader ("SEQUENCER " + getLaneName());
         menu.addItem (subdivisionOff, "Off");
         menu.addItem (subdivisionHalf, "H");
         menu.addItem (subdivisionTwo, "2");
@@ -1963,10 +1982,11 @@ private:
             return;
         }
 
+        const auto laneName = getLaneName();
         const auto suggestedFile = sequenceDirectory.getNonexistentChildFile (
-            bank == 0 ? "Sequence A" : "Sequence B", ".ini", false);
+            "Sequence " + laneName, ".ini", false);
         sequenceFileChooser = std::make_unique<juce::FileChooser> (
-            bank == 0 ? "Save Sequencer A" : "Save Sequencer B",
+            "Save Sequencer " + laneName,
             suggestedFile, "*.ini", true, false, this);
         juce::Component::SafePointer<StepGrid> safeThis (this);
         sequenceFileChooser->launchAsync (
@@ -3493,7 +3513,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     userSequenceBBox->onChange = [this] { loadUserSequence (1); };
     refreshUserSequenceMenus();
 
-    for (auto* button : { &syncButton, &phiTargetButton, &noiseGateButton,
+    for (auto* button : { &syncButton, &phiTargetButton,
+                          &phiPairABButton, &phiPairCDButton,
+                          &phiPairEFButton, &phiPairGHButton,
+                          &noiseGateButton,
                           &enableAButton, &enableBButton,
                           &bipolarAButton, &bipolarBButton })
         content.addAndMakeVisible (*button);
@@ -3579,6 +3602,18 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     {
         processor.requestPhiTargetBrowser();
     };
+    const std::array<juce::ToggleButton*, seqwencer::phiSequencerPairCount>
+        phiPairButtons { &phiPairABButton, &phiPairCDButton,
+                         &phiPairEFButton, &phiPairGHButton };
+    for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
+    {
+        auto* button = phiPairButtons[static_cast<std::size_t> (pair)];
+        button->setColour (juce::ToggleButton::tickColourId,
+                           juce::Colour (phiAccent));
+        button->setClickingTogglesState (false);
+        button->setTooltip ("Show PHI Sequencers " + button->getButtonText());
+        button->onClick = [this, pair] { selectPhiPair (pair); };
+    }
     enableAButton.setColour (juce::ToggleButton::tickColourId,
                              laneAColour);
     enableBButton.setColour (juce::ToggleButton::tickColourId,
@@ -3857,6 +3892,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureLabel (sequenceModeLabel, "DIRECTION");
     configureLabel (laneATitle, "GATE A");
     configureLabel (laneBTitle, "GATE B");
+    laneATitle.setFont (juce::FontOptions { 12.0f, juce::Font::bold });
+    laneBTitle.setFont (juce::FontOptions { 12.0f, juce::Font::bold });
     configureLabel (colourALabel, "A COLOUR");
     configureLabel (colourBLabel, "B COLOUR");
     configureLabel (filterTypeLabel, "TYPE");
@@ -4144,6 +4181,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         static_cast<int> (state.state.getProperty (
             "selected_fx_page", static_cast<int> (SelectedFx::gate))));
     selectedFx = static_cast<SelectedFx> (storedSelectedFx);
+    selectedPhiPair = juce::jlimit (
+        0, seqwencer::phiSequencerPairCount - 1,
+        static_cast<int> (state.state.getProperty (
+            "selected_phi_pair", 0)));
 
     setResizable (true, true);
     setResizeLimits (960, 510, 1600, 850);
@@ -4531,16 +4572,45 @@ void SeqwencerAudioProcessorEditor::selectFx (SelectedFx fx)
     repaint();
 }
 
+void SeqwencerAudioProcessorEditor::selectPhiPair (int pair)
+{
+    pair = juce::jlimit (0, seqwencer::phiSequencerPairCount - 1, pair);
+    if (selectedPhiPair == pair)
+        return;
+
+    selectedPhiPair = pair;
+    processor.getParameterState().state.setProperty (
+        "selected_phi_pair", selectedPhiPair, nullptr);
+    if (selectedFx == SelectedFx::phi)
+    {
+        bindSelectedEngine();
+        updateFxPanel();
+        resized();
+        repaint();
+    }
+}
+
 void SeqwencerAudioProcessorEditor::bindSelectedEngine()
 {
-    if (bindingsInitialised && boundFx == selectedFx)
+    if (bindingsInitialised && boundFx == selectedFx
+        && (selectedFx != SelectedFx::phi
+            || boundPhiPair == selectedPhiPair))
         return;
 
     auto& state = processor.getParameterState();
     const auto parameterID = [this] (const juce::String& gateID)
     {
         if (selectedFx == SelectedFx::phi)
-            return "phi_" + gateID;
+        {
+            if (gateID.startsWith ("seq_a_"))
+                return SeqwencerAudioProcessor::phiLaneParameterID (
+                    selectedPhiPair * 2, gateID.substring (6));
+            if (gateID.startsWith ("seq_b_"))
+                return SeqwencerAudioProcessor::phiLaneParameterID (
+                    selectedPhiPair * 2 + 1, gateID.substring (6));
+            return SeqwencerAudioProcessor::phiPairParameterID (
+                selectedPhiPair, gateID);
+        }
         if (selectedFx == SelectedFx::delay)
             return "delay_" + gateID;
         if (selectedFx == SelectedFx::reverb)
@@ -4602,7 +4672,7 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
         state, parameterID ("seq_b_release"), releaseBSlider);
 
     const auto engine = selectedFx == SelectedFx::phi
-        ? seqwencer::SequencerEngine::phi
+        ? seqwencer::phiEngineForPair (selectedPhiPair)
         : selectedFx == SelectedFx::delay
             ? seqwencer::SequencerEngine::delay
             : selectedFx == SelectedFx::reverb
@@ -4639,6 +4709,7 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
     gridA->setEngine (engine);
     gridB->setEngine (engine);
     boundFx = selectedFx;
+    boundPhiPair = selectedPhiPair;
     bindingsInitialised = true;
     updateRangeControls();
     updateLaneVisuals();
@@ -4798,6 +4869,16 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     retriggerTargetListA->setVisible (retriggerSelected);
     retriggerTargetListB->setVisible (retriggerSelected);
     phiTargetButton.setVisible (phiAvailable && phiSelected);
+    const std::array<juce::ToggleButton*, seqwencer::phiSequencerPairCount>
+        phiPairButtons { &phiPairABButton, &phiPairCDButton,
+                         &phiPairEFButton, &phiPairGHButton };
+    for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
+    {
+        auto* button = phiPairButtons[static_cast<std::size_t> (pair)];
+        button->setVisible (phiAvailable && phiSelected);
+        button->setToggleState (pair == selectedPhiPair,
+                                juce::dontSendNotification);
+    }
     nudgeControlsA->setGateVisible (gateSelected);
     nudgeControlsB->setGateVisible (gateSelected);
 
@@ -4824,10 +4905,39 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
                               : compressorSelected ? "COMPRESSOR"
                               : reverseSelected ? "REVERSE"
                               : retriggerSelected ? "RETRIGGER" : "PHI";
-    laneATitle.setText (fxName + " A",
+    const auto firstLane = phiSelected ? selectedPhiPair * 2 : 0;
+    const auto laneAName = juce::String::charToString (
+        static_cast<juce::juce_wchar> ('A' + firstLane));
+    const auto laneBName = juce::String::charToString (
+        static_cast<juce::juce_wchar> ('A' + firstLane + 1));
+    laneATitle.setText (fxName + " " + laneAName,
                         juce::dontSendNotification);
-    laneBTitle.setText (fxName + " B",
+    laneBTitle.setText (fxName + " " + laneBName,
                         juce::dontSendNotification);
+    enableAButton.setButtonText (laneAName);
+    enableBButton.setButtonText (laneBName);
+    waveformABox.setTextWhenNothingSelected (laneAName);
+    waveformBBox.setTextWhenNothingSelected (laneBName);
+    waveformABox.setTooltip (
+        "Fill all 32 " + laneAName + " steps for the selected FX; "
+        "Double draws two cycles");
+    waveformBBox.setTooltip (
+        "Fill all 32 " + laneBName + " steps for the selected FX; "
+        "Double draws two cycles");
+    if (userSequenceABox != nullptr)
+    {
+        userSequenceABox->setTextWhenNothingSelected (laneAName);
+        userSequenceABox->setTooltip (
+            "Load a user sequence into Sequencer " + laneAName
+            + " for the selected FX");
+    }
+    if (userSequenceBBox != nullptr)
+    {
+        userSequenceBBox->setTextWhenNothingSelected (laneBName);
+        userSequenceBBox->setTooltip (
+            "Load a user sequence into Sequencer " + laneBName
+            + " for the selected FX");
+    }
     laneATitle.setColour (juce::Label::textColourId, laneColour);
     laneBTitle.setColour (juce::Label::textColourId, laneColour);
 
@@ -5438,7 +5548,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.23.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.24.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -5595,6 +5705,10 @@ void SeqwencerAudioProcessorEditor::resized()
     sequenceModeBox.setBounds (338, bottomPanelY + 28, 96, 28);
 
     phiTargetButton.setBounds (448, bottomPanelY + 27, 96, 31);
+    phiPairABButton.setBounds (552, bottomPanelY + 27, 60, 31);
+    phiPairCDButton.setBounds (620, bottomPanelY + 27, 60, 31);
+    phiPairEFButton.setBounds (688, bottomPanelY + 27, 60, 31);
+    phiPairGHButton.setBounds (756, bottomPanelY + 27, 60, 31);
     baseParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
     baseSlider.setBounds (448, bottomPanelY + 15, 64, 59);
     depthParameterLabel->setBounds (526, bottomPanelY + 4, 88, 14);

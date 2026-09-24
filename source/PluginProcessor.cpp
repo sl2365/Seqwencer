@@ -117,6 +117,9 @@ juce::String sequencerEngineID (seqwencer::SequencerEngine engine)
         case seqwencer::SequencerEngine::compressor: return "compressor";
         case seqwencer::SequencerEngine::reverse:    return "reverse";
         case seqwencer::SequencerEngine::retrigger:  return "retrigger";
+        case seqwencer::SequencerEngine::phiCD:      return "phi_cd";
+        case seqwencer::SequencerEngine::phiEF:      return "phi_ef";
+        case seqwencer::SequencerEngine::phiGH:      return "phi_gh";
     }
     return {};
 }
@@ -202,7 +205,11 @@ juce::String stepParameterIDForEngine (
     switch (engine)
     {
         case seqwencer::SequencerEngine::phi:
-            return SeqwencerAudioProcessor::phiStepParameterID (bank, step);
+        case seqwencer::SequencerEngine::phiCD:
+        case seqwencer::SequencerEngine::phiEF:
+        case seqwencer::SequencerEngine::phiGH:
+            return SeqwencerAudioProcessor::phiStepParameterID (
+                seqwencer::phiLaneForEngineBank (engine, bank), step);
         case seqwencer::SequencerEngine::delay:
             return SeqwencerAudioProcessor::delayStepParameterID (bank, step);
         case seqwencer::SequencerEngine::reverb:
@@ -371,22 +378,38 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
     noiseGateRelease = parameters.getRawParameterValue ("noise_gate_release");
     noiseGateRange = parameters.getRawParameterValue ("noise_gate_range");
     phiBridgeEnabled = parameters.getRawParameterValue ("phi_bridge_enabled");
-    phiPlaybackMode = parameters.getRawParameterValue ("phi_playback_mode");
-    phiSerialProfile = parameters.getRawParameterValue ("phi_serial_profile");
-    phiStartStep = parameters.getRawParameterValue ("phi_start_step");
-    phiEndStep = parameters.getRawParameterValue ("phi_end_step");
-    phiRangeLength = parameters.getRawParameterValue ("phi_range_length");
-    phiRangeLink = parameters.getRawParameterValue ("phi_range_link");
-    phiRate = parameters.getRawParameterValue ("phi_rate");
-    phiSequenceMode = parameters.getRawParameterValue ("phi_sequence_mode");
-    phiSeqAEnabled = parameters.getRawParameterValue ("phi_seq_a_enabled");
-    phiSeqABipolar = parameters.getRawParameterValue ("phi_seq_a_bipolar");
-    phiSeqAAttack = parameters.getRawParameterValue ("phi_seq_a_attack");
-    phiSeqARelease = parameters.getRawParameterValue ("phi_seq_a_release");
-    phiSeqBEnabled = parameters.getRawParameterValue ("phi_seq_b_enabled");
-    phiSeqBBipolar = parameters.getRawParameterValue ("phi_seq_b_bipolar");
-    phiSeqBAttack = parameters.getRawParameterValue ("phi_seq_b_attack");
-    phiSeqBRelease = parameters.getRawParameterValue ("phi_seq_b_release");
+    for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
+    {
+        const auto pairIndex = static_cast<std::size_t> (pair);
+        phiPlaybackModes[pairIndex] = parameters.getRawParameterValue (
+            phiPairParameterID (pair, "playback_mode"));
+        phiSerialProfiles[pairIndex] = parameters.getRawParameterValue (
+            phiPairParameterID (pair, "serial_profile"));
+        phiStartSteps[pairIndex] = parameters.getRawParameterValue (
+            phiPairParameterID (pair, "start_step"));
+        phiEndSteps[pairIndex] = parameters.getRawParameterValue (
+            phiPairParameterID (pair, "end_step"));
+        phiRangeLengths[pairIndex] = parameters.getRawParameterValue (
+            phiPairParameterID (pair, "range_length"));
+        phiRangeLinks[pairIndex] = parameters.getRawParameterValue (
+            phiPairParameterID (pair, "range_link"));
+        phiRates[pairIndex] = parameters.getRawParameterValue (
+            phiPairParameterID (pair, "rate"));
+        phiSequenceModes[pairIndex] = parameters.getRawParameterValue (
+            phiPairParameterID (pair, "sequence_mode"));
+    }
+    for (int lane = 0; lane < seqwencer::phiSequencerLaneCount; ++lane)
+    {
+        const auto laneIndex = static_cast<std::size_t> (lane);
+        phiSeqEnabled[laneIndex] = parameters.getRawParameterValue (
+            phiLaneParameterID (lane, "enabled"));
+        phiSeqBipolar[laneIndex] = parameters.getRawParameterValue (
+            phiLaneParameterID (lane, "bipolar"));
+        phiSeqAttack[laneIndex] = parameters.getRawParameterValue (
+            phiLaneParameterID (lane, "attack"));
+        phiSeqRelease[laneIndex] = parameters.getRawParameterValue (
+            phiLaneParameterID (lane, "release"));
+    }
     delayEnabled = parameters.getRawParameterValue ("delay_enabled");
     delayTime = parameters.getRawParameterValue ("delay_time");
     delayFeedback = parameters.getRawParameterValue ("delay_feedback");
@@ -706,10 +729,11 @@ SeqwencerAudioProcessor::SeqwencerAudioProcessor()
             parameters.getRawParameterValue (stepParameterID (0, step));
         stepsB[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (stepParameterID (1, step));
-        phiStepsA[static_cast<std::size_t> (step)] =
-            parameters.getRawParameterValue (phiStepParameterID (0, step));
-        phiStepsB[static_cast<std::size_t> (step)] =
-            parameters.getRawParameterValue (phiStepParameterID (1, step));
+        for (int lane = 0; lane < seqwencer::phiSequencerLaneCount; ++lane)
+            phiSteps[static_cast<std::size_t> (lane)]
+                    [static_cast<std::size_t> (step)] =
+                parameters.getRawParameterValue (
+                    phiStepParameterID (lane, step));
         delayStepsA[static_cast<std::size_t> (step)] =
             parameters.getRawParameterValue (delayStepParameterID (0, step));
         delayStepsB[static_cast<std::size_t> (step)] =
@@ -988,9 +1012,29 @@ juce::String SeqwencerAudioProcessor::stepParameterID (int bank, int step)
                .paddedLeft ('0', 2);
 }
 
-juce::String SeqwencerAudioProcessor::phiStepParameterID (int bank, int step)
+juce::String SeqwencerAudioProcessor::phiPairParameterID (
+    int pair, const juce::String& suffix)
 {
-    return "phi_seq_" + juce::String (bank == 0 ? "a" : "b") + "_step_"
+    pair = juce::jlimit (0, seqwencer::phiSequencerPairCount - 1, pair);
+    if (pair == 0)
+        return "phi_" + suffix;
+    constexpr std::array<const char*, seqwencer::phiSequencerPairCount>
+        pairNames { "ab", "cd", "ef", "gh" };
+    return "phi_" + juce::String (pairNames[static_cast<std::size_t> (pair)])
+         + "_" + suffix;
+}
+
+juce::String SeqwencerAudioProcessor::phiLaneParameterID (
+    int lane, const juce::String& suffix)
+{
+    lane = juce::jlimit (0, seqwencer::phiSequencerLaneCount - 1, lane);
+    return "phi_seq_" + juce::String::charToString (
+        static_cast<juce::juce_wchar> ('a' + lane)) + "_" + suffix;
+}
+
+juce::String SeqwencerAudioProcessor::phiStepParameterID (int lane, int step)
+{
+    return phiLaneParameterID (lane, "step_")
          + juce::String (juce::jlimit (0, seqwencer::stepsPerBank - 1, step) + 1)
                .paddedLeft ('0', 2);
 }
@@ -1980,7 +2024,12 @@ bool SeqwencerAudioProcessor::restoreSequenceFromCurrentPreset (
         switch (engine)
         {
             case seqwencer::SequencerEngine::phi:
-                return phiStepParameterID (stepBank, stepIndex);
+            case seqwencer::SequencerEngine::phiCD:
+            case seqwencer::SequencerEngine::phiEF:
+            case seqwencer::SequencerEngine::phiGH:
+                return phiStepParameterID (
+                    seqwencer::phiLaneForEngineBank (
+                        engine, stepBank), stepIndex);
             case seqwencer::SequencerEngine::delay:
                 return delayStepParameterID (stepBank, stepIndex);
             case seqwencer::SequencerEngine::reverb:
@@ -3374,6 +3423,87 @@ SeqwencerAudioProcessor::createParameterLayout()
         }
     }
 
+    // PHI pairs C/D, E/F and G/H are appended after every v1.3.23.0
+    // parameter. Existing A/B IDs and every existing automation index remain
+    // unchanged.
+    for (int pair = 1; pair < seqwencer::phiSequencerPairCount; ++pair)
+    {
+        const auto firstLane = pair * 2;
+        const auto firstName = juce::String::charToString (
+            static_cast<juce::juce_wchar> ('A' + firstLane));
+        const auto secondName = juce::String::charToString (
+            static_cast<juce::juce_wchar> ('A' + firstLane + 1));
+        const auto pairName = firstName + "/" + secondName;
+
+        layout.add (std::make_unique<Choice> (
+            ID { phiPairParameterID (pair, "playback_mode"), 1 },
+            "PHI " + pairName + " Playback Mode",
+            juce::StringArray { "Parallel", "Serial" }, 0));
+        layout.add (std::make_unique<Choice> (
+            ID { phiPairParameterID (pair, "rate"), 1 },
+            "PHI " + pairName + " Rate",
+            juce::StringArray { "1/128", "1/64T", "1/64", "1/32T",
+                                "1/32", "1/16T", "1/16", "1/8T",
+                                "1/8", "1/4T", "1/4", "1/2T",
+                                "1/2", "1/1" }, 6));
+
+        for (int localLane = 0; localLane < 2; ++localLane)
+        {
+            const auto lane = firstLane + localLane;
+            const auto laneName = localLane == 0 ? firstName : secondName;
+            layout.add (std::make_unique<Bool> (
+                ID { phiLaneParameterID (lane, "enabled"), 1 },
+                "PHI Sequencer " + laneName + " Enabled",
+                localLane == 0));
+            layout.add (std::make_unique<Float> (
+                ID { phiLaneParameterID (lane, "attack"), 1 },
+                "PHI Sequencer " + laneName + " Attack",
+                0.0f, 1.0f, 0.0f));
+            layout.add (std::make_unique<Float> (
+                ID { phiLaneParameterID (lane, "release"), 1 },
+                "PHI Sequencer " + laneName + " Release",
+                0.0f, 1.0f, 0.0f));
+            for (int step = 0; step < seqwencer::stepsPerBank; ++step)
+            {
+                layout.add (std::make_unique<Float> (
+                    ID { phiStepParameterID (lane, step), 1 },
+                    "PHI Sequencer " + laneName + " Step "
+                        + juce::String (step + 1),
+                    juce::NormalisableRange<float> { 0.0f, 1.0f }, 1.0f));
+            }
+        }
+
+        layout.add (std::make_unique<Choice> (
+            ID { phiPairParameterID (pair, "serial_profile"), 1 },
+            "PHI " + pairName + " Serial Control Profile",
+            juce::StringArray { firstName, secondName }, 0));
+        layout.add (std::make_unique<Int> (
+            ID { phiPairParameterID (pair, "start_step"), 1 },
+            "PHI " + pairName + " Start Step", 1, 63, 1));
+        layout.add (std::make_unique<Int> (
+            ID { phiPairParameterID (pair, "end_step"), 1 },
+            "PHI " + pairName + " End Step", 2, 64, 64));
+        layout.add (std::make_unique<Int> (
+            ID { phiPairParameterID (pair, "range_length"), 1 },
+            "PHI " + pairName + " Range Length", 2, 64, 64));
+        layout.add (std::make_unique<Bool> (
+            ID { phiPairParameterID (pair, "range_link"), 1 },
+            "PHI " + pairName + " Range Link", false));
+        for (int localLane = 0; localLane < 2; ++localLane)
+        {
+            const auto lane = firstLane + localLane;
+            const auto laneName = localLane == 0 ? firstName : secondName;
+            layout.add (std::make_unique<Bool> (
+                ID { phiLaneParameterID (lane, "bipolar"), 1 },
+                "PHI Sequencer " + laneName + " Bipolar", false));
+        }
+        layout.add (std::make_unique<Choice> (
+            ID { phiPairParameterID (pair, "sequence_mode"), 1 },
+            "PHI " + pairName + " Direction",
+            juce::StringArray { "Loop", "Bounce", "Reverse", "Played",
+                                "Random" }, 0));
+    }
+
     return layout;
 }
 
@@ -3381,7 +3511,7 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
 {
     currentSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
     gateFreeRunningPhase = 0.0;
-    phiFreeRunningPhase = 0.0;
+    phiFreeRunningPhases.fill (0.0);
     delayFreeRunningPhase = 0.0;
     reverbFreeRunningPhase = 0.0;
     panFreeRunningPhase = 0.0;
@@ -3403,8 +3533,9 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     noiseGateIsOpen = true;
     gateActiveStepA.store (0);
     gateActiveStepB.store (-1);
-    phiActiveStepA.store (0);
-    phiActiveStepB.store (-1);
+    for (int lane = 0; lane < seqwencer::phiSequencerLaneCount; ++lane)
+        phiActiveSteps[static_cast<std::size_t> (lane)].store (
+            (lane & 1) == 0 ? 0 : -1);
     delayActiveStepA.store (0);
     delayActiveStepB.store (-1);
     reverbActiveStepA.store (0);
@@ -3656,10 +3787,11 @@ seqwencer::Pattern SeqwencerAudioProcessor::readPattern (int bank,
 }
 
 seqwencer::Pattern SeqwencerAudioProcessor::readPhiPattern (
-    int bank, bool bipolar) const noexcept
+    int lane, bool bipolar) const noexcept
 {
     seqwencer::Pattern result {};
-    const auto& source = bank == 0 ? phiStepsA : phiStepsB;
+    const auto& source = phiSteps[static_cast<std::size_t> (juce::jlimit (
+        0, seqwencer::phiSequencerLaneCount - 1, lane))];
 
     for (std::size_t i = 0; i < result.size(); ++i)
     {
@@ -3948,47 +4080,85 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const auto gateRetriggersFromPlayedNotes =
         gateTraversalMode == seqwencer::SequenceMode::played;
 
-    const auto phiAttackAValue = juce::jlimit (
-        0.0f, 1.0f, phiSeqAAttack != nullptr ? phiSeqAAttack->load() : 0.0f);
-    const auto phiReleaseAValue = juce::jlimit (
-        0.0f, 1.0f, phiSeqARelease != nullptr ? phiSeqARelease->load() : 0.0f);
-    const auto phiAttackBValue = juce::jlimit (
-        0.0f, 1.0f, phiSeqBAttack != nullptr ? phiSeqBAttack->load() : 0.0f);
-    const auto phiReleaseBValue = juce::jlimit (
-        0.0f, 1.0f, phiSeqBRelease != nullptr ? phiSeqBRelease->load() : 0.0f);
-    const auto phiLinked = phiPlaybackMode != nullptr
-                        && phiPlaybackMode->load() >= 0.5f;
-    const auto phiUsesProfileB = phiSerialProfile != nullptr
-                              && phiSerialProfile->load() >= 0.5f;
-    const auto phiSerialAttack = phiUsesProfileB
-        ? phiAttackBValue : phiAttackAValue;
-    const auto phiSerialRelease = phiUsesProfileB
-        ? phiReleaseBValue : phiReleaseAValue;
-    const auto phiBipolarAValue = phiSeqABipolar != nullptr
-                               && phiSeqABipolar->load() >= 0.5f;
-    const auto phiBipolarBValue = phiSeqBBipolar != nullptr
-                               && phiSeqBBipolar->load() >= 0.5f;
-    const auto phiSerialBipolar = phiUsesProfileB
-        ? phiBipolarBValue : phiBipolarAValue;
-    const auto phiPatternA = readPhiPattern (
-        0, phiLinked ? phiSerialBipolar : phiBipolarAValue);
-    const auto phiPatternB = readPhiPattern (
-        1, phiLinked ? phiSerialBipolar : phiBipolarBValue);
-    const auto phiSubdivisionsA = readStepSubdivisions (
-        seqwencer::SequencerEngine::phi, 0,
-        phiLinked ? phiSerialBipolar : phiBipolarAValue);
-    const auto phiSubdivisionsB = readStepSubdivisions (
-        seqwencer::SequencerEngine::phi, 1,
-        phiLinked ? phiSerialBipolar : phiBipolarBValue);
-    const auto phiRateIndex = juce::jlimit (
-        0, seqwencer::rateChoiceCount - 1,
-        static_cast<int> (std::lround (
-            phiRate != nullptr ? phiRate->load() : 6.0f)));
-    const auto phiStepBeats = seqwencer::beatsForRate (phiRateIndex);
-    const auto phiTraversalMode = seqwencer::sequenceModeFromChoice (
-        phiSequenceMode != nullptr ? phiSequenceMode->load() : 0.0f);
-    const auto phiRetriggersFromPlayedNotes =
-        phiTraversalMode == seqwencer::SequenceMode::played;
+    struct PhiPairBlockState
+    {
+        std::array<float, 2> attack {};
+        std::array<float, 2> release {};
+        std::array<bool, 2> bipolar {};
+        std::array<bool, 2> enabled {};
+        std::array<seqwencer::Pattern, 2> pattern {};
+        std::array<seqwencer::StepSubdivisionPattern, 2> subdivisions {};
+        bool linked = false;
+        bool usesSecondProfile = false;
+        bool serialBipolar = false;
+        float serialAttack = 0.0f;
+        float serialRelease = 0.0f;
+        double stepBeats = 0.25;
+        seqwencer::SequenceMode traversalMode = seqwencer::SequenceMode::loop;
+        bool retriggersFromPlayedNotes = false;
+        bool useHostPosition = false;
+        double phaseIncrement = 0.0;
+        double phase = 0.0;
+        seqwencer::StepRange range {};
+        std::array<float, 2> lastValues { 1.0f, 1.0f };
+    };
+    std::array<PhiPairBlockState, seqwencer::phiSequencerPairCount> phiPairs;
+    auto phiSerialPairMask = 0;
+    for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
+    {
+        auto& state = phiPairs[static_cast<std::size_t> (pair)];
+        const auto pairIndex = static_cast<std::size_t> (pair);
+        const auto firstLane = pair * 2;
+        state.linked = phiPlaybackModes[pairIndex] != nullptr
+                    && phiPlaybackModes[pairIndex]->load() >= 0.5f;
+        state.usesSecondProfile = phiSerialProfiles[pairIndex] != nullptr
+                               && phiSerialProfiles[pairIndex]->load() >= 0.5f;
+        if (state.linked)
+            phiSerialPairMask |= 1 << pair;
+        for (int localLane = 0; localLane < 2; ++localLane)
+        {
+            const auto lane = firstLane + localLane;
+            const auto laneIndex = static_cast<std::size_t> (lane);
+            state.attack[static_cast<std::size_t> (localLane)] = juce::jlimit (
+                0.0f, 1.0f, phiSeqAttack[laneIndex] != nullptr
+                    ? phiSeqAttack[laneIndex]->load() : 0.0f);
+            state.release[static_cast<std::size_t> (localLane)] = juce::jlimit (
+                0.0f, 1.0f, phiSeqRelease[laneIndex] != nullptr
+                    ? phiSeqRelease[laneIndex]->load() : 0.0f);
+            state.bipolar[static_cast<std::size_t> (localLane)] =
+                phiSeqBipolar[laneIndex] != nullptr
+                && phiSeqBipolar[laneIndex]->load() >= 0.5f;
+            state.enabled[static_cast<std::size_t> (localLane)] =
+                phiSeqEnabled[laneIndex] != nullptr
+                && phiSeqEnabled[laneIndex]->load() >= 0.5f;
+        }
+        const auto profile = state.usesSecondProfile ? 1U : 0U;
+        state.serialAttack = state.attack[profile];
+        state.serialRelease = state.release[profile];
+        state.serialBipolar = state.bipolar[profile];
+        const auto engine = seqwencer::phiEngineForPair (pair);
+        for (int localLane = 0; localLane < 2; ++localLane)
+        {
+            const auto index = static_cast<std::size_t> (localLane);
+            const auto bipolar = state.linked
+                ? state.serialBipolar : state.bipolar[index];
+            state.pattern[index] = readPhiPattern (
+                firstLane + localLane, bipolar);
+            state.subdivisions[index] = readStepSubdivisions (
+                engine, localLane, bipolar);
+        }
+        const auto rateIndex = juce::jlimit (
+            0, seqwencer::rateChoiceCount - 1,
+            static_cast<int> (std::lround (
+                phiRates[pairIndex] != nullptr
+                    ? phiRates[pairIndex]->load() : 6.0f)));
+        state.stepBeats = seqwencer::beatsForRate (rateIndex);
+        state.traversalMode = seqwencer::sequenceModeFromChoice (
+            phiSequenceModes[pairIndex] != nullptr
+                ? phiSequenceModes[pairIndex]->load() : 0.0f);
+        state.retriggersFromPlayedNotes =
+            state.traversalMode == seqwencer::SequenceMode::played;
+    }
 
     const auto delayAttackAValue = juce::jlimit (
         0.0f, 1.0f,
@@ -4512,10 +4682,11 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                   && hostPositionAvailable
                                   && ! phiTimelineNeedsFreeRun
                                   && ! gateRetriggersFromPlayedNotes;
-    const auto phiUseHostPosition = hostSyncEnabled
-                                 && hostPositionAvailable
-                                 && ! phiTimelineNeedsFreeRun
-                                 && ! phiRetriggersFromPlayedNotes;
+    for (auto& state : phiPairs)
+        state.useHostPosition = hostSyncEnabled
+                             && hostPositionAvailable
+                             && ! phiTimelineNeedsFreeRun
+                             && ! state.retriggersFromPlayedNotes;
     const auto delayUseHostPosition = hostSyncEnabled
                                    && hostPositionAvailable
                                    && ! phiTimelineNeedsFreeRun
@@ -4581,8 +4752,6 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     };
     const auto gateMaximumStep = gateLinked
         ? seqwencer::linkedStepCount : seqwencer::stepsPerBank;
-    const auto phiMaximumStep = phiLinked
-        ? seqwencer::linkedStepCount : seqwencer::stepsPerBank;
     const auto delayMaximumStep = delayLinked
         ? seqwencer::linkedStepCount : seqwencer::stepsPerBank;
     const auto reverbMaximumStep = reverbLinked
@@ -4605,8 +4774,6 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         ? seqwencer::linkedStepCount : seqwencer::stepsPerBank;
     const auto gateRangeIsLinked = rangeLink != nullptr
                                 && rangeLink->load() >= 0.5f;
-    const auto phiRangeIsLinked = phiRangeLink != nullptr
-                               && phiRangeLink->load() >= 0.5f;
     const auto delayRangeIsLinked = delayRangeLink != nullptr
                                  && delayRangeLink->load() >= 0.5f;
     const auto reverbRangeIsLinked = reverbRangeLink != nullptr
@@ -4629,9 +4796,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                      && retriggerRangeLink->load() >= 0.5f;
     const auto gateRange = configuredRange (
         startStep, endStep, rangeLength, gateRangeIsLinked, gateMaximumStep);
-    const auto phiRange = configuredRange (
-        phiStartStep, phiEndStep, phiRangeLength,
-        phiRangeIsLinked, phiMaximumStep);
+    for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
+    {
+        auto& state = phiPairs[static_cast<std::size_t> (pair)];
+        const auto pairIndex = static_cast<std::size_t> (pair);
+        const auto rangeIsLinked = phiRangeLinks[pairIndex] != nullptr
+                                && phiRangeLinks[pairIndex]->load() >= 0.5f;
+        state.range = configuredRange (
+            phiStartSteps[pairIndex], phiEndSteps[pairIndex],
+            phiRangeLengths[pairIndex], rangeIsLinked,
+            state.linked ? seqwencer::linkedStepCount
+                         : seqwencer::stepsPerBank);
+    }
     const auto delayRange = configuredRange (
         delayStartStep, delayEndStep, delayRangeLength,
         delayRangeIsLinked, delayMaximumStep);
@@ -4664,8 +4840,9 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         retriggerRangeIsLinked, retriggerMaximumStep);
     const auto gatePhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * gateStepBeats * currentSampleRate / hostBpm);
-    const auto phiPhaseIncrement = 1.0 / juce::jmax (
-        1.0, 60.0 * phiStepBeats * currentSampleRate / hostBpm);
+    for (auto& state : phiPairs)
+        state.phaseIncrement = 1.0 / juce::jmax (
+            1.0, 60.0 * state.stepBeats * currentSampleRate / hostBpm);
     const auto delayPhaseIncrement = 1.0 / juce::jmax (
         1.0, 60.0 * delayStepBeats * currentSampleRate / hostBpm);
     const auto reverbPhaseIncrement = 1.0 / juce::jmax (
@@ -4840,10 +5017,6 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                              || seqAEnabled->load() >= 0.5f;
     const auto gateBIsEnabled = seqBEnabled != nullptr
                              && seqBEnabled->load() >= 0.5f;
-    const auto phiAIsEnabled = phiSeqAEnabled == nullptr
-                            || phiSeqAEnabled->load() >= 0.5f;
-    const auto phiBIsEnabled = phiSeqBEnabled != nullptr
-                            && phiSeqBEnabled->load() >= 0.5f;
     const auto delayAIsEnabled = delaySeqAEnabled == nullptr
                               || delaySeqAEnabled->load() >= 0.5f;
     const auto delayBIsEnabled = delaySeqBEnabled != nullptr
@@ -4912,9 +5085,6 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         ? gatePatternB : unityGatePattern;
     const auto shouldSendPhiBridge = phiBridgeEnabled != nullptr
                                   && phiBridgeEnabled->load() >= 0.5f;
-    auto lastBridgeValueA = 1.0f;
-    auto lastBridgeValueB = 1.0f;
-    auto lastSerialBridgeValue = 1.0f;
 
     // A half-millisecond safety slew prevents hard zero-crossing clicks when
     // Attack or Release is set to zero without masking their musical shape.
@@ -5061,8 +5231,15 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         {
             if (gateRetriggersFromPlayedNotes)
                 gateFreeRunningPhase = 0.0;
-            if (phiRetriggersFromPlayedNotes)
-                phiFreeRunningPhase = 0.0;
+            for (int pair = 0;
+                 pair < seqwencer::phiSequencerPairCount; ++pair)
+            {
+                if (phiPairs[static_cast<std::size_t> (pair)]
+                        .retriggersFromPlayedNotes)
+                {
+                    phiFreeRunningPhases[static_cast<std::size_t> (pair)] = 0.0;
+                }
+            }
             if (delayRetriggersFromPlayedNotes)
                 delayFreeRunningPhase = 0.0;
             if (reverbRetriggersFromPlayedNotes)
@@ -5097,15 +5274,19 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 ppq, gateStepBeats);
         }
 
-        auto phiPhase = phiFreeRunningPhase;
-        if (phiUseHostPosition)
+        for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
         {
-            const auto ppq = hostPpq
-                + (hostTimelineAdvancing
-                       ? sample * quarterNotesPerSample
-                       : 0.0);
-            phiPhase = seqwencer::unwrappedPhaseFromQuarterNotes (
-                ppq, phiStepBeats);
+            auto& state = phiPairs[static_cast<std::size_t> (pair)];
+            state.phase = phiFreeRunningPhases[static_cast<std::size_t> (pair)];
+            if (state.useHostPosition)
+            {
+                const auto ppq = hostPpq
+                    + (hostTimelineAdvancing
+                           ? sample * quarterNotesPerSample
+                           : 0.0);
+                state.phase = seqwencer::unwrappedPhaseFromQuarterNotes (
+                    ppq, state.stepBeats);
+            }
         }
 
         auto delayPhase = delayFreeRunningPhase;
@@ -5872,43 +6053,51 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             smoothedGain += safetyCoefficient * (1.0f - smoothedGain);
         }
 
-        if (phiLinked)
+        for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
         {
-            auto activeBank = 0;
-            auto activeStep = 0;
-            lastSerialBridgeValue = seqwencer::evaluateSubdividedLinkedRange (
-                phiPatternA, phiPatternB,
-                phiSubdivisionsA, phiSubdivisionsB,
-                phiPhase, phiRange,
-                phiSerialAttack, phiSerialRelease,
-                phiSerialAttack, phiSerialRelease,
-                &activeBank, &activeStep, phiTraversalMode,
-                phiSerialBipolar ? 0.5f : 0.0f,
-                seqwencer::sequencerRandomStream (
-                    seqwencer::SequencerEngine::phi, 2));
-            phiActiveStepA.store (activeBank == 0 ? activeStep : -1);
-            phiActiveStepB.store (activeBank == 1 ? activeStep : -1);
-        }
-        else
-        {
-            auto stepA = 0;
-            auto stepB = 0;
-            lastBridgeValueA = seqwencer::evaluateSubdividedBankRange (
-                phiPatternA, phiSubdivisionsA, phiPhase, phiRange,
-                phiAttackAValue, phiReleaseAValue,
-                &stepA, phiTraversalMode,
-                phiBipolarAValue ? 0.5f : 0.0f,
-                seqwencer::sequencerRandomStream (
-                    seqwencer::SequencerEngine::phi, 0));
-            lastBridgeValueB = seqwencer::evaluateSubdividedBankRange (
-                phiPatternB, phiSubdivisionsB, phiPhase, phiRange,
-                phiAttackBValue, phiReleaseBValue,
-                &stepB, phiTraversalMode,
-                phiBipolarBValue ? 0.5f : 0.0f,
-                seqwencer::sequencerRandomStream (
-                    seqwencer::SequencerEngine::phi, 1));
-            phiActiveStepA.store (phiAIsEnabled ? stepA : -1);
-            phiActiveStepB.store (phiBIsEnabled ? stepB : -1);
+            auto& state = phiPairs[static_cast<std::size_t> (pair)];
+            const auto engine = seqwencer::phiEngineForPair (pair);
+            const auto firstLane = pair * 2;
+            if (state.linked)
+            {
+                auto activeBank = 0;
+                auto activeStep = 0;
+                const auto serialValue =
+                    seqwencer::evaluateSubdividedLinkedRange (
+                        state.pattern[0], state.pattern[1],
+                        state.subdivisions[0], state.subdivisions[1],
+                        state.phase, state.range,
+                        state.serialAttack, state.serialRelease,
+                        state.serialAttack, state.serialRelease,
+                        &activeBank, &activeStep, state.traversalMode,
+                        state.serialBipolar ? 0.5f : 0.0f,
+                        seqwencer::sequencerRandomStream (engine, 2));
+                state.lastValues.fill (serialValue);
+                phiActiveSteps[static_cast<std::size_t> (firstLane)].store (
+                    activeBank == 0 ? activeStep : -1);
+                phiActiveSteps[static_cast<std::size_t> (firstLane + 1)].store (
+                    activeBank == 1 ? activeStep : -1);
+            }
+            else
+            {
+                for (int localLane = 0; localLane < 2; ++localLane)
+                {
+                    auto step = 0;
+                    const auto index = static_cast<std::size_t> (localLane);
+                    state.lastValues[index] =
+                        seqwencer::evaluateSubdividedBankRange (
+                            state.pattern[index], state.subdivisions[index],
+                            state.phase, state.range,
+                            state.attack[index], state.release[index],
+                            &step, state.traversalMode,
+                            state.bipolar[index] ? 0.5f : 0.0f,
+                            seqwencer::sequencerRandomStream (
+                                engine, localLane));
+                    phiActiveSteps[static_cast<std::size_t> (
+                        firstLane + localLane)].store (
+                            state.enabled[index] ? step : -1);
+                }
+            }
         }
 
         auto delayUnipolarA = 1.0f;
@@ -8090,10 +8279,15 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         {
             gateFreeRunningPhase += gatePhaseIncrement;
         }
-        if (! phiUseHostPosition
-            && (mayAdvance || phiRetriggersFromPlayedNotes))
+        for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
         {
-            phiFreeRunningPhase += phiPhaseIncrement;
+            const auto pairIndex = static_cast<std::size_t> (pair);
+            const auto& state = phiPairs[pairIndex];
+            if (! state.useHostPosition
+                && (mayAdvance || state.retriggersFromPlayedNotes))
+            {
+                phiFreeRunningPhases[pairIndex] += state.phaseIncrement;
+            }
         }
         if (delayIsProcessing && ! delayUseHostPosition
             && (mayAdvance || delayRetriggersFromPlayedNotes))
@@ -8153,11 +8347,17 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
             gateStepBeats);
     }
-    if (phiUseHostPosition && hostTimelineAdvancing)
+    for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
     {
-        phiFreeRunningPhase = seqwencer::unwrappedPhaseFromQuarterNotes (
-            hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
-            phiStepBeats);
+        const auto pairIndex = static_cast<std::size_t> (pair);
+        const auto& state = phiPairs[pairIndex];
+        if (state.useHostPosition && hostTimelineAdvancing)
+        {
+            phiFreeRunningPhases[pairIndex] =
+                seqwencer::unwrappedPhaseFromQuarterNotes (
+                    hostPpq + buffer.getNumSamples() * quarterNotesPerSample,
+                    state.stepBeats);
+        }
     }
     if (delayIsProcessing && delayUseHostPosition && hostTimelineAdvancing)
     {
@@ -8226,38 +8426,23 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     if (shouldSendPhiBridge && buffer.getNumSamples() > 0)
     {
-        if (phiLinked)
+        for (int pair = 0; pair < seqwencer::phiSequencerPairCount; ++pair)
         {
-            const auto packet = seqwencer_bridge::encodeLaneValue (
-                seqwencer_bridge::serialLane,
-                phiSerialBipolar,
-                true,
-                lastSerialBridgeValue);
-            midiMessages.addEvent (
-                juce::MidiMessage::createSysExMessage (
-                    packet.data(), static_cast<int> (packet.size())),
-                0);
-        }
-        else
-        {
-            const auto packetA = seqwencer_bridge::encodeLaneValue (
-                seqwencer_bridge::sequencerALane,
-                phiBipolarAValue,
-                phiAIsEnabled,
-                lastBridgeValueA);
-            const auto packetB = seqwencer_bridge::encodeLaneValue (
-                seqwencer_bridge::sequencerBLane,
-                phiBipolarBValue,
-                phiBIsEnabled,
-                lastBridgeValueB);
-            midiMessages.addEvent (
-                juce::MidiMessage::createSysExMessage (
-                    packetA.data(), static_cast<int> (packetA.size())),
-                0);
-            midiMessages.addEvent (
-                juce::MidiMessage::createSysExMessage (
-                    packetB.data(), static_cast<int> (packetB.size())),
-                0);
+            const auto& state = phiPairs[static_cast<std::size_t> (pair)];
+            for (int localLane = 0; localLane < 2; ++localLane)
+            {
+                const auto index = static_cast<std::size_t> (localLane);
+                const auto packet = seqwencer_bridge::encodeLaneValue (
+                    pair * 2 + localLane,
+                    state.linked ? state.serialBipolar : state.bipolar[index],
+                    state.linked ? localLane == 0 : state.enabled[index],
+                    state.lastValues[index],
+                    phiSerialPairMask);
+                midiMessages.addEvent (
+                    juce::MidiMessage::createSysExMessage (
+                        packet.data(), static_cast<int> (packet.size())),
+                    0);
+            }
         }
     }
 
@@ -8266,7 +8451,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             false, std::memory_order_acq_rel))
     {
         const auto packet = seqwencer_bridge::encodeTargetBrowserRequest (
-            phiLinked);
+            phiSerialPairMask);
         midiMessages.addEvent (
             juce::MidiMessage::createSysExMessage (
                 packet.data(), static_cast<int> (packet.size())),
