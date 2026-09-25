@@ -502,6 +502,10 @@ private:
         targetsAssignedB {};
     std::array<std::atomic<float>*, seqwencer::modulationTargetCount>
         targetsEnabledB {};
+    std::array<std::array<std::atomic<float>*, 2>,
+               seqwencer::sequencerEngineCount> sequencerPeaks {};
+    std::array<std::array<std::atomic<float>*, 2>,
+               seqwencer::sequencerEngineCount> sequencerMoves {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> stepsA {};
     std::array<std::atomic<float>*, seqwencer::stepsPerBank> stepsB {};
     std::array<std::array<std::atomic<float>*, seqwencer::stepsPerBank>,

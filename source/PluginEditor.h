@@ -47,6 +47,7 @@ private:
 
     void timerCallback() override;
     void configureKnob (juce::Slider&, const juce::String& suffix = "%");
+    void configureBipolarFader (juce::Slider&, const juce::String& tooltip);
     void configureColourKnob (juce::Slider&);
     void configureStepKnob (juce::Slider&);
     void configureRateKnob (juce::Slider&);
@@ -123,6 +124,10 @@ private:
     std::unique_ptr<ModulationParameterLabel> releaseAParameterLabel;
     std::unique_ptr<ModulationParameterLabel> attackBParameterLabel;
     std::unique_ptr<ModulationParameterLabel> releaseBParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> peakAParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> moveAParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> peakBParameterLabel;
+    std::unique_ptr<ModulationParameterLabel> moveBParameterLabel;
     std::unique_ptr<ModulationParameterLabel> panPositionParameterLabel;
     std::unique_ptr<ModulationParameterLabel> filterCutoffParameterLabel;
     std::unique_ptr<ModulationParameterLabel> filterResonanceParameterLabel;
@@ -259,6 +264,10 @@ private:
     juce::Slider releaseASlider;
     juce::Slider attackBSlider;
     juce::Slider releaseBSlider;
+    juce::Slider peakASlider;
+    juce::Slider moveASlider;
+    juce::Slider peakBSlider;
+    juce::Slider moveBSlider;
     juce::Slider colourASlider;
     juce::Slider colourBSlider;
 
@@ -346,6 +355,10 @@ private:
     std::unique_ptr<SliderAttachment> releaseAAttachment;
     std::unique_ptr<SliderAttachment> attackBAttachment;
     std::unique_ptr<SliderAttachment> releaseBAttachment;
+    std::unique_ptr<SliderAttachment> peakAAttachment;
+    std::unique_ptr<SliderAttachment> moveAAttachment;
+    std::unique_ptr<SliderAttachment> peakBAttachment;
+    std::unique_ptr<SliderAttachment> moveBAttachment;
     std::array<seqwencer::ModulationTarget,
                seqwencer::sequencerRangeTargetCount> boundRangeTargets {
         seqwencer::ModulationTarget::none,

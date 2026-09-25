@@ -796,23 +796,68 @@ enum class ModulationTarget
     retriggerSequencerBRelease = 118,
     retriggerSequencerStart = 119,
     retriggerSequencerEnd = 120,
-    retriggerSequencerLength = 121
+    retriggerSequencerLength = 121,
+    gateSequencerAPeak = 122,
+    gateSequencerAMove = 123,
+    gateSequencerBPeak = 124,
+    gateSequencerBMove = 125,
+    delaySequencerAPeak = 126,
+    delaySequencerAMove = 127,
+    delaySequencerBPeak = 128,
+    delaySequencerBMove = 129,
+    reverbSequencerAPeak = 130,
+    reverbSequencerAMove = 131,
+    reverbSequencerBPeak = 132,
+    reverbSequencerBMove = 133,
+    panSequencerAPeak = 134,
+    panSequencerAMove = 135,
+    panSequencerBPeak = 136,
+    panSequencerBMove = 137,
+    filterSequencerAPeak = 138,
+    filterSequencerAMove = 139,
+    filterSequencerBPeak = 140,
+    filterSequencerBMove = 141,
+    pitchSequencerAPeak = 142,
+    pitchSequencerAMove = 143,
+    pitchSequencerBPeak = 144,
+    pitchSequencerBMove = 145,
+    distortionSequencerAPeak = 146,
+    distortionSequencerAMove = 147,
+    distortionSequencerBPeak = 148,
+    distortionSequencerBMove = 149,
+    grainSequencerAPeak = 150,
+    grainSequencerAMove = 151,
+    grainSequencerBPeak = 152,
+    grainSequencerBMove = 153,
+    compressorSequencerAPeak = 154,
+    compressorSequencerAMove = 155,
+    compressorSequencerBPeak = 156,
+    compressorSequencerBMove = 157,
+    reverseSequencerAPeak = 158,
+    reverseSequencerAMove = 159,
+    reverseSequencerBPeak = 160,
+    reverseSequencerBMove = 161,
+    retriggerSequencerAPeak = 162,
+    retriggerSequencerAMove = 163,
+    retriggerSequencerBPeak = 164,
+    retriggerSequencerBMove = 165
 };
 
 constexpr int sequencerEnvelopeTargetCount = 4;
 constexpr int sequencerRangeTargetCount = 3;
-constexpr int gateModulationTargetCount = 16;
-constexpr int delayModulationTargetCount = 10;
-constexpr int reverbModulationTargetCount = 11;
-constexpr int panModulationTargetCount = 8;
-constexpr int filterModulationTargetCount = 10;
-constexpr int pitchModulationTargetCount = 9;
-constexpr int distortionModulationTargetCount = 10;
-constexpr int grainModulationTargetCount = 11;
-constexpr int compressorModulationTargetCount = 13;
-constexpr int reverseModulationTargetCount = 11;
-constexpr int retriggerModulationTargetCount = 12;
-constexpr int modulationTargetCount = 121;
+constexpr int sequencerTransformTargetCount = 4;
+constexpr int gateModulationTargetCount = 20;
+constexpr int delayModulationTargetCount = 14;
+constexpr int reverbModulationTargetCount = 15;
+constexpr int panModulationTargetCount = 12;
+constexpr int filterModulationTargetCount = 14;
+constexpr int pitchModulationTargetCount = 13;
+constexpr int distortionModulationTargetCount = 14;
+constexpr int grainModulationTargetCount = 15;
+constexpr int compressorModulationTargetCount = 17;
+constexpr int reverseModulationTargetCount = 15;
+constexpr int retriggerModulationTargetCount = 16;
+constexpr int modulationTargetCount = 165;
 
 inline bool isSequencerEnvelopeTarget (ModulationTarget target) noexcept
 {
@@ -1095,12 +1140,98 @@ sequencerRangeTargets (SequencerEngine engine) noexcept
              static_cast<ModulationTarget> (first + 2) };
 }
 
+inline bool isSequencerTransformTarget (ModulationTarget target) noexcept
+{
+    return target >= ModulationTarget::gateSequencerAPeak
+        && target <= ModulationTarget::retriggerSequencerBMove;
+}
+
+inline SequencerEngine sequencerTransformTargetEngine (
+    ModulationTarget target) noexcept
+{
+    if (! isSequencerTransformTarget (target))
+        return SequencerEngine::phi;
+
+    const auto group = (static_cast<int> (target)
+        - static_cast<int> (ModulationTarget::gateSequencerAPeak))
+        / sequencerTransformTargetCount;
+    switch (group)
+    {
+        case 0:  return SequencerEngine::gate;
+        case 1:  return SequencerEngine::delay;
+        case 2:  return SequencerEngine::reverb;
+        case 3:  return SequencerEngine::pan;
+        case 4:  return SequencerEngine::filter;
+        case 5:  return SequencerEngine::pitch;
+        case 6:  return SequencerEngine::distortion;
+        case 7:  return SequencerEngine::grain;
+        case 8:  return SequencerEngine::compressor;
+        case 9:  return SequencerEngine::reverse;
+        case 10: return SequencerEngine::retrigger;
+        default: return SequencerEngine::phi;
+    }
+}
+
+inline int sequencerTransformTargetBank (ModulationTarget target) noexcept
+{
+    if (! isSequencerTransformTarget (target))
+        return -1;
+    const auto offset = (static_cast<int> (target)
+        - static_cast<int> (ModulationTarget::gateSequencerAPeak))
+        % sequencerTransformTargetCount;
+    return offset >= 2 ? 1 : 0;
+}
+
+inline bool sequencerTransformTargetIsPeak (
+    ModulationTarget target) noexcept
+{
+    return isSequencerTransformTarget (target)
+        && (static_cast<int> (target)
+            - static_cast<int> (ModulationTarget::gateSequencerAPeak))
+               % 2 == 0;
+}
+
+inline std::array<ModulationTarget, sequencerTransformTargetCount>
+sequencerTransformTargets (SequencerEngine engine) noexcept
+{
+    auto group = -1;
+    switch (engine)
+    {
+        case SequencerEngine::gate:       group = 0; break;
+        case SequencerEngine::delay:      group = 1; break;
+        case SequencerEngine::reverb:     group = 2; break;
+        case SequencerEngine::pan:        group = 3; break;
+        case SequencerEngine::filter:     group = 4; break;
+        case SequencerEngine::pitch:      group = 5; break;
+        case SequencerEngine::distortion: group = 6; break;
+        case SequencerEngine::grain:      group = 7; break;
+        case SequencerEngine::compressor: group = 8; break;
+        case SequencerEngine::reverse:    group = 9; break;
+        case SequencerEngine::retrigger:  group = 10; break;
+        case SequencerEngine::phi:
+        case SequencerEngine::phiCD:
+        case SequencerEngine::phiEF:
+        case SequencerEngine::phiGH:
+            break;
+    }
+
+    if (group < 0)
+        return { ModulationTarget::none, ModulationTarget::none,
+                 ModulationTarget::none, ModulationTarget::none };
+    const auto first = static_cast<int> (ModulationTarget::gateSequencerAPeak)
+                     + group * sequencerTransformTargetCount;
+    return { static_cast<ModulationTarget> (first),
+             static_cast<ModulationTarget> (first + 1),
+             static_cast<ModulationTarget> (first + 2),
+             static_cast<ModulationTarget> (first + 3) };
+}
+
 inline ModulationTarget targetFromChoice (float choice) noexcept
 {
     const auto target = std::lround (choice);
     return target >= static_cast<int> (ModulationTarget::gateLevel)
             && target <= static_cast<int> (
-                ModulationTarget::retriggerSequencerLength)
+                ModulationTarget::retriggerSequencerBMove)
         ? static_cast<ModulationTarget> (target)
         : ModulationTarget::none;
 }
@@ -1388,6 +1519,60 @@ inline float evaluateSubdividedLinkedRange (
         bank == 0 ? releaseA : releaseB);
 }
 
+// Apply the lane-wide Peak and Move transform to one canonical value. The
+// extrema describe the complete active pattern, which lets the caller retain
+// the waveform's proportions without clipping individual steps.
+inline float applyPeakMoveValue (float value,
+                                 float minimum,
+                                 float maximum,
+                                 float peak,
+                                 float move,
+                                 bool bipolar) noexcept
+{
+    peak = std::clamp (peak, -1.0f, 1.0f);
+    move = std::clamp (move, -1.0f, 1.0f);
+    value = std::clamp (value, 0.0f, 1.0f);
+    if (std::abs (peak) <= 0.000001f
+        && std::abs (move) <= 0.000001f)
+        return value;
+
+    minimum = std::clamp (minimum, 0.0f, 1.0f);
+    maximum = std::clamp (maximum, minimum, 1.0f);
+
+    const auto toWorking = [bipolar] (float input)
+    {
+        input = std::clamp (input, 0.0f, 1.0f);
+        return bipolar ? 2.0f * input - 1.0f : input;
+    };
+    const auto fromWorking = [bipolar] (float input)
+    {
+        const auto converted = bipolar ? 0.5f * (input + 1.0f) : input;
+        return std::clamp (converted, 0.0f, 1.0f);
+    };
+
+    auto workingValue = toWorking (value);
+    auto workingMinimum = toWorking (minimum);
+    auto workingMaximum = toWorking (maximum);
+    const auto largestExcursion = bipolar
+        ? std::max (std::abs (workingMinimum), std::abs (workingMaximum))
+        : workingMaximum;
+    auto scale = peak <= 0.0f ? 1.0f + peak : 1.0f;
+    if (peak > 0.0f && largestExcursion > 0.000001f)
+    {
+        const auto maximumScale = 1.0f / largestExcursion;
+        scale = 1.0f + peak * (maximumScale - 1.0f);
+    }
+
+    workingValue *= scale;
+    workingMinimum *= scale;
+    workingMaximum *= scale;
+    const auto lowerLimit = bipolar ? -1.0f : 0.0f;
+    const auto offset = move >= 0.0f
+        ? move * (1.0f - workingMaximum)
+        : (-move) * (lowerLimit - workingMinimum);
+    return fromWorking (workingValue + offset);
+}
+
 inline float evaluateGateStep (float previousValue,
                                float currentValue,
                                GateStepMode previousMode,
@@ -1449,7 +1634,12 @@ inline float evaluateSubdividedGateBankRange (
     float shortOpenFraction = shortGateOpenFraction,
     float longOpenFraction = longGateOpenFraction,
     SequenceMode mode = SequenceMode::loop,
-    unsigned randomStream = 0U) noexcept
+    unsigned randomStream = 0U,
+    bool transformValues = false,
+    float transformMinimum = 0.0f,
+    float transformMaximum = 1.0f,
+    float peak = 0.0f,
+    float move = 0.0f) noexcept
 {
     range.first = std::clamp (range.first, 0, stepsPerBank - 1);
     range.last = std::clamp (range.last, range.first, stepsPerBank - 1);
@@ -1475,13 +1665,22 @@ inline float evaluateSubdividedGateBankRange (
         ? (divisionMode == StepDivisionMode::half && segment - 1 == 1)
         : (subdivisions[static_cast<std::size_t> (previousStep)].mode
                == StepDivisionMode::half);
-    const auto previousValue = segment > 0
+    auto previousValue = segment > 0
         ? subdividedStepSegmentValue (
               pattern, subdivisions, step, segment - 1, 0.0f)
         : subdividedStepFinalValue (
               pattern, subdivisions, previousStep, 0.0f);
-    const auto currentValue = subdividedStepSegmentValue (
+    auto currentValue = subdividedStepSegmentValue (
         pattern, subdivisions, step, segment, 0.0f);
+    if (transformValues)
+    {
+        previousValue = applyPeakMoveValue (
+            previousValue, transformMinimum, transformMaximum,
+            peak, move, false);
+        currentValue = applyPeakMoveValue (
+            currentValue, transformMinimum, transformMaximum,
+            peak, move, false);
+    }
     return evaluateGateStep (
         previousValue, currentValue,
         previousIsClear ? GateStepMode::off
@@ -1511,7 +1710,12 @@ inline float evaluateSubdividedGateLinkedRange (
     float shortOpenFraction = shortGateOpenFraction,
     float longOpenFraction = longGateOpenFraction,
     SequenceMode mode = SequenceMode::loop,
-    unsigned randomStream = 0U) noexcept
+    unsigned randomStream = 0U,
+    bool transformValues = false,
+    float transformMinimum = 0.0f,
+    float transformMaximum = 1.0f,
+    float peak = 0.0f,
+    float move = 0.0f) noexcept
 {
     range.first = std::clamp (range.first, 0, linkedStepCount - 1);
     range.last = std::clamp (range.last, range.first, linkedStepCount - 1);
@@ -1551,14 +1755,23 @@ inline float evaluateSubdividedGateLinkedRange (
         ? (divisionMode == StepDivisionMode::half && segment - 1 == 1)
         : (previousSubdivisions[static_cast<std::size_t> (
                previousLocalStep)].mode == StepDivisionMode::half);
-    const auto previousValue = segment > 0
+    auto previousValue = segment > 0
         ? subdividedStepSegmentValue (
               pattern, subdivisions, localStep, segment - 1, 0.0f)
         : subdividedStepFinalValue (
               previousPattern, previousSubdivisions,
               previousLocalStep, 0.0f);
-    const auto currentValue = subdividedStepSegmentValue (
+    auto currentValue = subdividedStepSegmentValue (
         pattern, subdivisions, localStep, segment, 0.0f);
+    if (transformValues)
+    {
+        previousValue = applyPeakMoveValue (
+            previousValue, transformMinimum, transformMaximum,
+            peak, move, false);
+        currentValue = applyPeakMoveValue (
+            currentValue, transformMinimum, transformMaximum,
+            peak, move, false);
+    }
     const auto previousMode = segment > 0
         ? gateModes[static_cast<std::size_t> (localStep)]
         : previousGateModes[static_cast<std::size_t> (previousLocalStep)];
@@ -1903,6 +2116,82 @@ inline float displayFromCanonical (float canonicalValue,
     return bipolar ? canonicalValue : unipolarFromCanonical (canonicalValue);
 }
 
+struct SequencerValueBounds
+{
+    float minimum = 0.0f;
+    float maximum = 1.0f;
+};
+
+inline SequencerValueBounds sequencerValueBounds (
+    const Pattern& pattern,
+    const StepSubdivisionPattern& subdivisions,
+    bool bipolar) noexcept
+{
+    auto bounds = SequencerValueBounds { 1.0f, 0.0f };
+    const auto include = [&bounds] (float value)
+    {
+        value = std::clamp (value, 0.0f, 1.0f);
+        bounds.minimum = std::min (bounds.minimum, value);
+        bounds.maximum = std::max (bounds.maximum, value);
+    };
+
+    for (int step = 0; step < stepsPerBank; ++step)
+    {
+        const auto index = static_cast<std::size_t> (step);
+        include (pattern[index]);
+        const auto mode = subdivisions[index].mode;
+        if (mode == StepDivisionMode::half)
+            include (bipolar ? 0.5f : 0.0f);
+        else if (mode == StepDivisionMode::two
+                 || mode == StepDivisionMode::three)
+            include (subdivisions[index].extraValues[0]);
+        if (mode == StepDivisionMode::three)
+            include (subdivisions[index].extraValues[1]);
+    }
+    return bounds;
+}
+
+inline SequencerValueBounds combineSequencerValueBounds (
+    SequencerValueBounds first,
+    SequencerValueBounds second) noexcept
+{
+    return { std::min (first.minimum, second.minimum),
+             std::max (first.maximum, second.maximum) };
+}
+
+// Peak scales every value by the same amount around the lane's zero point.
+// Move then applies one common offset. The scale and offset are restricted by
+// the complete programmed pattern, so no individual step is clipped and the
+// waveform's proportions remain intact.
+inline float applySequencerPeakMove (
+    float value,
+    SequencerValueBounds bounds,
+    float peak,
+    float move,
+    bool bipolar) noexcept
+{
+    return applyPeakMoveValue (
+        value, bounds.minimum, bounds.maximum, peak, move, bipolar);
+}
+
+inline void applySequencerPeakMoveToPattern (
+    Pattern& pattern,
+    StepSubdivisionPattern& subdivisions,
+    SequencerValueBounds bounds,
+    float peak,
+    float move,
+    bool bipolar) noexcept
+{
+    for (auto& value : pattern)
+        value = applySequencerPeakMove (
+            value, bounds, peak, move, bipolar);
+
+    for (auto& subdivision : subdivisions)
+        for (auto& value : subdivision.extraValues)
+            value = applySequencerPeakMove (
+                value, bounds, peak, move, bipolar);
+}
+
 inline Pattern makeWaveformPreset (WaveformPreset preset,
                                    bool bipolar) noexcept
 {
@@ -1960,7 +2249,8 @@ inline Pattern makeWaveformPreset (WaveformPreset preset,
 inline bool targetSupportsBipolar (ModulationTarget target) noexcept
 {
     if (isSequencerEnvelopeTarget (target)
-        || isSequencerRangeTarget (target))
+        || isSequencerRangeTarget (target)
+        || isSequencerTransformTarget (target))
         return true;
 
     switch (target)

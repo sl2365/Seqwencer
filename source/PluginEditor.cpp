@@ -56,7 +56,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::gateSequencerBRelease,
     seqwencer::ModulationTarget::gateSequencerStart,
     seqwencer::ModulationTarget::gateSequencerEnd,
-    seqwencer::ModulationTarget::gateSequencerLength
+    seqwencer::ModulationTarget::gateSequencerLength,
+    seqwencer::ModulationTarget::gateSequencerAPeak,
+    seqwencer::ModulationTarget::gateSequencerAMove,
+    seqwencer::ModulationTarget::gateSequencerBPeak,
+    seqwencer::ModulationTarget::gateSequencerBMove
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -70,7 +74,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::delaySequencerBRelease,
     seqwencer::ModulationTarget::delaySequencerStart,
     seqwencer::ModulationTarget::delaySequencerEnd,
-    seqwencer::ModulationTarget::delaySequencerLength
+    seqwencer::ModulationTarget::delaySequencerLength,
+    seqwencer::ModulationTarget::delaySequencerAPeak,
+    seqwencer::ModulationTarget::delaySequencerAMove,
+    seqwencer::ModulationTarget::delaySequencerBPeak,
+    seqwencer::ModulationTarget::delaySequencerBMove
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -85,7 +93,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::reverbSequencerBRelease,
     seqwencer::ModulationTarget::reverbSequencerStart,
     seqwencer::ModulationTarget::reverbSequencerEnd,
-    seqwencer::ModulationTarget::reverbSequencerLength
+    seqwencer::ModulationTarget::reverbSequencerLength,
+    seqwencer::ModulationTarget::reverbSequencerAPeak,
+    seqwencer::ModulationTarget::reverbSequencerAMove,
+    seqwencer::ModulationTarget::reverbSequencerBPeak,
+    seqwencer::ModulationTarget::reverbSequencerBMove
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -97,7 +109,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::panSequencerBRelease,
     seqwencer::ModulationTarget::panSequencerStart,
     seqwencer::ModulationTarget::panSequencerEnd,
-    seqwencer::ModulationTarget::panSequencerLength
+    seqwencer::ModulationTarget::panSequencerLength,
+    seqwencer::ModulationTarget::panSequencerAPeak,
+    seqwencer::ModulationTarget::panSequencerAMove,
+    seqwencer::ModulationTarget::panSequencerBPeak,
+    seqwencer::ModulationTarget::panSequencerBMove
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -111,7 +127,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::filterSequencerBRelease,
     seqwencer::ModulationTarget::filterSequencerStart,
     seqwencer::ModulationTarget::filterSequencerEnd,
-    seqwencer::ModulationTarget::filterSequencerLength
+    seqwencer::ModulationTarget::filterSequencerLength,
+    seqwencer::ModulationTarget::filterSequencerAPeak,
+    seqwencer::ModulationTarget::filterSequencerAMove,
+    seqwencer::ModulationTarget::filterSequencerBPeak,
+    seqwencer::ModulationTarget::filterSequencerBMove
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -124,7 +144,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::pitchSequencerBRelease,
     seqwencer::ModulationTarget::pitchSequencerStart,
     seqwencer::ModulationTarget::pitchSequencerEnd,
-    seqwencer::ModulationTarget::pitchSequencerLength
+    seqwencer::ModulationTarget::pitchSequencerLength,
+    seqwencer::ModulationTarget::pitchSequencerAPeak,
+    seqwencer::ModulationTarget::pitchSequencerAMove,
+    seqwencer::ModulationTarget::pitchSequencerBPeak,
+    seqwencer::ModulationTarget::pitchSequencerBMove
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -138,7 +162,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::distortionSequencerBRelease,
     seqwencer::ModulationTarget::distortionSequencerStart,
     seqwencer::ModulationTarget::distortionSequencerEnd,
-    seqwencer::ModulationTarget::distortionSequencerLength
+    seqwencer::ModulationTarget::distortionSequencerLength,
+    seqwencer::ModulationTarget::distortionSequencerAPeak,
+    seqwencer::ModulationTarget::distortionSequencerAMove,
+    seqwencer::ModulationTarget::distortionSequencerBPeak,
+    seqwencer::ModulationTarget::distortionSequencerBMove
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -153,7 +181,11 @@ constexpr std::array<seqwencer::ModulationTarget,
     seqwencer::ModulationTarget::grainSequencerBRelease,
     seqwencer::ModulationTarget::grainSequencerStart,
     seqwencer::ModulationTarget::grainSequencerEnd,
-    seqwencer::ModulationTarget::grainSequencerLength
+    seqwencer::ModulationTarget::grainSequencerLength,
+    seqwencer::ModulationTarget::grainSequencerAPeak,
+    seqwencer::ModulationTarget::grainSequencerAMove,
+    seqwencer::ModulationTarget::grainSequencerBPeak,
+    seqwencer::ModulationTarget::grainSequencerBMove
 };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -171,7 +203,11 @@ constexpr std::array<seqwencer::ModulationTarget,
         seqwencer::ModulationTarget::compressorSequencerBRelease,
         seqwencer::ModulationTarget::compressorSequencerStart,
         seqwencer::ModulationTarget::compressorSequencerEnd,
-        seqwencer::ModulationTarget::compressorSequencerLength
+        seqwencer::ModulationTarget::compressorSequencerLength,
+        seqwencer::ModulationTarget::compressorSequencerAPeak,
+        seqwencer::ModulationTarget::compressorSequencerAMove,
+        seqwencer::ModulationTarget::compressorSequencerBPeak,
+        seqwencer::ModulationTarget::compressorSequencerBMove
     };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -187,7 +223,11 @@ constexpr std::array<seqwencer::ModulationTarget,
         seqwencer::ModulationTarget::reverseSequencerBRelease,
         seqwencer::ModulationTarget::reverseSequencerStart,
         seqwencer::ModulationTarget::reverseSequencerEnd,
-        seqwencer::ModulationTarget::reverseSequencerLength
+        seqwencer::ModulationTarget::reverseSequencerLength,
+        seqwencer::ModulationTarget::reverseSequencerAPeak,
+        seqwencer::ModulationTarget::reverseSequencerAMove,
+        seqwencer::ModulationTarget::reverseSequencerBPeak,
+        seqwencer::ModulationTarget::reverseSequencerBMove
     };
 
 constexpr std::array<seqwencer::ModulationTarget,
@@ -204,7 +244,11 @@ constexpr std::array<seqwencer::ModulationTarget,
         seqwencer::ModulationTarget::retriggerSequencerBRelease,
         seqwencer::ModulationTarget::retriggerSequencerStart,
         seqwencer::ModulationTarget::retriggerSequencerEnd,
-        seqwencer::ModulationTarget::retriggerSequencerLength
+        seqwencer::ModulationTarget::retriggerSequencerLength,
+        seqwencer::ModulationTarget::retriggerSequencerAPeak,
+        seqwencer::ModulationTarget::retriggerSequencerAMove,
+        seqwencer::ModulationTarget::retriggerSequencerBPeak,
+        seqwencer::ModulationTarget::retriggerSequencerBMove
     };
 
 juce::String targetDragID (seqwencer::ModulationTarget target)
@@ -350,6 +394,45 @@ public:
             centre.y - std::cos (angle) * pointerLength);
         graphics.setColour (accent.brighter (0.35f));
         graphics.drawLine (juce::Line<float> { centre, pointer }, 2.0f);
+    }
+
+    void drawLinearSlider (juce::Graphics& graphics,
+                           int x, int y, int width, int height,
+                           float sliderPosition,
+                           float minSliderPosition,
+                           float maxSliderPosition,
+                           juce::Slider::SliderStyle style,
+                           juce::Slider& slider) override
+    {
+        if (style != juce::Slider::LinearVertical)
+        {
+            juce::LookAndFeel_V4::drawLinearSlider (
+                graphics, x, y, width, height, sliderPosition,
+                minSliderPosition, maxSliderPosition, style, slider);
+            return;
+        }
+
+        const auto centreX = static_cast<float> (x + width / 2);
+        // LinearVertical supplies meaningful sliderPosition data, but its
+        // min/max positions are reserved for multi-value slider styles. Use
+        // the component bounds so the guide remains visible and reaches the
+        // circular control's full centre-point travel.
+        const auto top = static_cast<float> (y + 1);
+        const auto bottom = static_cast<float> (y + height - 1);
+        const auto centreY = 0.5f * (top + bottom);
+        const auto accent = slider.findColour (
+            juce::Slider::rotarySliderFillColourId);
+
+        graphics.setColour (juce::Colour (panelOutline).withAlpha (0.90f));
+        graphics.drawLine (centreX, top, centreX, bottom, 1.25f);
+        graphics.drawLine (centreX - 4.0f, centreY,
+                           centreX + 4.0f, centreY, 1.0f);
+        graphics.setColour (accent.withAlpha (0.92f));
+        graphics.fillEllipse (centreX - 5.0f, sliderPosition - 5.0f,
+                              10.0f, 10.0f);
+        graphics.setColour (accent.brighter (0.35f));
+        graphics.drawEllipse (centreX - 5.0f, sliderPosition - 5.0f,
+                              10.0f, 10.0f, 1.2f);
     }
 
     void drawToggleButton (juce::Graphics& graphics,
@@ -709,6 +792,14 @@ public:
         rangeLinkParameter = state.getParameter (parameterID ("range_link"));
         bipolarAParameter = state.getParameter (parameterID ("seq_a_bipolar"));
         bipolarBParameter = state.getParameter (parameterID ("seq_b_bipolar"));
+        peakAParameter = state.getParameter (parameterID ("seq_a_peak"));
+        moveAParameter = state.getParameter (parameterID ("seq_a_move"));
+        peakBParameter = state.getParameter (parameterID ("seq_b_peak"));
+        moveBParameter = state.getParameter (parameterID ("seq_b_move"));
+        jassert (peakAParameter != nullptr);
+        jassert (moveAParameter != nullptr);
+        jassert (peakBParameter != nullptr);
+        jassert (moveBParameter != nullptr);
         repaint();
     }
 
@@ -721,12 +812,16 @@ public:
         const auto graph = getGraphBounds();
         const auto columnWidth = graph.getWidth()
                                / static_cast<float> (seqwencer::stepsPerBank);
-        const auto values = readValues();
-        const auto subdivisions = readSubdivisions();
-        const auto otherValues = readOtherValues();
-        const auto otherSubdivisions = readSubdivisionsForBank (
+        auto values = readValues();
+        auto subdivisions = readSubdivisions();
+        auto otherValues = readOtherValues();
+        auto otherSubdivisions = readSubdivisionsForBank (
             bank == 0 ? 1 : 0);
         const auto bipolar = usesBipolarDisplay();
+        auto visualNeutral = bipolar ? 0.5f : 0.0f;
+        applyManualPeakMoveVisualisation (
+            values, subdivisions, otherValues, otherSubdivisions,
+            visualNeutral, bipolar);
         const auto activeStep = bank == 0
             ? processor.getActiveStepA (engine)
             : processor.getActiveStepB (engine);
@@ -928,7 +1023,7 @@ public:
                 const auto clearHalf = subdivision.mode
                                            == seqwencer::StepDivisionMode::half
                                     && segment == 1;
-                const auto value = clearHalf ? (bipolar ? 0.5f : 0.0f)
+                const auto value = clearHalf ? visualNeutral
                     : segment == 0
                         ? values[static_cast<std::size_t> (step)]
                         : subdivision.extraValues[static_cast<std::size_t> (
@@ -984,7 +1079,7 @@ public:
                              - graph.getHeight() * displayedValueAt (
                                    values, subdivisions,
                                    otherValues, otherSubdivisions,
-                                   step, position);
+                                   step, position, visualNeutral);
                 if (step == 0 && point == 0)
                     curve.startNewSubPath (x, y);
                 else
@@ -1260,6 +1355,47 @@ private:
         return readSubdivisionsForBank (bank);
     }
 
+    void applyManualPeakMoveVisualisation (
+        seqwencer::Pattern& values,
+        seqwencer::StepSubdivisionPattern& subdivisions,
+        seqwencer::Pattern& otherValues,
+        seqwencer::StepSubdivisionPattern& otherSubdivisions,
+        float& visualNeutral,
+        bool bipolar) const
+    {
+        const auto linked = isSerial();
+        const auto profileB = linked
+            && readParameter (serialProfileParameter) >= 0.5f;
+        const auto useBankB = linked ? profileB : bank != 0;
+        const auto peak = readParameter (
+            useBankB ? peakBParameter : peakAParameter);
+        const auto move = readParameter (
+            useBankB ? moveBParameter : moveAParameter);
+        if (std::abs (peak) <= 0.000001f
+            && std::abs (move) <= 0.000001f)
+            return;
+
+        auto bounds = seqwencer::sequencerValueBounds (
+            values, subdivisions, bipolar);
+        if (linked)
+        {
+            bounds = seqwencer::combineSequencerValueBounds (
+                bounds, seqwencer::sequencerValueBounds (
+                    otherValues, otherSubdivisions, bipolar));
+        }
+
+        seqwencer::applySequencerPeakMoveToPattern (
+            values, subdivisions, bounds, peak, move, bipolar);
+        visualNeutral = seqwencer::applySequencerPeakMove (
+            visualNeutral, bounds, peak, move, bipolar);
+        if (linked)
+        {
+            seqwencer::applySequencerPeakMoveToPattern (
+                otherValues, otherSubdivisions,
+                bounds, peak, move, bipolar);
+        }
+    }
+
     seqwencer::GateModePattern readGateModes() const
     {
         seqwencer::GateModePattern modes {};
@@ -1372,7 +1508,8 @@ private:
         const seqwencer::Pattern& otherValues,
         const seqwencer::StepSubdivisionPattern& otherSubdivisions,
         int step,
-        float position) const
+        float position,
+        float neutral) const
     {
         const auto linked = isSerial();
         const auto range = getPlaybackRange();
@@ -1410,7 +1547,6 @@ private:
             ? attackParameter->convertFrom0to1 (attackParameter->getValue()) : 0.0f;
         const auto release = releaseParameter != nullptr
             ? releaseParameter->convertFrom0to1 (releaseParameter->getValue()) : 0.0f;
-        const auto neutral = usesBipolarDisplay() ? 0.5f : 0.0f;
         const auto divisionMode = subdivisions[static_cast<std::size_t> (
             step)].mode;
         const auto segmentCount = seqwencer::stepDivisionSegmentCount (
@@ -2091,6 +2227,10 @@ private:
     juce::RangedAudioParameter* rangeLinkParameter = nullptr;
     juce::RangedAudioParameter* bipolarAParameter = nullptr;
     juce::RangedAudioParameter* bipolarBParameter = nullptr;
+    juce::RangedAudioParameter* peakAParameter = nullptr;
+    juce::RangedAudioParameter* moveAParameter = nullptr;
+    juce::RangedAudioParameter* peakBParameter = nullptr;
+    juce::RangedAudioParameter* moveBParameter = nullptr;
     juce::RangedAudioParameter* gateEnabledParameter = nullptr;
     juce::RangedAudioParameter* reverseEnabledParameter = nullptr;
     juce::RangedAudioParameter* retriggerEnabledParameter = nullptr;
@@ -3217,6 +3357,18 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     releaseBParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::gateSequencerBRelease,
         "RELEASE");
+    peakAParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::gateSequencerAPeak,
+        "PEAK");
+    moveAParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::gateSequencerAMove,
+        "MOVE");
+    peakBParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::gateSequencerBPeak,
+        "PEAK");
+    moveBParameterLabel = std::make_unique<ModulationParameterLabel> (
+        processor, seqwencer::ModulationTarget::gateSequencerBMove,
+        "MOVE");
     startParameterLabel = std::make_unique<ModulationParameterLabel> (
         processor, seqwencer::ModulationTarget::gateSequencerStart,
         "START");
@@ -3402,6 +3554,10 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     content.addAndMakeVisible (*releaseAParameterLabel);
     content.addAndMakeVisible (*attackBParameterLabel);
     content.addAndMakeVisible (*releaseBParameterLabel);
+    content.addAndMakeVisible (*peakAParameterLabel);
+    content.addAndMakeVisible (*moveAParameterLabel);
+    content.addAndMakeVisible (*peakBParameterLabel);
+    content.addAndMakeVisible (*moveBParameterLabel);
     content.addAndMakeVisible (*startParameterLabel);
     content.addAndMakeVisible (*endParameterLabel);
     content.addAndMakeVisible (*rangeLinkButton);
@@ -3786,6 +3942,27 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureKnob (releaseASlider);
     configureKnob (attackBSlider);
     configureKnob (releaseBSlider);
+    configureBipolarFader (
+        peakASlider,
+        "Scale Sequencer A's complete waveform without changing its shape");
+    configureBipolarFader (
+        moveASlider,
+        "Move Sequencer A's complete waveform up or down without clipping");
+    configureBipolarFader (
+        peakBSlider,
+        "Scale Sequencer B's complete waveform without changing its shape");
+    configureBipolarFader (
+        moveBSlider,
+        "Move Sequencer B's complete waveform up or down without clipping");
+    const auto repaintPeakMoveVisualisation = [this]
+    {
+        gridA->repaint();
+        gridB->repaint();
+    };
+    peakASlider.onValueChange = repaintPeakMoveVisualisation;
+    moveASlider.onValueChange = repaintPeakMoveVisualisation;
+    peakBSlider.onValueChange = repaintPeakMoveVisualisation;
+    moveBSlider.onValueChange = repaintPeakMoveVisualisation;
     configureColourKnob (colourASlider);
     configureColourKnob (colourBSlider);
     colourASlider.setValue (storedSettings.hueA, juce::dontSendNotification);
@@ -3879,14 +4056,14 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         slider->setColour (juce::Slider::rotarySliderFillColourId,
                            juce::Colour (retriggerAccent));
     }
-    attackASlider.setColour (juce::Slider::rotarySliderFillColourId,
-                             laneAColour);
-    releaseASlider.setColour (juce::Slider::rotarySliderFillColourId,
-                              laneAColour);
-    attackBSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                             laneBColour);
-    releaseBSlider.setColour (juce::Slider::rotarySliderFillColourId,
-                              laneBColour);
+    for (auto* slider : { &attackASlider, &releaseASlider,
+                          &peakASlider, &moveASlider })
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           laneAColour);
+    for (auto* slider : { &attackBSlider, &releaseBSlider,
+                          &peakBSlider, &moveBSlider })
+        slider->setColour (juce::Slider::rotarySliderFillColourId,
+                           laneBColour);
 
     configureLabel (rateLabel, "RATE");
     configureLabel (sequenceModeLabel, "DIRECTION");
@@ -4242,6 +4419,17 @@ void SeqwencerAudioProcessorEditor::configureKnob (juce::Slider& slider,
     {
         return juce::String (std::lround (value * 100.0)) + suffix;
     };
+    content.addAndMakeVisible (slider);
+}
+
+void SeqwencerAudioProcessorEditor::configureBipolarFader (
+    juce::Slider& slider, const juce::String& tooltip)
+{
+    slider.setSliderStyle (juce::Slider::LinearVertical);
+    slider.setRange (-1.0, 1.0, 0.001);
+    slider.setTextBoxStyle (juce::Slider::NoTextBox, true, 0, 0);
+    slider.setDoubleClickReturnValue (true, 0.0);
+    slider.setTooltip (tooltip);
     content.addAndMakeVisible (slider);
 }
 
@@ -4642,6 +4830,10 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
     releaseAAttachment.reset();
     attackBAttachment.reset();
     releaseBAttachment.reset();
+    peakAAttachment.reset();
+    moveAAttachment.reset();
+    peakBAttachment.reset();
+    moveBAttachment.reset();
 
     modeParameter = state.getParameter (parameterID ("playback_mode"));
     seqAEnabledParameter = state.getParameter (parameterID ("seq_a_enabled"));
@@ -4670,6 +4862,14 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
         state, parameterID ("seq_b_attack"), attackBSlider);
     releaseBAttachment = std::make_unique<SliderAttachment> (
         state, parameterID ("seq_b_release"), releaseBSlider);
+    peakAAttachment = std::make_unique<SliderAttachment> (
+        state, parameterID ("seq_a_peak"), peakASlider);
+    moveAAttachment = std::make_unique<SliderAttachment> (
+        state, parameterID ("seq_a_move"), moveASlider);
+    peakBAttachment = std::make_unique<SliderAttachment> (
+        state, parameterID ("seq_b_peak"), peakBSlider);
+    moveBAttachment = std::make_unique<SliderAttachment> (
+        state, parameterID ("seq_b_move"), moveBSlider);
 
     const auto engine = selectedFx == SelectedFx::phi
         ? seqwencer::phiEngineForPair (selectedPhiPair)
@@ -4695,11 +4895,16 @@ void SeqwencerAudioProcessorEditor::bindSelectedEngine()
                 ? seqwencer::SequencerEngine::retrigger
                 : seqwencer::SequencerEngine::gate;
     const auto envelopeTargets = seqwencer::sequencerEnvelopeTargets (engine);
+    const auto transformTargets = seqwencer::sequencerTransformTargets (engine);
     boundRangeTargets = seqwencer::sequencerRangeTargets (engine);
     attackAParameterLabel->setTarget (envelopeTargets[0], "ATTACK");
     releaseAParameterLabel->setTarget (envelopeTargets[1], "RELEASE");
     attackBParameterLabel->setTarget (envelopeTargets[2], "ATTACK");
     releaseBParameterLabel->setTarget (envelopeTargets[3], "RELEASE");
+    peakAParameterLabel->setTarget (transformTargets[0], "PEAK");
+    moveAParameterLabel->setTarget (transformTargets[1], "MOVE");
+    peakBParameterLabel->setTarget (transformTargets[2], "PEAK");
+    moveBParameterLabel->setTarget (transformTargets[3], "MOVE");
     startParameterLabel->setTarget (boundRangeTargets[0], "START");
     rangeLabelShowsLength = rangeLinkButton->getToggleState();
     endParameterLabel->setTarget (
@@ -5106,7 +5311,9 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
              retriggerDecayParameterLabel.get(),
              retriggerMixParameterLabel.get(), attackAParameterLabel.get(),
              releaseAParameterLabel.get(), attackBParameterLabel.get(),
-             releaseBParameterLabel.get(), startParameterLabel.get(),
+             releaseBParameterLabel.get(), peakAParameterLabel.get(),
+             moveAParameterLabel.get(), peakBParameterLabel.get(),
+             moveBParameterLabel.get(), startParameterLabel.get(),
              endParameterLabel.get() })
     {
         label->setAssignmentColours (
@@ -5144,9 +5351,11 @@ void SeqwencerAudioProcessorEditor::updateLaneColours()
         button->setColour (juce::ToggleButton::tickColourId, laneAColour);
     for (auto* button : { &enableBButton, &bipolarBButton })
         button->setColour (juce::ToggleButton::tickColourId, laneBColour);
-    for (auto* slider : { &attackASlider, &releaseASlider })
+    for (auto* slider : { &attackASlider, &releaseASlider,
+                          &peakASlider, &moveASlider })
         slider->setColour (juce::Slider::rotarySliderFillColourId, laneAColour);
-    for (auto* slider : { &attackBSlider, &releaseBSlider })
+    for (auto* slider : { &attackBSlider, &releaseBSlider,
+                          &peakBSlider, &moveBSlider })
         slider->setColour (juce::Slider::rotarySliderFillColourId, laneBColour);
 
     colourASlider.setColour (juce::Slider::rotarySliderFillColourId,
@@ -5431,6 +5640,17 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         release.setAlpha (alpha);
         releaseLabel.setAlpha (alpha);
     };
+    const auto setTransformAlpha = [] (float alpha,
+                                        juce::Slider& peak,
+                                        juce::Component& peakLabel,
+                                        juce::Slider& move,
+                                        juce::Component& moveLabel)
+    {
+        peak.setAlpha (alpha);
+        peakLabel.setAlpha (alpha);
+        move.setAlpha (alpha);
+        moveLabel.setAlpha (alpha);
+    };
 
     if (serial)
     {
@@ -5466,6 +5686,12 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
         setControlAlpha (gateControlsAlpha * (profileB ? 1.0f : 0.30f),
                          attackBSlider, *attackBParameterLabel,
                          releaseBSlider, *releaseBParameterLabel);
+        setTransformAlpha (gateControlsAlpha * (profileB ? 0.30f : 1.0f),
+                           peakASlider, *peakAParameterLabel,
+                           moveASlider, *moveAParameterLabel);
+        setTransformAlpha (gateControlsAlpha * (profileB ? 1.0f : 0.30f),
+                           peakBSlider, *peakBParameterLabel,
+                           moveBSlider, *moveBParameterLabel);
         bipolarAButton.setAlpha (
             gateControlsAlpha * (profileB ? 0.30f : 1.0f));
         bipolarBButton.setAlpha (
@@ -5511,6 +5737,10 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
                          releaseASlider, *releaseAParameterLabel);
         setControlAlpha (alphaB, attackBSlider, *attackBParameterLabel,
                          releaseBSlider, *releaseBParameterLabel);
+        setTransformAlpha (alphaA, peakASlider, *peakAParameterLabel,
+                           moveASlider, *moveAParameterLabel);
+        setTransformAlpha (alphaB, peakBSlider, *peakBParameterLabel,
+                           moveBSlider, *moveBParameterLabel);
         bipolarAButton.setAlpha (alphaA);
         bipolarBButton.setAlpha (alphaB);
         laneATitle.setAlpha (alphaA);
@@ -5548,7 +5778,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.24.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.25.3",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -5834,8 +6064,8 @@ void SeqwencerAudioProcessorEditor::resized()
     const auto laneAHeight = totalLaneHeight / 2;
     const auto laneBHeight = totalLaneHeight - laneAHeight;
     constexpr int laneX = 114;
-    constexpr int controlsWidth = 150;
-    constexpr int targetWidth = 166;
+    constexpr int controlsWidth = 200;
+    constexpr int targetWidth = 116;
     constexpr int componentGap = 10;
     constexpr int innerMargin = 10;
     const auto placeLane = [&] (int lane,
@@ -5854,6 +6084,12 @@ void SeqwencerAudioProcessorEditor::resized()
         laneTitle.setBounds (laneX + 10, y + 7, 128, 14);
         enabled.setBounds (laneX + 10, y + 26, 34, 27);
         auto& bipolarButton = lane == 0 ? bipolarAButton : bipolarBButton;
+        auto& peakSlider = lane == 0 ? peakASlider : peakBSlider;
+        auto& moveSlider = lane == 0 ? moveASlider : moveBSlider;
+        auto& peakLabel = lane == 0
+            ? *peakAParameterLabel : *peakBParameterLabel;
+        auto& moveLabel = lane == 0
+            ? *moveAParameterLabel : *moveBParameterLabel;
         bipolarButton.setBounds (laneX + 52, y + 26, 86, 27);
         attackLabel.setBounds (laneX + 13, y + 61, 60, 13);
         attack.setBounds (laneX + 13, y + 72, 60,
@@ -5862,6 +6098,10 @@ void SeqwencerAudioProcessorEditor::resized()
         release.setBounds (laneX + 78, y + 72, 60,
                            juce::jmax (35, juce::jmin (70, laneHeight - 84)));
         nudgeControls.setBounds (laneX + 13, y + 149, 125, 49);
+        peakLabel.setBounds (laneX + 149, y + 6, 50, 14);
+        peakSlider.setBounds (laneX + 160, y + 17, 28, 82);
+        moveLabel.setBounds (laneX + 149, y + 104, 50, 14);
+        moveSlider.setBounds (laneX + 160, y + 115, 28, 83);
 
         const auto gateSelected = selectedFx == SelectedFx::gate;
         const auto delaySelected = selectedFx == SelectedFx::delay;
@@ -6011,6 +6251,10 @@ void SeqwencerAudioProcessorEditor::timerCallback()
     releaseAParameterLabel->repaint();
     attackBParameterLabel->repaint();
     releaseBParameterLabel->repaint();
+    peakAParameterLabel->repaint();
+    moveAParameterLabel->repaint();
+    peakBParameterLabel->repaint();
+    moveBParameterLabel->repaint();
     startParameterLabel->repaint();
     endParameterLabel->repaint();
     rangeLinkButton->repaint();

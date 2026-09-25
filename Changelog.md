@@ -2,6 +2,51 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.25.3 GUI fix
+
+- Restored the Peak and Move fader guide lines after the v1.3.25.2 endpoint
+  adjustment incorrectly used positions reserved for multi-value sliders
+- Extended the restored lines five pixels beyond their original ends so they
+  cover the circular control's complete centre-point travel
+
+## v1.3.25.2 GUI refinements
+
+- Moved the Peak and Move labels three pixels closer to their faders
+- Extended each fader guide line to the true minimum and maximum centre points
+  of its circular control
+
+## v1.3.25.1 refinements
+
+- Made the stacked Peak and Move faders taller for easier adjustment
+- Added live visual Peak/Move feedback to every step field, including divided
+  segment heights and both halves of a Serial sequence
+- Kept the visualisation tied to the manual fader values only; internal target
+  modulation remains intentionally absent from the display
+- Kept the underlying step and subdivision data unchanged, making the display
+  transformation completely non-destructive
+
+## v1.3.25.0 features
+
+- Added a bipolar Peak control to every Sequencer A-H lane; negative values
+  proportionally tame the complete waveform and positive values expand it into
+  the available headroom without changing its shape
+- Added a bipolar Move control to every lane; it translates the complete
+  waveform up or down and stops when its highest or lowest value reaches the
+  field boundary
+- Added Peak and Move as modulation targets for every internal FX sequencer,
+  using the raw pre-transform sequence as the modulation source so self- and
+  cross-modulation remain deterministic and cannot create feedback
+- Added compact centre-detented vertical faders between the lane controls and
+  Targets lists while preserving the existing sequencer-grid width
+- Reduced the two Targets lists from 166 to 116 pixels, reclaiming previously
+  unused space without changing the overall plug-in dimensions
+- Applied the transforms before Gate's audible envelope while preserving Off,
+  Short, Long, Link and Half-step closures
+- Appended all new parameters after the v1.3.24.0 parameter list so existing
+  projects and presets retain their previous parameter indices and sound
+- Expanded core and VST3 probe coverage for the new controls, targets and Gate
+  behaviour
+
 ## v1.3.24.0 features
 
 - Expanded the PHI page from one A/B sequencer pair to four independently

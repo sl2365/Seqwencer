@@ -44,6 +44,69 @@ int main()
     expectNear ("opposing lane colours produce a distinct dual target",
                 seqwencer::combinedTargetHue (0.0f, 0.5f), 0.25f);
 
+    seqwencer::Pattern transformPattern {};
+    transformPattern.fill (0.25f);
+    transformPattern[1] = 0.50f;
+    seqwencer::StepSubdivisionPattern transformSubdivisions {};
+    const auto unipolarTransformBounds = seqwencer::sequencerValueBounds (
+        transformPattern, transformSubdivisions, false);
+    expectNear ("neutral Peak and Move preserve the waveform",
+                seqwencer::applySequencerPeakMove (
+                    0.25f, unipolarTransformBounds,
+                    0.0f, 0.0f, false),
+                0.25f);
+    expectNear ("negative Peak proportionally tames a waveform",
+                seqwencer::applySequencerPeakMove (
+                    0.25f, unipolarTransformBounds,
+                    -0.50f, 0.0f, false),
+                0.125f);
+    expectNear ("positive Peak expands to available headroom",
+                seqwencer::applySequencerPeakMove (
+                    0.25f, unipolarTransformBounds,
+                    1.0f, 0.0f, false),
+                0.50f);
+    expectNear ("positive Move stops the highest step at the ceiling",
+                seqwencer::applySequencerPeakMove (
+                    0.25f, unipolarTransformBounds,
+                    0.0f, 1.0f, false),
+                0.75f);
+    expectNear ("negative Move stops the lowest step at the floor",
+                seqwencer::applySequencerPeakMove (
+                    0.25f, unipolarTransformBounds,
+                    0.0f, -1.0f, false),
+                0.0f);
+
+    auto visualTransformPattern = transformPattern;
+    auto visualTransformSubdivisions = transformSubdivisions;
+    visualTransformSubdivisions[0].mode =
+        seqwencer::StepDivisionMode::two;
+    visualTransformSubdivisions[0].extraValues[0] = 0.375f;
+    seqwencer::applySequencerPeakMoveToPattern (
+        visualTransformPattern, visualTransformSubdivisions,
+        unipolarTransformBounds, 1.0f, 0.0f, false);
+    expectNear ("visual Peak transforms the stored main-step copy",
+                visualTransformPattern[0], 0.50f);
+    expectNear ("visual Peak transforms divided-segment copies",
+                visualTransformSubdivisions[0].extraValues[0], 0.75f);
+    expectNear ("visual Peak leaves the source pattern untouched",
+                transformPattern[0], 0.25f);
+
+    seqwencer::Pattern bipolarTransformPattern {};
+    bipolarTransformPattern.fill (0.25f);
+    bipolarTransformPattern[1] = 0.75f;
+    const auto bipolarTransformBounds = seqwencer::sequencerValueBounds (
+        bipolarTransformPattern, transformSubdivisions, true);
+    expectNear ("bipolar Peak scales around the centre line",
+                seqwencer::applySequencerPeakMove (
+                    0.625f, bipolarTransformBounds,
+                    1.0f, 0.0f, true),
+                0.75f);
+    expectNear ("bipolar Move translates the complete waveform",
+                seqwencer::applySequencerPeakMove (
+                    0.50f, bipolarTransformBounds,
+                    0.0f, 1.0f, true),
+                0.75f);
+
     const auto defaultFxOrder = seqwencer::defaultAudioFxOrder();
     expectEqual ("default FX routing begins with Gate",
                  static_cast<int> (defaultFxOrder.front()),
@@ -234,6 +297,32 @@ int main()
                 seqwencer::evaluateSubdividedGateBankRange (
                     dividedPattern, dividedGateModes, divisions, 0.75,
                     { 0, 1 }, 0.0f, 0.0f),
+                0.0f);
+
+    seqwencer::Pattern transformedGatePattern {};
+    transformedGatePattern.fill (0.25f);
+    transformedGatePattern[0] = 0.5f;
+    seqwencer::GateModePattern transformedGateModes {};
+    transformedGateModes.fill (seqwencer::GateStepMode::linkStep);
+    seqwencer::StepSubdivisionPattern transformedGateDivisions {};
+    expectNear ("Gate Peak transforms an open step before its envelope",
+                seqwencer::evaluateSubdividedGateBankRange (
+                    transformedGatePattern, transformedGateModes,
+                    transformedGateDivisions, 0.25, { 0, 0 }, 0.0f, 0.0f,
+                    nullptr, seqwencer::shortGateOpenFraction,
+                    seqwencer::longGateOpenFraction,
+                    seqwencer::SequenceMode::loop, 0U, true,
+                    0.25f, 0.5f, 1.0f, 0.0f),
+                1.0f);
+    transformedGateModes[0] = seqwencer::GateStepMode::off;
+    expectNear ("Gate Move cannot reopen an Off step",
+                seqwencer::evaluateSubdividedGateBankRange (
+                    transformedGatePattern, transformedGateModes,
+                    transformedGateDivisions, 0.25, { 0, 0 }, 0.0f, 0.0f,
+                    nullptr, seqwencer::shortGateOpenFraction,
+                    seqwencer::longGateOpenFraction,
+                    seqwencer::SequenceMode::loop, 0U, true,
+                    0.25f, 0.5f, 0.0f, 1.0f),
                 0.0f);
     expectNear ("Bipolar Half returns to its neutral centre",
                 seqwencer::evaluateSubdividedBankRange (
@@ -1053,8 +1142,12 @@ int main()
                  static_cast<int> (seqwencer::targetFromChoice (1.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::gateLevel));
     expectEqual ("unknown target choice restores safely as None",
-                 static_cast<int> (seqwencer::targetFromChoice (122.0f)),
+                 static_cast<int> (seqwencer::targetFromChoice (166.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::none));
+    expectEqual ("Peak target choice restores",
+                 static_cast<int> (seqwencer::targetFromChoice (122.0f)),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::gateSequencerAPeak));
     expectEqual ("Depth target choice restores",
                  static_cast<int> (seqwencer::targetFromChoice (2.0f)),
                  static_cast<int> (seqwencer::ModulationTarget::gateDepth));
@@ -1268,6 +1361,25 @@ int main()
                  seqwencer::sequencerRangeTargetIsLength (
                      seqwencer::ModulationTarget::retriggerSequencerLength)
                      ? 1 : 0,
+                 1);
+    const auto filterTransformTargets = seqwencer::sequencerTransformTargets (
+        seqwencer::SequencerEngine::filter);
+    expectEqual ("Filter exposes Sequencer A Peak as a transform target",
+                 static_cast<int> (filterTransformTargets[0]),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::filterSequencerAPeak));
+    expectEqual ("Filter exposes Sequencer B Move as a transform target",
+                 static_cast<int> (filterTransformTargets[3]),
+                 static_cast<int> (
+                     seqwencer::ModulationTarget::filterSequencerBMove));
+    expectEqual ("a transform target identifies its owning engine",
+                 static_cast<int> (
+                     seqwencer::sequencerTransformTargetEngine (
+                         seqwencer::ModulationTarget::grainSequencerAMove)),
+                 static_cast<int> (seqwencer::SequencerEngine::grain));
+    expectEqual ("a transform target identifies Sequencer B",
+                 seqwencer::sequencerTransformTargetBank (
+                     seqwencer::ModulationTarget::reverseSequencerBPeak),
                  1);
     expectEqual ("Gate Volume remains a unipolar destination",
                  seqwencer::targetSupportsBipolar (

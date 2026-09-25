@@ -481,6 +481,20 @@ int main (int argumentCount, char* arguments[])
                         return 1;
                     }
                 }
+                for (const auto& transform : { juce::String ("PEAK"),
+                                                juce::String ("MOVE") })
+                {
+                    const auto baseName = engineName + " Sequencer "
+                        + sourceBank + " " + destinationBank + " "
+                        + transform + " Target";
+                    if (findParameterByName (baseName) == nullptr
+                        || findParameterByName (baseName + " Enabled") == nullptr)
+                    {
+                        std::cout << "FAIL: missing sequencer transform target: "
+                                  << baseName.toStdString() << "\n";
+                        return 1;
+                    }
+                }
             }
             for (const auto& rangeControl : {
                      juce::String ("START"), juce::String ("END"),
@@ -499,7 +513,44 @@ int main (int argumentCount, char* arguments[])
         }
     }
     std::cout << "PASS: every internal FX exposes A/B Attack and Release "
-                 "plus Start, End and Length targets to both sequencers"
+                 "plus Peak, Move, Start, End and Length targets to both "
+                 "sequencers"
+              << std::endl;
+
+    for (const auto& engineName : internalEngineNames)
+    {
+        for (const auto& bank : { juce::String ("A"), juce::String ("B") })
+        {
+            for (const auto& transform : { juce::String ("Peak"),
+                                            juce::String ("Move") })
+            {
+                const auto name = engineName + " Sequencer " + bank + " "
+                                + transform;
+                if (findParameterByName (name) == nullptr)
+                {
+                    std::cout << "FAIL: missing sequencer transform control: "
+                              << name.toStdString() << "\n";
+                    return 1;
+                }
+            }
+        }
+    }
+    for (juce::juce_wchar lane = 'A'; lane <= 'H'; ++lane)
+    {
+        const auto laneName = juce::String::charToString (lane);
+        for (const auto& transform : { juce::String ("Peak"),
+                                        juce::String ("Move") })
+        {
+            const auto name = "PHI Sequencer " + laneName + " " + transform;
+            if (findParameterByName (name) == nullptr)
+            {
+                std::cout << "FAIL: missing PHI sequencer transform control: "
+                          << name.toStdString() << "\n";
+                return 1;
+            }
+        }
+    }
+    std::cout << "PASS: all thirty sequencers expose independent Peak and Move"
               << std::endl;
 
     bipolarA->setValueNotifyingHost (1.0f);

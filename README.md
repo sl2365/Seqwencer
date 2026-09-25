@@ -62,8 +62,10 @@ Retrigger added after Compressor.
   heights
 - Independent Rate, Start/End or linked Start/Length, Direction, Attack and
   Release for every effect
+- Bipolar Peak and Move controls for every sequencer lane
 - Draggable A/B Attack and Release targets on every internal FX page
 - Draggable Start, End and Length targets on every internal FX page
+- Draggable A/B Peak and Move targets on every internal FX page
 - Loop, Bounce, Reverse, Played and Random directions
 - Straight and triplet rates from 1/128 through 1/1
 - Waveform drawing presets for each lane
@@ -164,6 +166,22 @@ while it is on. Start remains available in both states, so a sequencer can move
 a fixed-length playback window without changing its number of steps. PHI shows
 the same manual range workflow but keeps range captions local, like its envelope
 controls.
+
+Each lane also has two minimal centre-detented faders beside its step field.
+`PEAK` scales the complete waveform: moving it down tames the pattern, while
+moving it up expands the pattern into its available headroom. `MOVE` translates
+the complete waveform vertically until its highest or lowest point reaches the
+field boundary. Both operations retain the relative shape of the programmed
+steps and divided segments; Peak is applied before Move. The step field updates
+to show the transformation selected by the manual faders without rewriting the
+stored pattern. Internally sequenced Peak/Move modulation is intentionally not
+drawn, keeping the display stable and readable.
+
+Peak and Move are draggable targets on every internal FX page. Their target
+modulation uses the raw pre-transform sequence, so a lane can target its own
+Peak or Move value without recursively feeding the already transformed result
+back into itself. PHI A-H provide the same manual controls, while their external
+destinations continue to be selected in PHI's Targets browser.
 
 ## Gate modes
 
