@@ -175,6 +175,44 @@ int main (int argumentCount, char* arguments[])
     targetBEnabled->setValueNotifyingHost (1.0f);
     std::cout << "PASS: Parallel target-enable parameters are independent" << std::endl;
 
+    constexpr int idleTestSampleCount = 512;
+    juce::AudioBuffer<float> idleAudio (2, idleTestSampleCount);
+    for (int sample = 0; sample < idleTestSampleCount; ++sample)
+    {
+        idleAudio.setSample (0, sample,
+                             0.25f + 0.5f * static_cast<float> (sample)
+                                           / idleTestSampleCount);
+        idleAudio.setSample (1, sample,
+                             -0.5f + 0.25f * static_cast<float> (sample)
+                                            / idleTestSampleCount);
+    }
+    juce::MidiBuffer idleMidi;
+    instance->prepareToPlay (48000.0, idleTestSampleCount);
+    instance->processBlock (idleAudio, idleMidi);
+    instance->releaseResources();
+
+    auto idleMaximumError = 0.0f;
+    for (int channel = 0; channel < idleAudio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < idleTestSampleCount; ++sample)
+        {
+            const auto expected = channel == 0
+                ? 0.25f + 0.5f * static_cast<float> (sample)
+                            / idleTestSampleCount
+                : -0.5f + 0.25f * static_cast<float> (sample)
+                            / idleTestSampleCount;
+            idleMaximumError = std::max (
+                idleMaximumError,
+                std::abs (idleAudio.getSample (channel, sample) - expected));
+        }
+
+    if (idleMaximumError > 0.000001f || ! idleMidi.isEmpty())
+    {
+        std::cout << "FAIL: idle fast path was not transparent\n";
+        return 1;
+    }
+    std::cout << "PASS: idle fast path is transparent and emits no PHI data"
+              << std::endl;
+
     auto* startStep = findParameterByName ("Start Step");
     auto* endStep = findParameterByName ("End Step");
     auto* serialProfile = findParameterByName ("Serial Control Profile");
@@ -221,6 +259,8 @@ int main (int argumentCount, char* arguments[])
     auto* phiGHRate = findParameterByName ("PHI G/H Rate");
     auto* delayEnabled = findParameterByName ("Delay Enabled");
     auto* delayTime = findParameterByName ("Delay Time");
+    auto* delaySyncEnabled = findParameterByName ("Delay Sync");
+    auto* delaySyncDivision = findParameterByName ("Delay Sync Division");
     auto* delayFeedback = findParameterByName ("Delay Feedback");
     auto* delayMix = findParameterByName ("Delay Mix");
     auto* delayRate = findParameterByName ("Delay Rate");
@@ -367,7 +407,8 @@ int main (int argumentCount, char* arguments[])
         || phiStepH1 == nullptr || phiSequencerHEnabled == nullptr
         || phiCDRate == nullptr || phiEFRate == nullptr
         || phiGHRate == nullptr || delayEnabled == nullptr
-        || delayTime == nullptr || delayFeedback == nullptr
+        || delayTime == nullptr || delaySyncEnabled == nullptr
+        || delaySyncDivision == nullptr || delayFeedback == nullptr
         || delayMix == nullptr || delayRate == nullptr
         || delayStartStep == nullptr || delayEndStep == nullptr
         || delaySequenceMode == nullptr || delayStepA1 == nullptr
@@ -1435,8 +1476,32 @@ int main (int argumentCount, char* arguments[])
         std::cout << "FAIL: the tape Delay did not move a fully wet impulse to 10 ms\n";
         return 1;
     }
+
+    delaySyncEnabled->setValueNotifyingHost (1.0f);
+    delaySyncDivision->setValueNotifyingHost (1.0f);
+    juce::AudioBuffer<float> syncedDelayAudio (2, delayTestSampleCount);
+    syncedDelayAudio.clear();
+    syncedDelayAudio.setSample (0, 0, 1.0f);
+    syncedDelayAudio.setSample (1, 0, 1.0f);
+    instance->prepareToPlay (48000.0, delayTestSampleCount);
+    instance->processBlock (syncedDelayAudio, midi);
+    instance->releaseResources();
+
+    auto syncedDelayedPeak = 0.0f;
+    for (int sample = 746; sample <= 754; ++sample)
+        syncedDelayedPeak = std::max (
+            syncedDelayedPeak,
+            std::abs (syncedDelayAudio.getSample (0, sample)));
+    if (std::abs (syncedDelayAudio.getSample (0, 0)) > 0.001f
+        || syncedDelayedPeak < 0.80f)
+    {
+        std::cout << "FAIL: Delay Sync did not place 1/128 at 750 samples for 120 BPM\n";
+        return 1;
+    }
+    delaySyncEnabled->setValueNotifyingHost (0.0f);
     delayEnabled->setValueNotifyingHost (0.0f);
-    std::cout << "PASS: tape Delay produces a smooth interpolated delayed signal" << std::endl;
+    std::cout << "PASS: Delay supports millisecond and host-tempo timing"
+              << std::endl;
 
     reverbEnabled->setValueNotifyingHost (1.0f);
     reverbSize->setValueNotifyingHost (0.75f);

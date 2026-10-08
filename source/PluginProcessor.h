@@ -277,6 +277,8 @@ private:
         phiSeqRelease {};
     std::atomic<float>* delayEnabled = nullptr;
     std::atomic<float>* delayTime = nullptr;
+    std::atomic<float>* delaySyncEnabled = nullptr;
+    std::atomic<float>* delaySyncDivision = nullptr;
     std::atomic<float>* delayFeedback = nullptr;
     std::atomic<float>* delayMix = nullptr;
     std::atomic<float>* delayPlaybackMode = nullptr;
@@ -605,12 +607,19 @@ private:
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>
         smoothedDelaySamples;
     int delayWritePosition = 0;
+    int delayValidSamples = 0;
     bool delayWasActive = false;
     juce::Reverb reverbProcessor;
     bool reverbWasActive = false;
     std::array<FilterState, 2> filterStates {};
     juce::AudioBuffer<float> filterCombBuffer;
     std::array<int, 2> filterCombWritePositions {};
+    double filterCoefficientCutoff = -1.0;
+    double filterCoefficientResonance = -1.0;
+    double filterCoefficientA1 = 0.0;
+    double filterCoefficientA2 = 0.0;
+    double filterCoefficientA3 = 0.0;
+    double filterCoefficientK = 1.0;
     int filterPreviousType = -1;
     bool filterWasActive = false;
     juce::AudioBuffer<float> pitchBuffer;

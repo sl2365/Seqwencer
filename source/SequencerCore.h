@@ -9,6 +9,7 @@ namespace seqwencer
 constexpr int stepsPerBank = 32;
 constexpr int linkedStepCount = 64;
 constexpr int rateChoiceCount = 14;
+constexpr int delaySyncChoiceCount = 14;
 constexpr int sequencerEngineCount = 15;
 constexpr int phiSequencerPairCount = 4;
 constexpr int phiSequencerLaneCount = phiSequencerPairCount * 2;
@@ -539,6 +540,29 @@ inline double beatsForRate (int rateIndex) noexcept
 
     rateIndex = std::clamp (rateIndex, 0, rateChoiceCount - 1);
     return beatsPerRate[static_cast<std::size_t> (rateIndex)];
+}
+
+inline double beatsForDelaySyncChoice (int choiceIndex) noexcept
+{
+    // Ordered to match the Delay Sync control:
+    // 1, 1/2, 1/3, 1/4, 1/4T ... 1/128.
+    constexpr std::array<double, delaySyncChoiceCount> beatsPerChoice {
+        4.0, 2.0, 4.0 / 3.0, 1.0, 2.0 / 3.0,
+        1.0 / 2.0, 1.0 / 3.0, 1.0 / 4.0, 1.0 / 6.0,
+        1.0 / 8.0, 1.0 / 12.0, 1.0 / 16.0, 1.0 / 24.0,
+        1.0 / 32.0
+    };
+
+    choiceIndex = std::clamp (
+        choiceIndex, 0, delaySyncChoiceCount - 1);
+    return beatsPerChoice[static_cast<std::size_t> (choiceIndex)];
+}
+
+inline float delaySyncMilliseconds (int choiceIndex, double bpm) noexcept
+{
+    const auto safeBpm = std::max (1.0, bpm);
+    return static_cast<float> (
+        60000.0 * beatsForDelaySyncChoice (choiceIndex) / safeBpm);
 }
 
 struct StepRange
@@ -2016,6 +2040,30 @@ inline double unwrappedPhaseFromQuarterNotes (double quarterNotes,
     if (! std::isfinite (quarterNotes) || beatsPerStep <= 0.0)
         return 0.0;
     return quarterNotes / beatsPerStep;
+}
+
+inline double dormantFreeRunningPhaseAfterBlock (
+    double currentPhase,
+    double phaseIncrement,
+    int sampleCount,
+    bool timelineMayAdvance,
+    bool retriggersFromPlayedNotes,
+    int lastPhraseStartSample) noexcept
+{
+    const auto safeSampleCount = std::max (0, sampleCount);
+    if (retriggersFromPlayedNotes && lastPhraseStartSample >= 0)
+    {
+        const auto clampedPhraseStart = std::clamp (
+            lastPhraseStartSample, 0, safeSampleCount);
+        return static_cast<double> (
+            safeSampleCount - clampedPhraseStart) * phaseIncrement;
+    }
+
+    if (timelineMayAdvance || retriggersFromPlayedNotes)
+        return currentPhase
+            + static_cast<double> (safeSampleCount) * phaseIncrement;
+
+    return currentPhase;
 }
 
 inline bool hostTimelineShouldAdvance (bool hostReportsPlaying,

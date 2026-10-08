@@ -400,6 +400,21 @@ int main()
         seqwencer::stalledPhiTimelineShouldFreeRun (
             true, false, true, true, true, true) ? 1 : 0,
         0);
+    expectNear (
+        "an idle PHI lane advances without per-sample evaluation",
+        static_cast<float> (seqwencer::dormantFreeRunningPhaseAfterBlock (
+            2.0, 0.01, 100, true, false, -1)),
+        3.0f);
+    expectNear (
+        "an idle PHI lane remains stopped with its host timeline",
+        static_cast<float> (seqwencer::dormantFreeRunningPhaseAfterBlock (
+            2.0, 0.01, 100, false, false, -1)),
+        2.0f);
+    expectNear (
+        "an idle Played lane resets at the last phrase boundary",
+        static_cast<float> (seqwencer::dormantFreeRunningPhaseAfterBlock (
+            2.0, 0.01, 100, false, true, 75)),
+        0.25f);
 
     const auto bridgePacket =
         seqwencer_bridge::encodeModulationValue (0, 0, 0.75f);
@@ -553,6 +568,43 @@ int main()
     expectNear ("the existing straight 1/16 duration is unchanged",
                 static_cast<float> (seqwencer::beatsForRate (6)),
                 1.0f / 4.0f);
+
+    constexpr std::array<float, seqwencer::delaySyncChoiceCount>
+        expectedDelaySyncBeats {
+            4.0f, 2.0f, 4.0f / 3.0f, 1.0f, 2.0f / 3.0f,
+            1.0f / 2.0f, 1.0f / 3.0f, 1.0f / 4.0f, 1.0f / 6.0f,
+            1.0f / 8.0f, 1.0f / 12.0f, 1.0f / 16.0f,
+            1.0f / 24.0f, 1.0f / 32.0f
+        };
+    constexpr std::array<const char*, seqwencer::delaySyncChoiceCount>
+        delaySyncNames {
+            "Delay Sync 1 is a whole note",
+            "Delay Sync 1/2 is a half note",
+            "Delay Sync 1/3 is one third of a whole note",
+            "Delay Sync 1/4 is a quarter note",
+            "Delay Sync 1/4T is a quarter-note triplet",
+            "Delay Sync 1/8 is an eighth note",
+            "Delay Sync 1/8T is an eighth-note triplet",
+            "Delay Sync 1/16 is a sixteenth note",
+            "Delay Sync 1/16T is a sixteenth-note triplet",
+            "Delay Sync 1/32 is a thirty-second note",
+            "Delay Sync 1/32T is a thirty-second-note triplet",
+            "Delay Sync 1/64 is a sixty-fourth note",
+            "Delay Sync 1/64T is a sixty-fourth-note triplet",
+            "Delay Sync 1/128 is a one-hundred-twenty-eighth note"
+        };
+    for (int index = 0; index < seqwencer::delaySyncChoiceCount; ++index)
+    {
+        expectNear (
+            delaySyncNames[static_cast<std::size_t> (index)],
+            static_cast<float> (
+                seqwencer::beatsForDelaySyncChoice (index)),
+            expectedDelaySyncBeats[static_cast<std::size_t> (index)]);
+    }
+    expectNear ("Delay Sync follows a 120 BPM host quarter note",
+                seqwencer::delaySyncMilliseconds (3, 120.0), 500.0f);
+    expectNear ("Delay Sync follows a 60 BPM host whole note",
+                seqwencer::delaySyncMilliseconds (0, 60.0), 4000.0f);
 
     expectEqual ("Loop begins at Start",
                  seqwencer::sequencePositionForPhase (

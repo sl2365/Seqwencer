@@ -3672,7 +3672,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     for (auto* button : { &syncButton, &phiTargetButton,
                           &phiPairABButton, &phiPairCDButton,
                           &phiPairEFButton, &phiPairGHButton,
-                          &noiseGateButton,
+                          &noiseGateButton, &delaySyncButton,
                           &enableAButton, &enableBButton,
                           &bipolarAButton, &bipolarBButton })
         content.addAndMakeVisible (*button);
@@ -3681,8 +3681,12 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
                           juce::Colour (globalAccent));
     noiseGateButton.setColour (juce::ToggleButton::tickColourId,
                                juce::Colour (gateAccent));
+    delaySyncButton.setColour (juce::ToggleButton::tickColourId,
+                               juce::Colour (delayAccent));
     noiseGateButton.setTooltip (
         "Enable the noise gate after the sequenced Gate Volume stage");
+    delaySyncButton.setTooltip (
+        "Switch Delay Time between milliseconds and host-tempo divisions");
     gateFxButton->setTooltip (
         "Show the Gate controls; drag to change its audio-chain position");
     gateFxButton->getEnableButton().setTooltip (
@@ -3797,6 +3801,7 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     configureKnob (noiseReleaseSlider);
     configureKnob (noiseRangeSlider);
     configureKnob (delayTimeSlider);
+    configureRateKnob (delaySyncRateSlider);
     configureKnob (delayFeedbackSlider);
     configureKnob (delayMixSlider);
     configureKnob (reverbSizeSlider);
@@ -3834,6 +3839,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     panPositionSlider.setRange (-1.0, 1.0, 0.001);
     delayTimeSlider.setTextBoxStyle (
         juce::Slider::TextBoxBelow, false, 64, 15);
+    delaySyncRateSlider.setTextBoxStyle (
+        juce::Slider::TextBoxBelow, false, 64, 15);
     shortLengthSlider.setRange (0.10, 0.60, 0.01);
     longLengthSlider.setRange (0.65, 0.95, 0.01);
     noiseThresholdSlider.setRange (-80.0, 0.0, 0.1);
@@ -3841,6 +3848,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     noiseHoldSlider.setRange (0.0, 500.0, 1.0);
     noiseReleaseSlider.setRange (5.0, 1000.0, 1.0);
     delayTimeSlider.setRange (10.0, 2000.0, 0.1);
+    delaySyncRateSlider.setRange (
+        0.0, seqwencer::delaySyncChoiceCount - 1.0, 1.0);
     delayFeedbackSlider.setRange (0.0, 0.95, 0.001);
     filterCutoffSlider.setRange (20.0, 20000.0, 0.1);
     filterResonanceSlider.setRange (0.10, 10.0, 0.001);
@@ -3876,6 +3885,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     noiseRangeSlider.setTooltip (
         "Amount of attenuation while the noise gate is closed");
     delayTimeSlider.setTooltip ("Delay time from 10 to 2000 milliseconds");
+    delaySyncRateSlider.setTooltip (
+        "Delay time as a musical division of the host tempo");
     delayFeedbackSlider.setTooltip ("Amount of delayed signal fed back into the delay");
     delayMixSlider.setTooltip ("Balance between dry input and delayed signal");
     reverbSizeSlider.setTooltip ("Size and decay character of the reverb space");
@@ -3999,8 +4010,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         slider->setColour (juce::Slider::rotarySliderFillColourId,
                            juce::Colour (gateAccent));
     }
-    for (auto* slider : { &delayTimeSlider, &delayFeedbackSlider,
-                          &delayMixSlider })
+    for (auto* slider : { &delayTimeSlider, &delaySyncRateSlider,
+                          &delayFeedbackSlider, &delayMixSlider })
     {
         slider->setColour (juce::Slider::rotarySliderFillColourId,
                            juce::Colour (delayAccent));
@@ -4114,6 +4125,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "phi_bridge_enabled", phiFxButton->getEnableButton());
     noiseGateAttachment = std::make_unique<ButtonAttachment> (
         state, "noise_gate_enabled", noiseGateButton);
+    delaySyncAttachment = std::make_unique<ButtonAttachment> (
+        state, "delay_sync_enabled", delaySyncButton);
     filterTypeAttachment = std::make_unique<ComboAttachment> (
         state, "filter_type", filterTypeBox);
     distortionTypeAttachment = std::make_unique<ComboAttachment> (
@@ -4138,6 +4151,8 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
         state, "noise_gate_range", noiseRangeSlider);
     delayTimeAttachment = std::make_unique<SliderAttachment> (
         state, "delay_time", delayTimeSlider);
+    delaySyncRateAttachment = std::make_unique<SliderAttachment> (
+        state, "delay_sync_division", delaySyncRateSlider);
     delayFeedbackAttachment = std::make_unique<SliderAttachment> (
         state, "delay_feedback", delayFeedbackSlider);
     delayMixAttachment = std::make_unique<SliderAttachment> (
@@ -4313,6 +4328,18 @@ SeqwencerAudioProcessorEditor::SeqwencerAudioProcessorEditor (
     noiseHoldSlider.textFromValueFunction = millisecondsText;
     noiseReleaseSlider.textFromValueFunction = millisecondsText;
     delayTimeSlider.textFromValueFunction = millisecondsText;
+    delaySyncRateSlider.textFromValueFunction = [] (double value)
+    {
+        constexpr std::array<const char*, seqwencer::delaySyncChoiceCount>
+            divisions { "1", "1/2", "1/3", "1/4", "1/4T",
+                        "1/8", "1/8T", "1/16", "1/16T",
+                        "1/32", "1/32T", "1/64", "1/64T",
+                        "1/128" };
+        const auto index = juce::jlimit (
+            0, seqwencer::delaySyncChoiceCount - 1,
+            static_cast<int> (std::lround (value)));
+        return juce::String (divisions[static_cast<std::size_t> (index)]);
+    };
     delayFeedbackSlider.textFromValueFunction = [] (double value)
     {
         return juce::String (std::lround (value * 100.0)) + "%";
@@ -4944,6 +4971,10 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     const auto reverseSelected = selectedFx == SelectedFx::reverse;
     const auto retriggerSelected = selectedFx == SelectedFx::retrigger;
     const auto phiSelected = selectedFx == SelectedFx::phi;
+    const auto* delaySyncValue = processor.getParameterState()
+        .getRawParameterValue ("delay_sync_enabled");
+    const auto delaySyncSelected = delaySyncValue != nullptr
+                                && delaySyncValue->load() >= 0.5f;
     gateFxButton->setSelected (gateSelected);
     delayFxButton->setSelected (delaySelected);
     reverbFxButton->setSelected (reverbSelected);
@@ -4980,7 +5011,9 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     targetListA->setVisible (gateSelected);
     targetListB->setVisible (gateSelected);
     delayTimeParameterLabel->setVisible (delaySelected);
-    delayTimeSlider.setVisible (delaySelected);
+    delayTimeSlider.setVisible (delaySelected && ! delaySyncSelected);
+    delaySyncRateSlider.setVisible (delaySelected && delaySyncSelected);
+    delaySyncButton.setVisible (delaySelected);
     delayFeedbackParameterLabel->setVisible (delaySelected);
     delayFeedbackSlider.setVisible (delaySelected);
     delayMixParameterLabel->setVisible (delaySelected);
@@ -5162,8 +5195,8 @@ void SeqwencerAudioProcessorEditor::updateFxPanel()
     }
     else if (delaySelected)
     {
-        for (auto* slider : { &delayTimeSlider, &delayFeedbackSlider,
-                              &delayMixSlider })
+        for (auto* slider : { &delayTimeSlider, &delaySyncRateSlider,
+                              &delayFeedbackSlider, &delayMixSlider })
         {
             slider->setColour (juce::Slider::rotarySliderFillColourId,
                                laneColour);
@@ -5547,6 +5580,8 @@ void SeqwencerAudioProcessorEditor::updateLaneVisuals()
     noiseRangeSlider.setAlpha (noiseControlsAlpha);
     delayTimeParameterLabel->setAlpha (gateControlsAlpha);
     delayTimeSlider.setAlpha (gateControlsAlpha);
+    delaySyncRateSlider.setAlpha (gateControlsAlpha);
+    delaySyncButton.setAlpha (gateControlsAlpha);
     delayFeedbackParameterLabel->setAlpha (gateControlsAlpha);
     delayFeedbackSlider.setAlpha (gateControlsAlpha);
     delayMixParameterLabel->setAlpha (gateControlsAlpha);
@@ -5778,7 +5813,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.25.3",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.27.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 
@@ -5962,10 +5997,12 @@ void SeqwencerAudioProcessorEditor::resized()
 
     delayTimeParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
     delayTimeSlider.setBounds (448, bottomPanelY + 15, 64, 59);
-    delayFeedbackParameterLabel->setBounds (520, bottomPanelY + 4, 104, 14);
-    delayFeedbackSlider.setBounds (540, bottomPanelY + 15, 64, 59);
-    delayMixParameterLabel->setBounds (616, bottomPanelY + 4, 88, 14);
-    delayMixSlider.setBounds (628, bottomPanelY + 15, 64, 59);
+    delaySyncRateSlider.setBounds (448, bottomPanelY + 15, 64, 59);
+    delaySyncButton.setBounds (520, bottomPanelY + 27, 82, 31);
+    delayFeedbackParameterLabel->setBounds (610, bottomPanelY + 4, 104, 14);
+    delayFeedbackSlider.setBounds (630, bottomPanelY + 15, 64, 59);
+    delayMixParameterLabel->setBounds (706, bottomPanelY + 4, 88, 14);
+    delayMixSlider.setBounds (718, bottomPanelY + 15, 64, 59);
 
     reverbSizeParameterLabel->setBounds (436, bottomPanelY + 4, 88, 14);
     reverbSizeSlider.setBounds (448, bottomPanelY + 15, 64, 59);

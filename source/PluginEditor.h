@@ -212,6 +212,7 @@ private:
     juce::ToggleButton bipolarAButton { "BIPOLAR" };
     juce::ToggleButton bipolarBButton { "BIPOLAR" };
     juce::ToggleButton noiseGateButton { "NOISE GATE" };
+    juce::ToggleButton delaySyncButton { "SYNC" };
     juce::TextButton presetsButton { "PRESETS" };
     juce::Slider startSlider;
     juce::Slider endSlider;
@@ -226,6 +227,7 @@ private:
     juce::Slider noiseReleaseSlider;
     juce::Slider noiseRangeSlider;
     juce::Slider delayTimeSlider;
+    juce::Slider delaySyncRateSlider;
     juce::Slider delayFeedbackSlider;
     juce::Slider delayMixSlider;
     juce::Slider reverbSizeSlider;
@@ -301,6 +303,7 @@ private:
     std::unique_ptr<ButtonAttachment> retriggerAttachment;
     std::unique_ptr<ButtonAttachment> phiBridgeAttachment;
     std::unique_ptr<ButtonAttachment> noiseGateAttachment;
+    std::unique_ptr<ButtonAttachment> delaySyncAttachment;
     std::unique_ptr<ButtonAttachment> rangeLinkAttachment;
     std::unique_ptr<ComboAttachment> modeAttachment;
     std::unique_ptr<ComboAttachment> sequenceModeAttachment;
@@ -317,6 +320,7 @@ private:
     std::unique_ptr<SliderAttachment> noiseReleaseAttachment;
     std::unique_ptr<SliderAttachment> noiseRangeAttachment;
     std::unique_ptr<SliderAttachment> delayTimeAttachment;
+    std::unique_ptr<SliderAttachment> delaySyncRateAttachment;
     std::unique_ptr<SliderAttachment> delayFeedbackAttachment;
     std::unique_ptr<SliderAttachment> delayMixAttachment;
     std::unique_ptr<SliderAttachment> reverbSizeAttachment;

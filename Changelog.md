@@ -2,6 +2,36 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.27.0 Delay tempo sync
+
+- Added a Sync switch to the Delay controls while retaining the existing
+  10-2000 ms Time setting when Sync is off
+- Added the requested host-tempo divisions: 1, 1/2, 1/3, 1/4, 1/4T, 1/8,
+  1/8T, 1/16, 1/16T, 1/32, 1/32T, 1/64, 1/64T and 1/128
+- Made the existing TIME sequencer target select discrete musical divisions
+  while Sync is active
+- Extended the internal delay capacity for long synced divisions at slow
+  tempos
+- Appended the two new automation parameters after the existing parameter
+  list, preserving every earlier parameter index and saved project
+- Added core timing coverage for every division and a VST3 audio probe for
+  synced-delay placement
+
+## v1.3.26.0 CPU optimisation
+
+- Added a transparent idle fast path so an instance with all audio FX and the
+  PHI bridge switched off no longer enters the per-sample processing engine
+- Prevented disabled FX from copying patterns or scanning subdivision data
+- Prevented the eight PHI sequencer lanes from evaluating while the PHI bridge
+  is switched off, while preserving their timing for the next activation
+- Skipped disabled Parallel lanes instead of calculating values that cannot be
+  heard or transmitted
+- Cached unchanged filter, noise-gate, reverb, pan, pitch, distortion, grain
+  and compressor calculations instead of repeating them for every sample
+- Added idle-passthrough and dormant-PHI timing regression coverage
+- Preserved the existing audio algorithms, modulation resolution, routing,
+  parameters, presets and automation identities
+
 ## v1.3.25.3 GUI fix
 
 - Restored the Peak and Move fader guide lines after the v1.3.25.2 endpoint

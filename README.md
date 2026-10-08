@@ -199,6 +199,15 @@ Right-click any Gate mode cell for Short, Long, Random, Reset, Copy and Paste
 commands covering that complete A or B Gate-mode row. The `GATE < >` controls
 shown only on the Gate page rotate all Gate modes independently of the values.
 
+## Delay
+
+Delay Time normally covers 10-2000 milliseconds. Enable its Sync button to
+replace the millisecond control with host-tempo divisions: 1, 1/2, 1/3, 1/4,
+1/4T, 1/8, 1/8T, 1/16, 1/16T, 1/32, 1/32T, 1/64, 1/64T and 1/128. The TIME
+sequencer target follows the selected mode, moving continuously through
+milliseconds when Sync is off and through the discrete musical divisions when
+Sync is on.
+
 ## Pan
 
 Pan uses a centre-preserving stereo balance. Centre leaves both input channels
