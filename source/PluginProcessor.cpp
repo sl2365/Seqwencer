@@ -388,7 +388,29 @@ juce::String sequencerTransformTargetParameterID (
 SeqwencerAudioProcessor::SeqwencerAudioProcessor()
     : AudioProcessor (BusesProperties()
                           .withInput ("Input", juce::AudioChannelSet::stereo(), true)
-                          .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
+                          .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
+                          .withInput ("Gate In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Gate Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Delay In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Delay Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Reverb In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Reverb Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Pan In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Pan Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Filter In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Filter Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Pitch In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Pitch Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Dist In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Dist Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Grain In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Grain Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Comp In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Comp Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Reverse In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Reverse Out", juce::AudioChannelSet::stereo(), false)
+                          .withInput ("Retrigger In", juce::AudioChannelSet::stereo(), false)
+                          .withOutput ("Retrigger Out", juce::AudioChannelSet::stereo(), false)),
       parameters (*this, nullptr, "SEQWENCER_STATE", createParameterLayout())
 {
     bypassParameter = parameters.getParameter ("bypass");
@@ -3664,6 +3686,11 @@ SeqwencerAudioProcessor::createParameterLayout()
 void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
+    const auto dedicatedBusChannels = [this] (int busIndex)
+    {
+        const auto* bus = getBus (false, busIndex);
+        return bus != nullptr && bus->isEnabled() ? 2 : 0;
+    };
     gateFreeRunningPhase = 0.0;
     phiFreeRunningPhases.fill (0.0);
     delayFreeRunningPhase = 0.0;
@@ -3685,6 +3712,11 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     smoothedNoiseGateGain = 1.0f;
     noiseGateHoldSamplesRemaining = 0;
     noiseGateIsOpen = true;
+    dedicatedFxState.smoothedGain = 1.0f;
+    dedicatedFxState.smoothedNoiseGateGain = 1.0f;
+    dedicatedFxState.noiseGateHoldSamplesRemaining = 0;
+    dedicatedFxState.noiseGateIsOpen = true;
+    dedicatedFxState.gateWasActive = false;
     gateActiveStepA.store (0);
     gateActiveStepB.store (-1);
     for (int lane = 0; lane < seqwencer::phiSequencerLaneCount; ++lane)
@@ -3714,148 +3746,317 @@ void SeqwencerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     // while the read-position clamp remains the safety limit below that.
     const auto delayBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 16.05)) + 4;
-    delayBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
-                         delayBufferLength, false, true, false);
+    delayBuffer.setSize (2, delayBufferLength, false, true, false);
+    dedicatedFxState.delayBuffer.setSize (
+        dedicatedBusChannels (2), delayBufferLength, false, true, false);
     delayBuffer.clear();
+    dedicatedFxState.delayBuffer.clear();
     delayWritePosition = 0;
     delayValidSamples = 0;
     delayWasActive = false;
+    dedicatedFxState.delayWritePosition = 0;
+    dedicatedFxState.delayValidSamples = 0;
+    dedicatedFxState.delayWasActive = false;
     smoothedDelaySamples.reset (currentSampleRate, 0.025);
     smoothedDelaySamples.setCurrentAndTargetValue (
+        static_cast<float> (0.375 * currentSampleRate));
+    dedicatedFxState.smoothedDelaySamples.reset (currentSampleRate, 0.025);
+    dedicatedFxState.smoothedDelaySamples.setCurrentAndTargetValue (
         static_cast<float> (0.375 * currentSampleRate));
     reverbProcessor.setSampleRate (currentSampleRate);
     reverbProcessor.reset();
     reverbWasActive = false;
+    dedicatedFxState.reverbProcessor.setSampleRate (currentSampleRate);
+    dedicatedFxState.reverbProcessor.reset();
+    dedicatedFxState.reverbWasActive = false;
     juce::ignoreUnused (samplesPerBlock);
     const auto filterCombBufferLength = static_cast<int> (
         std::ceil (currentSampleRate / 20.0)) + 8;
     filterCombBuffer.setSize (
-        juce::jmax (1, getTotalNumOutputChannels()),
-        filterCombBufferLength, false, true, false);
+        2, filterCombBufferLength, false, true, false);
+    dedicatedFxState.filterCombBuffer.setSize (
+        dedicatedBusChannels (5), filterCombBufferLength, false, true, false);
     resetFilterProcessor();
+    resetFilterProcessor (true);
     filterPreviousType = -1;
     filterWasActive = false;
+    dedicatedFxState.filterPreviousType = -1;
+    dedicatedFxState.filterWasActive = false;
     const auto pitchBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 0.10)) + 8;
-    pitchBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
-                         pitchBufferLength, false, true, false);
+    pitchBuffer.setSize (2, pitchBufferLength, false, true, false);
+    dedicatedFxState.pitchBuffer.setSize (
+        dedicatedBusChannels (6), pitchBufferLength, false, true, false);
     pitchBuffer.clear();
+    dedicatedFxState.pitchBuffer.clear();
     pitchWritePosition = 0;
     pitchReadPhase = 0.0;
     pitchWasActive = false;
+    dedicatedFxState.pitchWritePosition = 0;
+    dedicatedFxState.pitchReadPhase = 0.0;
+    dedicatedFxState.pitchWasActive = false;
     distortionToneStates.fill (0.0f);
     distortionWasActive = false;
+    dedicatedFxState.distortionToneStates.fill (0.0f);
+    dedicatedFxState.distortionWasActive = false;
     const auto grainBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 0.30)) + 8;
-    grainBuffer.setSize (juce::jmax (1, getTotalNumOutputChannels()),
-                         grainBufferLength, false, true, false);
+    grainBuffer.setSize (2, grainBufferLength, false, true, false);
+    dedicatedFxState.grainBuffer.setSize (
+        dedicatedBusChannels (8), grainBufferLength, false, true, false);
     grainBuffer.clear();
+    dedicatedFxState.grainBuffer.clear();
     grainWritePosition = 0;
     grainReadPhase = 0.0;
     grainFeedbackStates.fill (0.0f);
     grainWasActive = false;
+    dedicatedFxState.grainWritePosition = 0;
+    dedicatedFxState.grainReadPhase = 0.0;
+    dedicatedFxState.grainFeedbackStates.fill (0.0f);
+    dedicatedFxState.grainWasActive = false;
     compressorGain = 1.0f;
     compressorWasActive = false;
+    dedicatedFxState.compressorGain = 1.0f;
+    dedicatedFxState.compressorWasActive = false;
     const auto reverseBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 2.05)) + 8;
     for (auto& reverseBuffer : reverseBuffers)
     {
         reverseBuffer.setSize (
-            juce::jmax (1, getTotalNumOutputChannels()),
-            reverseBufferLength, false, true, false);
+            2, reverseBufferLength, false, true, false);
+        reverseBuffer.clear();
+    }
+    for (auto& reverseBuffer : dedicatedFxState.reverseBuffers)
+    {
+        reverseBuffer.setSize (
+            dedicatedBusChannels (10), reverseBufferLength,
+            false, true, false);
         reverseBuffer.clear();
     }
     resetReverseProcessor();
+    resetReverseProcessor (true);
     const auto retriggerBufferLength = static_cast<int> (
         std::ceil (currentSampleRate * 8.05)) + 8;
     retriggerBuffer.setSize (
-        juce::jmax (1, getTotalNumOutputChannels()),
-        retriggerBufferLength, false, true, false);
+        2, retriggerBufferLength, false, true, false);
+    dedicatedFxState.retriggerBuffer.setSize (
+        dedicatedBusChannels (11), retriggerBufferLength,
+        false, true, false);
     retriggerBuffer.clear();
+    dedicatedFxState.retriggerBuffer.clear();
     resetRetriggerProcessor();
+    resetRetriggerProcessor (true);
 }
 
 void SeqwencerAudioProcessor::releaseResources()
 {
     notePhraseTracker.reset();
     delayBuffer.clear();
+    dedicatedFxState.delayBuffer.clear();
     delayWritePosition = 0;
     delayValidSamples = 0;
     delayWasActive = false;
+    dedicatedFxState.delayWritePosition = 0;
+    dedicatedFxState.delayValidSamples = 0;
+    dedicatedFxState.delayWasActive = false;
     reverbProcessor.reset();
     reverbWasActive = false;
+    dedicatedFxState.reverbProcessor.reset();
+    dedicatedFxState.reverbWasActive = false;
     resetFilterProcessor();
+    resetFilterProcessor (true);
     filterPreviousType = -1;
     filterWasActive = false;
+    dedicatedFxState.filterPreviousType = -1;
+    dedicatedFxState.filterWasActive = false;
     pitchBuffer.clear();
+    dedicatedFxState.pitchBuffer.clear();
     pitchWritePosition = 0;
     pitchReadPhase = 0.0;
     pitchWasActive = false;
+    dedicatedFxState.pitchWritePosition = 0;
+    dedicatedFxState.pitchReadPhase = 0.0;
+    dedicatedFxState.pitchWasActive = false;
     distortionToneStates.fill (0.0f);
     distortionWasActive = false;
+    dedicatedFxState.distortionToneStates.fill (0.0f);
+    dedicatedFxState.distortionWasActive = false;
     grainBuffer.clear();
+    dedicatedFxState.grainBuffer.clear();
     grainWritePosition = 0;
     grainReadPhase = 0.0;
     grainFeedbackStates.fill (0.0f);
     grainWasActive = false;
+    dedicatedFxState.grainWritePosition = 0;
+    dedicatedFxState.grainReadPhase = 0.0;
+    dedicatedFxState.grainFeedbackStates.fill (0.0f);
+    dedicatedFxState.grainWasActive = false;
     compressorGain = 1.0f;
     compressorWasActive = false;
+    dedicatedFxState.compressorGain = 1.0f;
+    dedicatedFxState.compressorWasActive = false;
     for (auto& reverseBuffer : reverseBuffers)
         reverseBuffer.clear();
+    for (auto& reverseBuffer : dedicatedFxState.reverseBuffers)
+        reverseBuffer.clear();
     resetReverseProcessor();
+    resetReverseProcessor (true);
     retriggerBuffer.clear();
+    dedicatedFxState.retriggerBuffer.clear();
     resetRetriggerProcessor();
+    resetRetriggerProcessor (true);
 }
 
-void SeqwencerAudioProcessor::resetReverseProcessor() noexcept
+void SeqwencerAudioProcessor::resetReverseProcessor (bool dedicated) noexcept
 {
-    reverseCaptureBufferIndex = 0;
-    reversePlaybackBufferIndex = 1;
-    reverseCaptureWritePosition = 0;
-    reverseCaptureAvailableSamples = 0;
-    reverseCapturedSamples = 0;
-    reversePendingCaptureSamples = 2;
-    reversePlaybackStartPosition = 0;
-    reverseReadPosition = 0.0;
-    reversePreviousSequencePhase = -1.0;
-    reverseReadDirection = 1;
-    reverseWetFade = 0.0f;
-    reverseIsPlaying = false;
-    reverseStepWasOn = false;
-    reverseWasActive = false;
+    auto& routeReverseCaptureBufferIndex = dedicated
+        ? dedicatedFxState.reverseCaptureBufferIndex
+        : this->reverseCaptureBufferIndex;
+    auto& routeReversePlaybackBufferIndex = dedicated
+        ? dedicatedFxState.reversePlaybackBufferIndex
+        : this->reversePlaybackBufferIndex;
+    auto& routeReverseCaptureWritePosition = dedicated
+        ? dedicatedFxState.reverseCaptureWritePosition
+        : this->reverseCaptureWritePosition;
+    auto& routeReverseCaptureAvailableSamples = dedicated
+        ? dedicatedFxState.reverseCaptureAvailableSamples
+        : this->reverseCaptureAvailableSamples;
+    auto& routeReverseCapturedSamples = dedicated
+        ? dedicatedFxState.reverseCapturedSamples
+        : this->reverseCapturedSamples;
+    auto& routeReversePendingCaptureSamples = dedicated
+        ? dedicatedFxState.reversePendingCaptureSamples
+        : this->reversePendingCaptureSamples;
+    auto& routeReversePlaybackStartPosition = dedicated
+        ? dedicatedFxState.reversePlaybackStartPosition
+        : this->reversePlaybackStartPosition;
+    auto& routeReverseReadPosition = dedicated
+        ? dedicatedFxState.reverseReadPosition
+        : this->reverseReadPosition;
+    auto& routeReversePreviousSequencePhase = dedicated
+        ? dedicatedFxState.reversePreviousSequencePhase
+        : this->reversePreviousSequencePhase;
+    auto& routeReverseReadDirection = dedicated
+        ? dedicatedFxState.reverseReadDirection
+        : this->reverseReadDirection;
+    auto& routeReverseWetFade = dedicated
+        ? dedicatedFxState.reverseWetFade : this->reverseWetFade;
+    auto& routeReverseIsPlaying = dedicated
+        ? dedicatedFxState.reverseIsPlaying : this->reverseIsPlaying;
+    auto& routeReverseStepWasOn = dedicated
+        ? dedicatedFxState.reverseStepWasOn : this->reverseStepWasOn;
+    auto& routeReverseWasActive = dedicated
+        ? dedicatedFxState.reverseWasActive : this->reverseWasActive;
+    routeReverseCaptureBufferIndex = 0;
+    routeReversePlaybackBufferIndex = 1;
+    routeReverseCaptureWritePosition = 0;
+    routeReverseCaptureAvailableSamples = 0;
+    routeReverseCapturedSamples = 0;
+    routeReversePendingCaptureSamples = 2;
+    routeReversePlaybackStartPosition = 0;
+    routeReverseReadPosition = 0.0;
+    routeReversePreviousSequencePhase = -1.0;
+    routeReverseReadDirection = 1;
+    routeReverseWetFade = 0.0f;
+    routeReverseIsPlaying = false;
+    routeReverseStepWasOn = false;
+    routeReverseWasActive = false;
 }
 
-void SeqwencerAudioProcessor::resetRetriggerProcessor() noexcept
+void SeqwencerAudioProcessor::resetRetriggerProcessor (bool dedicated) noexcept
 {
-    retriggerCaptureSamples = 0;
-    retriggerCaptureTargetSamples = 2;
-    retriggerReadPosition = 0;
-    retriggerSamplesUntilRepeat = 0;
-    retriggerPlaybackSamples = 0;
-    retriggerRepeatIndex = 0;
-    retriggerWetFade = 0.0f;
-    retriggerIsPlaying = false;
-    retriggerStepWasOn = false;
-    retriggerBlockIsActive = false;
-    retriggerWasActive = false;
+    auto& routeRetriggerCaptureSamples = dedicated
+        ? dedicatedFxState.retriggerCaptureSamples
+        : this->retriggerCaptureSamples;
+    auto& routeRetriggerCaptureTargetSamples = dedicated
+        ? dedicatedFxState.retriggerCaptureTargetSamples
+        : this->retriggerCaptureTargetSamples;
+    auto& routeRetriggerReadPosition = dedicated
+        ? dedicatedFxState.retriggerReadPosition
+        : this->retriggerReadPosition;
+    auto& routeRetriggerSamplesUntilRepeat = dedicated
+        ? dedicatedFxState.retriggerSamplesUntilRepeat
+        : this->retriggerSamplesUntilRepeat;
+    auto& routeRetriggerPlaybackSamples = dedicated
+        ? dedicatedFxState.retriggerPlaybackSamples
+        : this->retriggerPlaybackSamples;
+    auto& routeRetriggerRepeatIndex = dedicated
+        ? dedicatedFxState.retriggerRepeatIndex
+        : this->retriggerRepeatIndex;
+    auto& routeRetriggerWetFade = dedicated
+        ? dedicatedFxState.retriggerWetFade : this->retriggerWetFade;
+    auto& routeRetriggerIsPlaying = dedicated
+        ? dedicatedFxState.retriggerIsPlaying : this->retriggerIsPlaying;
+    auto& routeRetriggerStepWasOn = dedicated
+        ? dedicatedFxState.retriggerStepWasOn : this->retriggerStepWasOn;
+    auto& routeRetriggerBlockIsActive = dedicated
+        ? dedicatedFxState.retriggerBlockIsActive
+        : this->retriggerBlockIsActive;
+    auto& routeRetriggerWasActive = dedicated
+        ? dedicatedFxState.retriggerWasActive : this->retriggerWasActive;
+    routeRetriggerCaptureSamples = 0;
+    routeRetriggerCaptureTargetSamples = 2;
+    routeRetriggerReadPosition = 0;
+    routeRetriggerSamplesUntilRepeat = 0;
+    routeRetriggerPlaybackSamples = 0;
+    routeRetriggerRepeatIndex = 0;
+    routeRetriggerWetFade = 0.0f;
+    routeRetriggerIsPlaying = false;
+    routeRetriggerStepWasOn = false;
+    routeRetriggerBlockIsActive = false;
+    routeRetriggerWasActive = false;
 }
 
-void SeqwencerAudioProcessor::resetFilterProcessor() noexcept
+void SeqwencerAudioProcessor::resetFilterProcessor (bool dedicated) noexcept
 {
-    for (auto& state : filterStates)
+    auto& routeFilterStates = dedicated
+        ? dedicatedFxState.filterStates : this->filterStates;
+    auto& routeFilterCombBuffer = dedicated
+        ? dedicatedFxState.filterCombBuffer : this->filterCombBuffer;
+    auto& routeFilterCombWritePositions = dedicated
+        ? dedicatedFxState.filterCombWritePositions
+        : this->filterCombWritePositions;
+    auto& routeFilterCoefficientCutoff = dedicated
+        ? dedicatedFxState.filterCoefficientCutoff
+        : this->filterCoefficientCutoff;
+    auto& routeFilterCoefficientResonance = dedicated
+        ? dedicatedFxState.filterCoefficientResonance
+        : this->filterCoefficientResonance;
+    for (auto& state : routeFilterStates)
         state = {};
-    filterCombBuffer.clear();
-    filterCombWritePositions.fill (0);
-    filterCoefficientCutoff = -1.0;
-    filterCoefficientResonance = -1.0;
+    routeFilterCombBuffer.clear();
+    routeFilterCombWritePositions.fill (0);
+    routeFilterCoefficientCutoff = -1.0;
+    routeFilterCoefficientResonance = -1.0;
 }
 
 float SeqwencerAudioProcessor::processFilterSample (
-    int channel, float input, float cutoffHz, float resonance,
+    bool dedicated, int channel, float input, float cutoffHz, float resonance,
     int type) noexcept
 {
-    auto& state = filterStates[static_cast<std::size_t> (
-        juce::jlimit (0, static_cast<int> (filterStates.size()) - 1,
+    auto& routeFilterStates = dedicated
+        ? dedicatedFxState.filterStates : this->filterStates;
+    auto& routeFilterCombBuffer = dedicated
+        ? dedicatedFxState.filterCombBuffer : this->filterCombBuffer;
+    auto& routeFilterCombWritePositions = dedicated
+        ? dedicatedFxState.filterCombWritePositions
+        : this->filterCombWritePositions;
+    auto& routeFilterCoefficientCutoff = dedicated
+        ? dedicatedFxState.filterCoefficientCutoff
+        : this->filterCoefficientCutoff;
+    auto& routeFilterCoefficientResonance = dedicated
+        ? dedicatedFxState.filterCoefficientResonance
+        : this->filterCoefficientResonance;
+    auto& routeFilterCoefficientA1 = dedicated
+        ? dedicatedFxState.filterCoefficientA1 : this->filterCoefficientA1;
+    auto& routeFilterCoefficientA2 = dedicated
+        ? dedicatedFxState.filterCoefficientA2 : this->filterCoefficientA2;
+    auto& routeFilterCoefficientA3 = dedicated
+        ? dedicatedFxState.filterCoefficientA3 : this->filterCoefficientA3;
+    auto& routeFilterCoefficientK = dedicated
+        ? dedicatedFxState.filterCoefficientK : this->filterCoefficientK;
+    auto& state = routeFilterStates[static_cast<std::size_t> (
+        juce::jlimit (0, static_cast<int> (routeFilterStates.size()) - 1,
                       channel))];
     const auto safeSampleRate = juce::jmax (1.0, currentSampleRate);
     const auto maximumCutoff = juce::jmax (
@@ -3863,15 +4064,15 @@ float SeqwencerAudioProcessor::processFilterSample (
     const auto safeCutoff = juce::jlimit (
         20.0, maximumCutoff, static_cast<double> (cutoffHz));
 
-    if (type == 5 && filterCombBuffer.getNumSamples() > 3)
+    if (type == 5 && routeFilterCombBuffer.getNumSamples() > 3)
     {
         const auto channelIndex = static_cast<std::size_t> (juce::jlimit (
-            0, static_cast<int> (filterCombWritePositions.size()) - 1,
+            0, static_cast<int> (routeFilterCombWritePositions.size()) - 1,
             channel));
         const auto bufferChannel = juce::jlimit (
-            0, filterCombBuffer.getNumChannels() - 1, channel);
-        const auto capacity = filterCombBuffer.getNumSamples();
-        auto& writePosition = filterCombWritePositions[channelIndex];
+            0, routeFilterCombBuffer.getNumChannels() - 1, channel);
+        const auto capacity = routeFilterCombBuffer.getNumSamples();
+        auto& writePosition = routeFilterCombWritePositions[channelIndex];
         const auto delaySamples = seqwencer::combDelaySamples (
             safeSampleRate, static_cast<float> (safeCutoff), capacity);
         auto readPosition = static_cast<double> (writePosition) - delaySamples;
@@ -3882,14 +4083,14 @@ float SeqwencerAudioProcessor::processFilterSample (
         const auto index1 = (index0 + 1) % capacity;
         const auto fraction = static_cast<float> (
             readPosition - std::floor (readPosition));
-        const auto delayed0 = filterCombBuffer.getSample (
+        const auto delayed0 = routeFilterCombBuffer.getSample (
             bufferChannel, index0);
-        const auto delayed1 = filterCombBuffer.getSample (
+        const auto delayed1 = routeFilterCombBuffer.getSample (
             bufferChannel, index1);
         const auto delayed = delayed0 + fraction * (delayed1 - delayed0);
         const auto feedback = seqwencer::combFeedbackFromResonance (resonance);
         const auto feedbackSample = input + feedback * delayed;
-        filterCombBuffer.setSample (
+        routeFilterCombBuffer.setSample (
             bufferChannel, writePosition, feedbackSample);
         writePosition = (writePosition + 1) % capacity;
         return (1.0f - feedback) * feedbackSample;
@@ -3897,29 +4098,29 @@ float SeqwencerAudioProcessor::processFilterSample (
 
     const auto safeResonance = juce::jlimit (
         0.10, 10.0, static_cast<double> (resonance));
-    if (safeCutoff != filterCoefficientCutoff
-        || safeResonance != filterCoefficientResonance)
+    if (safeCutoff != routeFilterCoefficientCutoff
+        || safeResonance != routeFilterCoefficientResonance)
     {
         const auto g = std::tan (
             juce::MathConstants<double>::pi * safeCutoff / safeSampleRate);
-        filterCoefficientK = 1.0 / safeResonance;
-        filterCoefficientA1 = 1.0
-            / (1.0 + g * (g + filterCoefficientK));
-        filterCoefficientA2 = g * filterCoefficientA1;
-        filterCoefficientA3 = g * filterCoefficientA2;
-        filterCoefficientCutoff = safeCutoff;
-        filterCoefficientResonance = safeResonance;
+        routeFilterCoefficientK = 1.0 / safeResonance;
+        routeFilterCoefficientA1 = 1.0
+            / (1.0 + g * (g + routeFilterCoefficientK));
+        routeFilterCoefficientA2 = g * routeFilterCoefficientA1;
+        routeFilterCoefficientA3 = g * routeFilterCoefficientA2;
+        routeFilterCoefficientCutoff = safeCutoff;
+        routeFilterCoefficientResonance = safeResonance;
     }
     const auto v3 = static_cast<double> (input) - state.integrator2;
-    const auto bandPass = filterCoefficientA1 * state.integrator1
-                        + filterCoefficientA2 * v3;
+    const auto bandPass = routeFilterCoefficientA1 * state.integrator1
+                        + routeFilterCoefficientA2 * v3;
     const auto lowPass = state.integrator2
-                       + filterCoefficientA2 * state.integrator1
-                       + filterCoefficientA3 * v3;
+                       + routeFilterCoefficientA2 * state.integrator1
+                       + routeFilterCoefficientA3 * v3;
     state.integrator1 = 2.0 * bandPass - state.integrator1;
     state.integrator2 = 2.0 * lowPass - state.integrator2;
     const auto highPass = static_cast<double> (input)
-                        - filterCoefficientK * bandPass - lowPass;
+                        - routeFilterCoefficientK * bandPass - lowPass;
 
     switch (juce::jlimit (0, 5, type))
     {
@@ -3934,11 +4135,36 @@ float SeqwencerAudioProcessor::processFilterSample (
 bool SeqwencerAudioProcessor::isBusesLayoutSupported (
     const BusesLayout& layouts) const
 {
+    constexpr auto totalBusPairs = 1 + seqwencer::audioFxStageCount;
+    if (layouts.inputBuses.size() != totalBusPairs
+        || layouts.outputBuses.size() != totalBusPairs)
+    {
+        return false;
+    }
+
     const auto input = layouts.getMainInputChannelSet();
     const auto output = layouts.getMainOutputChannelSet();
-    return input == output
-        && (output == juce::AudioChannelSet::mono()
-            || output == juce::AudioChannelSet::stereo());
+    if (input != output
+        || (output != juce::AudioChannelSet::mono()
+            && output != juce::AudioChannelSet::stereo()))
+    {
+        return false;
+    }
+
+    for (int bus = 1; bus < totalBusPairs; ++bus)
+    {
+        const auto busInput = layouts.getChannelSet (true, bus);
+        const auto busOutput = layouts.getChannelSet (false, bus);
+        if (busInput != busOutput)
+            return false;
+        if (! busInput.isDisabled()
+            && busInput != juce::AudioChannelSet::stereo())
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 seqwencer::Pattern SeqwencerAudioProcessor::readPattern (int bank,
@@ -4160,10 +4386,63 @@ seqwencer::GateModePattern SeqwencerAudioProcessor::readGateModes (
     return result;
 }
 
-void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
+void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& fullBuffer,
                                             juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    // JUCE supplies all enabled buses in one combined buffer.  Work with
+    // non-owning bus views and establish dry pass-through before any early
+    // return, so disabled FX always leave their dedicated routes transparent.
+    auto buffer = getBusBuffer (fullBuffer, false, 0);
+    auto gateBusBuffer = getBusBuffer (fullBuffer, false, 1);
+    auto delayBusBuffer = getBusBuffer (fullBuffer, false, 2);
+    auto reverbBusBuffer = getBusBuffer (fullBuffer, false, 3);
+    auto panBusBuffer = getBusBuffer (fullBuffer, false, 4);
+    auto filterBusBuffer = getBusBuffer (fullBuffer, false, 5);
+    auto pitchBusBuffer = getBusBuffer (fullBuffer, false, 6);
+    auto distortionBusBuffer = getBusBuffer (fullBuffer, false, 7);
+    auto grainBusBuffer = getBusBuffer (fullBuffer, false, 8);
+    auto compressorBusBuffer = getBusBuffer (fullBuffer, false, 9);
+    auto reverseBusBuffer = getBusBuffer (fullBuffer, false, 10);
+    auto retriggerBusBuffer = getBusBuffer (fullBuffer, false, 11);
+
+    const auto copyInputToOutput = [&] (
+        int busIndex, juce::AudioBuffer<float>& outputBuffer)
+    {
+        auto inputBuffer = getBusBuffer (fullBuffer, true, busIndex);
+        const auto channelsToCopy = juce::jmin (
+            inputBuffer.getNumChannels(), outputBuffer.getNumChannels());
+        const auto samplesToCopy = juce::jmin (
+            inputBuffer.getNumSamples(), outputBuffer.getNumSamples());
+        for (int channel = 0; channel < channelsToCopy; ++channel)
+        {
+            if (inputBuffer.getReadPointer (channel)
+                != outputBuffer.getWritePointer (channel))
+            {
+                outputBuffer.copyFrom (
+                    channel, 0, inputBuffer, channel, 0, samplesToCopy);
+            }
+        }
+        for (int channel = channelsToCopy;
+             channel < outputBuffer.getNumChannels(); ++channel)
+        {
+            outputBuffer.clear (channel, 0, outputBuffer.getNumSamples());
+        }
+    };
+
+    copyInputToOutput (0, buffer);
+    copyInputToOutput (1, gateBusBuffer);
+    copyInputToOutput (2, delayBusBuffer);
+    copyInputToOutput (3, reverbBusBuffer);
+    copyInputToOutput (4, panBusBuffer);
+    copyInputToOutput (5, filterBusBuffer);
+    copyInputToOutput (6, pitchBusBuffer);
+    copyInputToOutput (7, distortionBusBuffer);
+    copyInputToOutput (8, grainBusBuffer);
+    copyInputToOutput (9, compressorBusBuffer);
+    copyInputToOutput (10, reverseBusBuffer);
+    copyInputToOutput (11, retriggerBusBuffer);
 
     std::vector<int> phraseStartSamples;
 
@@ -5560,8 +5839,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         reverbProcessor.reset();
     reverbWasActive = reverbIsProcessing;
     const auto gateIsProcessing = shouldGate && ! shouldBypass;
-    const auto panIsProcessing = shouldPan && ! shouldBypass
-                              && buffer.getNumChannels() >= 2;
+    const auto panIsProcessing = shouldPan && ! shouldBypass;
     const auto filterIsProcessing = shouldFilter && ! shouldBypass;
     if (filterIsProcessing
         && (! filterWasActive || baseFilterType != filterPreviousType))
@@ -5614,6 +5892,114 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         resetRetriggerProcessor();
     }
     retriggerWasActive = retriggerIsProcessing;
+
+    const auto dedicatedGateIsProcessing = gateIsProcessing
+        && gateBusBuffer.getNumChannels() > 0;
+    const auto dedicatedDelayIsProcessing = delayIsProcessing
+        && delayBusBuffer.getNumChannels() > 0
+        && dedicatedFxState.delayBuffer.getNumSamples() > 3;
+    const auto dedicatedReverbIsProcessing = reverbIsProcessing
+        && reverbBusBuffer.getNumChannels() > 0;
+    const auto dedicatedPanIsProcessing = panIsProcessing
+        && panBusBuffer.getNumChannels() >= 2;
+    const auto dedicatedFilterIsProcessing = filterIsProcessing
+        && filterBusBuffer.getNumChannels() > 0
+        && dedicatedFxState.filterCombBuffer.getNumChannels() > 0;
+    const auto dedicatedPitchIsProcessing = pitchIsProcessing
+        && pitchBusBuffer.getNumChannels() > 0
+        && dedicatedFxState.pitchBuffer.getNumSamples() > 8;
+    const auto dedicatedDistortionIsProcessing = distortionIsProcessing
+        && distortionBusBuffer.getNumChannels() > 0;
+    const auto dedicatedGrainIsProcessing = grainIsProcessing
+        && grainBusBuffer.getNumChannels() > 0
+        && dedicatedFxState.grainBuffer.getNumSamples() > 8;
+    const auto dedicatedCompressorIsProcessing = compressorIsProcessing
+        && compressorBusBuffer.getNumChannels() > 0;
+    const auto dedicatedReverseIsProcessing = reverseIsProcessing
+        && reverseBusBuffer.getNumChannels() > 0
+        && dedicatedFxState.reverseBuffers[0].getNumSamples() > 8;
+    const auto dedicatedRetriggerIsProcessing = retriggerIsProcessing
+        && retriggerBusBuffer.getNumChannels() > 0
+        && dedicatedFxState.retriggerBuffer.getNumSamples() > 8;
+
+    auto& dedicated = dedicatedFxState;
+    if (dedicatedGateIsProcessing != dedicated.gateWasActive)
+    {
+        dedicated.smoothedGain = 1.0f;
+        dedicated.smoothedNoiseGateGain = 1.0f;
+        dedicated.noiseGateHoldSamplesRemaining = 0;
+        dedicated.noiseGateIsOpen = true;
+    }
+    dedicated.gateWasActive = dedicatedGateIsProcessing;
+
+    if (dedicatedDelayIsProcessing != dedicated.delayWasActive)
+    {
+        dedicated.delayBuffer.clear();
+        dedicated.delayWritePosition = 0;
+        dedicated.delayValidSamples = 0;
+        dedicated.smoothedDelaySamples.setCurrentAndTargetValue (
+            static_cast<float> (
+                baseDelayTimeMs * 0.001 * currentSampleRate));
+    }
+    dedicated.delayWasActive = dedicatedDelayIsProcessing;
+
+    if (dedicatedReverbIsProcessing != dedicated.reverbWasActive)
+        dedicated.reverbProcessor.reset();
+    dedicated.reverbWasActive = dedicatedReverbIsProcessing;
+
+    if (dedicatedFilterIsProcessing
+        && (! dedicated.filterWasActive
+            || baseFilterType != dedicated.filterPreviousType))
+    {
+        resetFilterProcessor (true);
+    }
+    else if (! dedicatedFilterIsProcessing && dedicated.filterWasActive)
+    {
+        resetFilterProcessor (true);
+    }
+    dedicated.filterPreviousType = dedicatedFilterIsProcessing
+        ? baseFilterType : -1;
+    dedicated.filterWasActive = dedicatedFilterIsProcessing;
+
+    if (dedicatedPitchIsProcessing != dedicated.pitchWasActive)
+    {
+        dedicated.pitchBuffer.clear();
+        dedicated.pitchWritePosition = 0;
+        dedicated.pitchReadPhase = 0.0;
+    }
+    dedicated.pitchWasActive = dedicatedPitchIsProcessing;
+
+    if (dedicatedDistortionIsProcessing != dedicated.distortionWasActive)
+        dedicated.distortionToneStates.fill (0.0f);
+    dedicated.distortionWasActive = dedicatedDistortionIsProcessing;
+
+    if (dedicatedGrainIsProcessing != dedicated.grainWasActive)
+    {
+        dedicated.grainBuffer.clear();
+        dedicated.grainWritePosition = 0;
+        dedicated.grainReadPhase = 0.0;
+        dedicated.grainFeedbackStates.fill (0.0f);
+    }
+    dedicated.grainWasActive = dedicatedGrainIsProcessing;
+
+    if (dedicatedCompressorIsProcessing != dedicated.compressorWasActive)
+        dedicated.compressorGain = 1.0f;
+    dedicated.compressorWasActive = dedicatedCompressorIsProcessing;
+
+    if (dedicatedReverseIsProcessing != dedicated.reverseWasActive)
+    {
+        for (auto& reverseBuffer : dedicated.reverseBuffers)
+            reverseBuffer.clear();
+        resetReverseProcessor (true);
+    }
+    dedicated.reverseWasActive = dedicatedReverseIsProcessing;
+
+    if (dedicatedRetriggerIsProcessing != dedicated.retriggerWasActive)
+    {
+        dedicated.retriggerBuffer.clear();
+        resetRetriggerProcessor (true);
+    }
+    dedicated.retriggerWasActive = dedicatedRetriggerIsProcessing;
     if (! gateIsProcessing)
     {
         gateActiveStepA.store (-1);
@@ -5746,9 +6132,12 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     const auto orderedAudioFx = getAudioFxOrder();
     const auto uncachedFloat = std::numeric_limits<float>::quiet_NaN();
-    auto cachedReverbSize = uncachedFloat;
-    auto cachedReverbDamping = uncachedFloat;
-    auto cachedReverbWidth = uncachedFloat;
+    std::array<float, 2> cachedReverbSizes {
+        uncachedFloat, uncachedFloat };
+    std::array<float, 2> cachedReverbDampings {
+        uncachedFloat, uncachedFloat };
+    std::array<float, 2> cachedReverbWidths {
+        uncachedFloat, uncachedFloat };
     auto cachedPanNormalised = uncachedFloat;
     auto cachedPanLeftGain = 1.0f;
     auto cachedPanRightGain = 1.0f;
@@ -6766,6 +7155,11 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     base, value - 1.0f, depth)
                 : 1.0f;
             smoothedGain += safetyCoefficient * (targetGain - smoothedGain);
+            if (dedicatedGateIsProcessing)
+            {
+                dedicated.smoothedGain += safetyCoefficient
+                    * (targetGain - dedicated.smoothedGain);
+            }
         }
         else if (gateIsProcessing)
         {
@@ -6820,6 +7214,11 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     base, combinedGate - 1.0f, depth)
                 : 1.0f;
             smoothedGain += safetyCoefficient * (targetGain - smoothedGain);
+            if (dedicatedGateIsProcessing)
+            {
+                dedicated.smoothedGain += safetyCoefficient
+                    * (targetGain - dedicated.smoothedGain);
+            }
         }
         else
         {
@@ -8122,8 +8521,19 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         retriggerStepWetAmount = juce::jlimit (
             0.0f, 1.0f, retriggerStepWetAmount);
 
-        const auto processGateStage = [&]
+        const auto processGateStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
+            auto& smoothedGain = dedicatedRoute
+                ? dedicatedFxState.smoothedGain : this->smoothedGain;
+            auto& smoothedNoiseGateGain = dedicatedRoute
+                ? dedicatedFxState.smoothedNoiseGateGain
+                : this->smoothedNoiseGateGain;
+            auto& noiseGateHoldSamplesRemaining = dedicatedRoute
+                ? dedicatedFxState.noiseGateHoldSamplesRemaining
+                : this->noiseGateHoldSamplesRemaining;
+            auto& noiseGateIsOpen = dedicatedRoute
+                ? dedicatedFxState.noiseGateIsOpen : this->noiseGateIsOpen;
             if (shouldGate && shouldNoiseGate && ! shouldBypass)
             {
                 const auto modulatedActual = [&] (
@@ -8241,10 +8651,22 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     buffer.getSample (channel, sample) * outputGain);
         };
 
-        const auto processDelayStage = [&]
+        const auto processDelayStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! delayIsProcessing)
                 return;
+            auto& delayBuffer = dedicatedRoute
+                ? dedicatedFxState.delayBuffer : this->delayBuffer;
+            auto& smoothedDelaySamples = dedicatedRoute
+                ? dedicatedFxState.smoothedDelaySamples
+                : this->smoothedDelaySamples;
+            auto& delayWritePosition = dedicatedRoute
+                ? dedicatedFxState.delayWritePosition
+                : this->delayWritePosition;
+            auto& delayValidSamples = dedicatedRoute
+                ? dedicatedFxState.delayValidSamples
+                : this->delayValidSamples;
             const auto modulatedDelayActual = [&] (
                 float baseValue, float minimumValue, float maximumValue,
                 seqwencer::ModulationTarget target)
@@ -8332,10 +8754,17 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 delayBuffer.getNumSamples(), delayValidSamples + 1);
         };
 
-        const auto processReverbStage = [&]
+        const auto processReverbStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! reverbIsProcessing)
                 return;
+            auto& reverbProcessor = dedicatedRoute
+                ? dedicatedFxState.reverbProcessor : this->reverbProcessor;
+            const auto routeIndex = dedicatedRoute ? 1U : 0U;
+            auto& cachedReverbSize = cachedReverbSizes[routeIndex];
+            auto& cachedReverbDamping = cachedReverbDampings[routeIndex];
+            auto& cachedReverbWidth = cachedReverbWidths[routeIndex];
             const auto modulatedReverbActual = [&] (
                 float baseValue, seqwencer::ModulationTarget target)
             {
@@ -8392,9 +8821,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         };
 
-        const auto processPanStage = [&]
+        const auto processPanStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool)
         {
-            if (! panIsProcessing)
+            if (! panIsProcessing || buffer.getNumChannels() < 2)
                 return;
             bool panIsAssigned = false;
             const auto panDeviation = panTargetDeviation (&panIsAssigned);
@@ -8420,7 +8850,8 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                   * cachedPanRightGain);
         };
 
-        const auto processFilterStage = [&]
+        const auto processFilterStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! filterIsProcessing)
                 return;
@@ -8459,7 +8890,7 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             {
                 const auto drySample = buffer.getSample (channel, sample);
                 const auto wetSample = processFilterSample (
-                    channel, drySample, cachedFilterCutoffValue,
+                    dedicatedRoute, channel, drySample, cachedFilterCutoffValue,
                     resonanceValue,
                     baseFilterType);
                 buffer.setSample (
@@ -8468,10 +8899,18 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         };
 
-        const auto processPitchStage = [&]
+        const auto processPitchStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! pitchIsProcessing)
                 return;
+            auto& pitchBuffer = dedicatedRoute
+                ? dedicatedFxState.pitchBuffer : this->pitchBuffer;
+            auto& pitchWritePosition = dedicatedRoute
+                ? dedicatedFxState.pitchWritePosition
+                : this->pitchWritePosition;
+            auto& pitchReadPhase = dedicatedRoute
+                ? dedicatedFxState.pitchReadPhase : this->pitchReadPhase;
             const auto modulatedPitchNormalised = [&] (
                 float baseNormalised, seqwencer::ModulationTarget target)
             {
@@ -8547,10 +8986,14 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 1.0);
         };
 
-        const auto processDistortionStage = [&]
+        const auto processDistortionStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! distortionIsProcessing)
                 return;
+            auto& distortionToneStates = dedicatedRoute
+                ? dedicatedFxState.distortionToneStates
+                : this->distortionToneStates;
             const auto modulatedDistortionNormalised = [&] (
                 float baseNormalised, seqwencer::ModulationTarget target)
             {
@@ -8650,10 +9093,21 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         };
 
-        const auto processGrainStage = [&]
+        const auto processGrainStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! grainIsProcessing)
                 return;
+            auto& grainBuffer = dedicatedRoute
+                ? dedicatedFxState.grainBuffer : this->grainBuffer;
+            auto& grainWritePosition = dedicatedRoute
+                ? dedicatedFxState.grainWritePosition
+                : this->grainWritePosition;
+            auto& grainReadPhase = dedicatedRoute
+                ? dedicatedFxState.grainReadPhase : this->grainReadPhase;
+            auto& grainFeedbackStates = dedicatedRoute
+                ? dedicatedFxState.grainFeedbackStates
+                : this->grainFeedbackStates;
             const auto modulatedGrainNormalised = [&] (
                 float baseNormalised, seqwencer::ModulationTarget target)
             {
@@ -8751,10 +9205,13 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 1.0);
         };
 
-        const auto processCompressorStage = [&]
+        const auto processCompressorStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! compressorIsProcessing)
                 return;
+            auto& compressorGain = dedicatedRoute
+                ? dedicatedFxState.compressorGain : this->compressorGain;
             const auto modulatedCompressorActual = [&] (
                 float baseValue, float minimumValue, float maximumValue,
                 seqwencer::ModulationTarget target)
@@ -8841,10 +9298,49 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         };
 
-        const auto processReverseStage = [&]
+        const auto processReverseStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! reverseIsProcessing)
                 return;
+            auto& reverseBuffers = dedicatedRoute
+                ? dedicatedFxState.reverseBuffers : this->reverseBuffers;
+            auto& reverseCaptureBufferIndex = dedicatedRoute
+                ? dedicatedFxState.reverseCaptureBufferIndex
+                : this->reverseCaptureBufferIndex;
+            auto& reversePlaybackBufferIndex = dedicatedRoute
+                ? dedicatedFxState.reversePlaybackBufferIndex
+                : this->reversePlaybackBufferIndex;
+            auto& reverseCaptureWritePosition = dedicatedRoute
+                ? dedicatedFxState.reverseCaptureWritePosition
+                : this->reverseCaptureWritePosition;
+            auto& reverseCaptureAvailableSamples = dedicatedRoute
+                ? dedicatedFxState.reverseCaptureAvailableSamples
+                : this->reverseCaptureAvailableSamples;
+            auto& reverseCapturedSamples = dedicatedRoute
+                ? dedicatedFxState.reverseCapturedSamples
+                : this->reverseCapturedSamples;
+            auto& reversePendingCaptureSamples = dedicatedRoute
+                ? dedicatedFxState.reversePendingCaptureSamples
+                : this->reversePendingCaptureSamples;
+            auto& reversePlaybackStartPosition = dedicatedRoute
+                ? dedicatedFxState.reversePlaybackStartPosition
+                : this->reversePlaybackStartPosition;
+            auto& reverseReadPosition = dedicatedRoute
+                ? dedicatedFxState.reverseReadPosition
+                : this->reverseReadPosition;
+            auto& reversePreviousSequencePhase = dedicatedRoute
+                ? dedicatedFxState.reversePreviousSequencePhase
+                : this->reversePreviousSequencePhase;
+            auto& reverseReadDirection = dedicatedRoute
+                ? dedicatedFxState.reverseReadDirection
+                : this->reverseReadDirection;
+            auto& reverseWetFade = dedicatedRoute
+                ? dedicatedFxState.reverseWetFade : this->reverseWetFade;
+            auto& reverseIsPlaying = dedicatedRoute
+                ? dedicatedFxState.reverseIsPlaying : this->reverseIsPlaying;
+            auto& reverseStepWasOn = dedicatedRoute
+                ? dedicatedFxState.reverseStepWasOn : this->reverseStepWasOn;
             const auto modulatedReverseNormalised = [&] (
                 float baseNormalised, seqwencer::ModulationTarget target)
             {
@@ -9002,10 +9498,42 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         };
 
-        const auto processRetriggerStage = [&]
+        const auto processRetriggerStage = [&] (
+            juce::AudioBuffer<float>& buffer, bool dedicatedRoute)
         {
             if (! retriggerIsProcessing)
                 return;
+            auto& retriggerBuffer = dedicatedRoute
+                ? dedicatedFxState.retriggerBuffer : this->retriggerBuffer;
+            auto& retriggerCaptureSamples = dedicatedRoute
+                ? dedicatedFxState.retriggerCaptureSamples
+                : this->retriggerCaptureSamples;
+            auto& retriggerCaptureTargetSamples = dedicatedRoute
+                ? dedicatedFxState.retriggerCaptureTargetSamples
+                : this->retriggerCaptureTargetSamples;
+            auto& retriggerReadPosition = dedicatedRoute
+                ? dedicatedFxState.retriggerReadPosition
+                : this->retriggerReadPosition;
+            auto& retriggerSamplesUntilRepeat = dedicatedRoute
+                ? dedicatedFxState.retriggerSamplesUntilRepeat
+                : this->retriggerSamplesUntilRepeat;
+            auto& retriggerPlaybackSamples = dedicatedRoute
+                ? dedicatedFxState.retriggerPlaybackSamples
+                : this->retriggerPlaybackSamples;
+            auto& retriggerRepeatIndex = dedicatedRoute
+                ? dedicatedFxState.retriggerRepeatIndex
+                : this->retriggerRepeatIndex;
+            auto& retriggerWetFade = dedicatedRoute
+                ? dedicatedFxState.retriggerWetFade : this->retriggerWetFade;
+            auto& retriggerIsPlaying = dedicatedRoute
+                ? dedicatedFxState.retriggerIsPlaying
+                : this->retriggerIsPlaying;
+            auto& retriggerStepWasOn = dedicatedRoute
+                ? dedicatedFxState.retriggerStepWasOn
+                : this->retriggerStepWasOn;
+            auto& retriggerBlockIsActive = dedicatedRoute
+                ? dedicatedFxState.retriggerBlockIsActive
+                : this->retriggerBlockIsActive;
 
             const auto modulatedRetriggerActual = [&] (
                 float baseValue, float minimumValue, float maximumValue,
@@ -9152,19 +9680,45 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         {
             switch (stage)
             {
-                case seqwencer::AudioFxStage::gate:       processGateStage(); break;
-                case seqwencer::AudioFxStage::delay:      processDelayStage(); break;
-                case seqwencer::AudioFxStage::reverb:     processReverbStage(); break;
-                case seqwencer::AudioFxStage::pan:        processPanStage(); break;
-                case seqwencer::AudioFxStage::filter:     processFilterStage(); break;
-                case seqwencer::AudioFxStage::pitch:      processPitchStage(); break;
-                case seqwencer::AudioFxStage::distortion: processDistortionStage(); break;
-                case seqwencer::AudioFxStage::grain:      processGrainStage(); break;
-                case seqwencer::AudioFxStage::compressor: processCompressorStage(); break;
-                case seqwencer::AudioFxStage::reverse:    processReverseStage(); break;
-                case seqwencer::AudioFxStage::retrigger:  processRetriggerStage(); break;
+                case seqwencer::AudioFxStage::gate:       processGateStage (buffer, false); break;
+                case seqwencer::AudioFxStage::delay:      processDelayStage (buffer, false); break;
+                case seqwencer::AudioFxStage::reverb:     processReverbStage (buffer, false); break;
+                case seqwencer::AudioFxStage::pan:        processPanStage (buffer, false); break;
+                case seqwencer::AudioFxStage::filter:     processFilterStage (buffer, false); break;
+                case seqwencer::AudioFxStage::pitch:      processPitchStage (buffer, false); break;
+                case seqwencer::AudioFxStage::distortion: processDistortionStage (buffer, false); break;
+                case seqwencer::AudioFxStage::grain:      processGrainStage (buffer, false); break;
+                case seqwencer::AudioFxStage::compressor: processCompressorStage (buffer, false); break;
+                case seqwencer::AudioFxStage::reverse:    processReverseStage (buffer, false); break;
+                case seqwencer::AudioFxStage::retrigger:  processRetriggerStage (buffer, false); break;
             }
         }
+
+        // Dedicated buses are independent parallel routes.  They use the
+        // same sequencer/control values as their Main-chain counterpart, but
+        // never run through any of the other effects.
+        if (dedicatedGateIsProcessing)
+            processGateStage (gateBusBuffer, true);
+        if (dedicatedDelayIsProcessing)
+            processDelayStage (delayBusBuffer, true);
+        if (dedicatedReverbIsProcessing)
+            processReverbStage (reverbBusBuffer, true);
+        if (dedicatedPanIsProcessing)
+            processPanStage (panBusBuffer, true);
+        if (dedicatedFilterIsProcessing)
+            processFilterStage (filterBusBuffer, true);
+        if (dedicatedPitchIsProcessing)
+            processPitchStage (pitchBusBuffer, true);
+        if (dedicatedDistortionIsProcessing)
+            processDistortionStage (distortionBusBuffer, true);
+        if (dedicatedGrainIsProcessing)
+            processGrainStage (grainBusBuffer, true);
+        if (dedicatedCompressorIsProcessing)
+            processCompressorStage (compressorBusBuffer, true);
+        if (dedicatedReverseIsProcessing)
+            processReverseStage (reverseBusBuffer, true);
+        if (dedicatedRetriggerIsProcessing)
+            processRetriggerStage (retriggerBusBuffer, true);
 
         const auto mayAdvance = ! hostSyncEnabled || hostTimelineAdvancing;
         if (gateIsProcessing && ! gateUseHostPosition

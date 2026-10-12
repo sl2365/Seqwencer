@@ -42,7 +42,7 @@ pause
 exit /b %BUILD_EXIT_CODE%
 
 :run_build
-title Seqwencer - v1.3.27.0 Build
+title Seqwencer - v1.3.28.0 Build
 
 set "PROJECT_ROOT=%~dp0"
 set "SOURCE_DIR=%PROJECT_ROOT%source"
@@ -56,7 +56,7 @@ set "BUNDLE_BINARY=%BUILD_DIR%\Seqwencer_artefacts\Release\VST3\Seqwencer.vst3\C
 set "FINAL_PLUGIN=%DIST_DIR%\Seqwencer.vst3"
 
 echo.
-echo Seqwencer 64-bit VST3 - v1.3.27.0 Build
+echo Seqwencer 64-bit VST3 - v1.3.28.0 Build
 echo ========================================
 echo.
 
@@ -121,7 +121,7 @@ if not exist "%FINAL_PLUGIN%" goto :copy_failed
 echo       PASS
 echo.
 
-echo [6/7] Building and running the independent VST3 editor probe...
+echo [6/7] Building and running the independent VST3 bus/bridge/editor probe...
 "%CMAKE_EXE%" --build "%BUILD_DIR%" --config Release --target SeqwencerVST3ProbeTests --parallel
 if errorlevel 1 goto :probe_test_build_failed
 if not exist "%PROBE_TEST_EXE%" goto :probe_test_not_found
@@ -144,7 +144,7 @@ if errorlevel 1 goto :wrong_architecture
 
 powershell.exe -NoProfile -Command ^
   "$extra = Get-ChildItem -LiteralPath '%DIST_DIR%' -Force | Where-Object {" ^
-  "  $_.Name -ne 'Seqwencer.vst3' -and -not ($_.Name -eq 'Data' -and $_.PSIsContainer)" ^
+  "  $_.Name -ne 'Seqwencer.vst3' -and $_.Name -ne 'Seqwencer.rar' -and -not ($_.Name -eq 'Data' -and $_.PSIsContainer)" ^
   "};" ^
   "if ($extra) { $extra | ForEach-Object { Write-Host ('Unexpected: ' + $_.FullName) }; exit 1 }"
 if errorlevel 1 goto :unexpected_dist_files
@@ -157,7 +157,7 @@ echo   - PASS: Visual Studio Community 2026 x64 configured
 echo   - PASS: Sequencer timing, pattern tools, all FX, routing and HOST SYNC tests passed
 echo   - PASS: Release VST3 compiled
 echo   - PASS: Single-file VST3 created
-echo   - PASS: Independent VST3 editor probe passed
+echo   - PASS: Independent VST3 bus, bridge and editor probe passed
 echo   - PASS: Output verified as Windows x64
 echo.
 echo Output:
@@ -245,7 +245,7 @@ goto :failed
 :probe_tests_failed
 echo.
 echo BUILD FAILED
-echo   - FAIL: Seqwencer failed the independent VST3 bridge/editor probe
+echo   - FAIL: Seqwencer failed the independent VST3 bus/bridge/editor probe
 echo   - Probe exit code: %PROBE_EXIT_CODE%
 goto :failed
 
@@ -289,6 +289,7 @@ echo BUILD FAILED
 echo   - FAIL: dist contains an unexpected file or folder
 echo Allowed:
 echo   Seqwencer.vst3
+echo   Seqwencer.rar  ^(optional release archive^)
 echo   Data  ^(optional existing runtime folder^)
 goto :failed
 

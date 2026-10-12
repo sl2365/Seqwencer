@@ -2,6 +2,28 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.3.28.0 Dedicated FX buses
+
+- Kept the original Main stereo input/output as the complete, reorderable FX
+  chain so existing projects retain their routing and sound
+- Added eleven optional stereo input/output pairs for Gate, Delay, Reverb,
+  Pan, Filter, Pitch, Distortion, Grain, Compressor, Reverse and Retrigger
+- Made every dedicated output pass its own input through dry while that FX or
+  the global bypass is switched off
+- Reused the existing effect controls and sequencers across Main and dedicated
+  routes while giving each stateful processor independent buffers, envelopes
+  and histories to prevent cross-talk
+- Kept PHI out of the audio-bus list because it sends parameter modulation and
+  does not process audio
+- Allocated the large dedicated delay, pitch, grain, reverse and retrigger
+  histories only when their corresponding host bus is enabled
+- Kept all dedicated buses disabled by default for backward-compatible stereo
+  loading and added VST3 probe coverage for bus names, defaults and dry bypass
+- Renamed the Main/dedicated route aliases used by the Filter, Reverse and
+  Retrigger helpers, removing the 39 Visual Studio C4458 build warnings
+- Allowed the optional Seqwencer.rar release archive to remain in dist during
+  final validation, preventing a successful build from being reported failed
+
 ## v1.3.27.0 Delay tempo sync
 
 - Added a Sync switch to the Delay controls while retaining the existing

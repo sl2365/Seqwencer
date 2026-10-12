@@ -62,6 +62,92 @@ int main (int argumentCount, char* arguments[])
 
     std::cout << "PASS: VST3 scan and instance creation completed" << std::endl;
 
+    constexpr int expectedBusPairs = 12;
+    const std::array<juce::String, expectedBusPairs> expectedInputNames {
+        "Input", "Gate In", "Delay In", "Reverb In", "Pan In",
+        "Filter In", "Pitch In", "Dist In", "Grain In", "Comp In",
+        "Reverse In", "Retrigger In" };
+    const std::array<juce::String, expectedBusPairs> expectedOutputNames {
+        "Output", "Gate Out", "Delay Out", "Reverb Out", "Pan Out",
+        "Filter Out", "Pitch Out", "Dist Out", "Grain Out", "Comp Out",
+        "Reverse Out", "Retrigger Out" };
+    if (instance->getBusCount (true) != expectedBusPairs
+        || instance->getBusCount (false) != expectedBusPairs)
+    {
+        std::cout << "FAIL: VST3 did not expose Main plus eleven FX bus pairs\n";
+        return 1;
+    }
+    for (int bus = 0; bus < expectedBusPairs; ++bus)
+    {
+        const auto* inputBus = instance->getBus (true, bus);
+        const auto* outputBus = instance->getBus (false, bus);
+        if (inputBus == nullptr || outputBus == nullptr
+            || inputBus->getName() != expectedInputNames[bus]
+            || outputBus->getName() != expectedOutputNames[bus])
+        {
+            std::cout << "FAIL: VST3 FX bus names were incorrect\n";
+            return 1;
+        }
+        if (bus > 0 && (inputBus->isEnabled() || outputBus->isEnabled()))
+        {
+            std::cout << "FAIL: a dedicated FX bus was enabled by default\n";
+            return 1;
+        }
+    }
+    std::cout << "PASS: Main and eleven optional stereo FX bus pairs are exposed"
+              << std::endl;
+
+    const auto originalLayout = instance->getBusesLayout();
+    auto gateBusLayout = originalLayout;
+    gateBusLayout.inputBuses.set (1, juce::AudioChannelSet::stereo());
+    gateBusLayout.outputBuses.set (1, juce::AudioChannelSet::stereo());
+    if (! instance->setBusesLayout (gateBusLayout))
+    {
+        std::cout << "FAIL: the dedicated Gate stereo bus could not be enabled\n";
+        return 1;
+    }
+
+    constexpr int busTestSamples = 128;
+    juce::AudioBuffer<float> busAudio (4, busTestSamples);
+    for (int sample = 0; sample < busTestSamples; ++sample)
+    {
+        busAudio.setSample (0, sample, 0.1f);
+        busAudio.setSample (1, sample, -0.1f);
+        busAudio.setSample (2, sample, 0.6f);
+        busAudio.setSample (3, sample, -0.4f);
+    }
+    auto* bypassParameter = instance->getBypassParameter();
+    const auto oldBypassValue = bypassParameter != nullptr
+        ? bypassParameter->getValue() : 0.0f;
+    if (bypassParameter != nullptr)
+        bypassParameter->setValueNotifyingHost (1.0f);
+    juce::MidiBuffer busMidi;
+    instance->prepareToPlay (48000.0, busTestSamples);
+    instance->processBlock (busAudio, busMidi);
+    instance->releaseResources();
+    if (bypassParameter != nullptr)
+        bypassParameter->setValueNotifyingHost (oldBypassValue);
+    if (! instance->setBusesLayout (originalLayout))
+    {
+        std::cout << "FAIL: the original Main-only layout could not be restored\n";
+        return 1;
+    }
+    auto busDryError = 0.0f;
+    for (int sample = 0; sample < busTestSamples; ++sample)
+    {
+        busDryError = std::max (
+            busDryError, std::abs (busAudio.getSample (2, sample) - 0.6f));
+        busDryError = std::max (
+            busDryError, std::abs (busAudio.getSample (3, sample) + 0.4f));
+    }
+    if (busDryError > 0.000001f)
+    {
+        std::cout << "FAIL: a bypassed dedicated FX bus was not dry\n";
+        return 1;
+    }
+    std::cout << "PASS: a bypassed dedicated FX bus passes its input dry"
+              << std::endl;
+
     if (! instance->producesMidi())
     {
         std::cout << "FAIL: VST3 did not report PHI bridge event output\n";

@@ -181,6 +181,86 @@ private:
         double integrator2 = 0.0;
     };
 
+    // The dedicated FX buses share parameters and sequencer timing with the
+    // Main chain, but every stateful processor needs its own audio history so
+    // signals on different buses can never feed or colour one another.
+    struct DedicatedFxState
+    {
+        float smoothedGain = 1.0f;
+        float smoothedNoiseGateGain = 1.0f;
+        int noiseGateHoldSamplesRemaining = 0;
+        bool noiseGateIsOpen = true;
+        bool gateWasActive = false;
+
+        juce::AudioBuffer<float> delayBuffer;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>
+            smoothedDelaySamples;
+        int delayWritePosition = 0;
+        int delayValidSamples = 0;
+        bool delayWasActive = false;
+
+        juce::Reverb reverbProcessor;
+        bool reverbWasActive = false;
+
+        std::array<FilterState, 2> filterStates {};
+        juce::AudioBuffer<float> filterCombBuffer;
+        std::array<int, 2> filterCombWritePositions {};
+        double filterCoefficientCutoff = -1.0;
+        double filterCoefficientResonance = -1.0;
+        double filterCoefficientA1 = 0.0;
+        double filterCoefficientA2 = 0.0;
+        double filterCoefficientA3 = 0.0;
+        double filterCoefficientK = 1.0;
+        int filterPreviousType = -1;
+        bool filterWasActive = false;
+
+        juce::AudioBuffer<float> pitchBuffer;
+        int pitchWritePosition = 0;
+        double pitchReadPhase = 0.0;
+        bool pitchWasActive = false;
+
+        std::array<float, 2> distortionToneStates {};
+        bool distortionWasActive = false;
+
+        juce::AudioBuffer<float> grainBuffer;
+        int grainWritePosition = 0;
+        double grainReadPhase = 0.0;
+        std::array<float, 2> grainFeedbackStates {};
+        bool grainWasActive = false;
+
+        float compressorGain = 1.0f;
+        bool compressorWasActive = false;
+
+        std::array<juce::AudioBuffer<float>, 2> reverseBuffers;
+        int reverseCaptureBufferIndex = 0;
+        int reversePlaybackBufferIndex = 1;
+        int reverseCaptureWritePosition = 0;
+        int reverseCaptureAvailableSamples = 0;
+        int reverseCapturedSamples = 0;
+        int reversePendingCaptureSamples = 0;
+        int reversePlaybackStartPosition = 0;
+        double reverseReadPosition = 0.0;
+        double reversePreviousSequencePhase = -1.0;
+        int reverseReadDirection = 1;
+        float reverseWetFade = 0.0f;
+        bool reverseIsPlaying = false;
+        bool reverseStepWasOn = false;
+        bool reverseWasActive = false;
+
+        juce::AudioBuffer<float> retriggerBuffer;
+        int retriggerCaptureSamples = 0;
+        int retriggerCaptureTargetSamples = 0;
+        int retriggerReadPosition = 0;
+        int retriggerSamplesUntilRepeat = 0;
+        juce::int64 retriggerPlaybackSamples = 0;
+        int retriggerRepeatIndex = 0;
+        float retriggerWetFade = 0.0f;
+        bool retriggerIsPlaying = false;
+        bool retriggerStepWasOn = false;
+        bool retriggerBlockIsActive = false;
+        bool retriggerWasActive = false;
+    };
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     seqwencer::Pattern readPattern (
         int bank, seqwencer::ModulationTarget target) const noexcept;
@@ -219,10 +299,10 @@ private:
     void readStepSubdivisionsFromState (const juce::ValueTree& state) noexcept;
     void migrateStepStorageIfNeeded();
     void syncAudioFxOrderFromState();
-    void resetFilterProcessor() noexcept;
-    void resetReverseProcessor() noexcept;
-    void resetRetriggerProcessor() noexcept;
-    float processFilterSample (int channel, float input,
+    void resetFilterProcessor (bool dedicated = false) noexcept;
+    void resetReverseProcessor (bool dedicated = false) noexcept;
+    void resetRetriggerProcessor (bool dedicated = false) noexcept;
+    float processFilterSample (bool dedicated, int channel, float input,
                                float cutoffHz, float resonance,
                                int type) noexcept;
 
@@ -662,6 +742,7 @@ private:
     bool retriggerStepWasOn = false;
     bool retriggerBlockIsActive = false;
     bool retriggerWasActive = false;
+    DedicatedFxState dedicatedFxState;
     std::atomic<bool> phiHostPresent { false };
     std::atomic<bool> phiTargetBrowserRequestPending { false };
 

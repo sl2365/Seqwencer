@@ -5813,7 +5813,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
                        juce::Justification::centredLeft, false);
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.27.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.3.28.0",
                        20, 33, 320, 13,
                        juce::Justification::centredLeft, false);
 

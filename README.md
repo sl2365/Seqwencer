@@ -52,6 +52,22 @@ FX order is stored in DAW projects and portable presets. Older projects and
 presets that contain no routing order use the original order with Reverse and
 Retrigger added after Compressor.
 
+The original stereo `Input` and `Output` remain the Main route and always carry
+that complete reorderable chain. Seqwencer also exposes optional dedicated
+stereo input/output pairs for Gate, Delay, Reverb, Pan, Filter, Pitch, Dist,
+Grain, Comp, Reverse and Retrigger. A host can feed a different synth or track
+into any enabled pair and receive only that one effect from its matching
+output. These parallel routes use the same controls and sequencers shown in
+Seqwencer, while their internal delay lines, filter histories, envelopes and
+capture buffers remain isolated from the Main chain and from one another.
+
+Every dedicated bus is disabled by default, preserving the normal single
+stereo input/output layout for existing projects. If its effect is switched
+off—or Seqwencer is globally bypassed—its dedicated output passes its input
+through dry. PHI has no dedicated audio bus because it transmits parameter
+modulation rather than processing an audio signal. Bus-enabling and routing
+controls are provided by the host and their presentation varies between DAWs.
+
 ## Sequencers
 
 - Two 32-step lanes: A and B
