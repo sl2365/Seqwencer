@@ -1717,7 +1717,7 @@ int main (int argumentCount, char* arguments[])
         delayMix->setValueNotifyingHost (mix);
         delaySyncEnabled->setValueNotifyingHost (0.0f);
 
-        std::array<float, dedicatedImpulseSamples> rendered {};
+        std::array<float, 1024> rendered {};
         instance->prepareToPlay (48000.0, dedicatedDelayBlockSize);
         for (int offset = 0; offset < dedicatedImpulseSamples;
              offset += dedicatedDelayBlockSize)
