@@ -42,21 +42,21 @@ pause
 exit /b %BUILD_EXIT_CODE%
 
 :run_build
-title Seqwencer - v1.3.28.0 Build
+title Seqwencer - v1.4.0 Build
 
 set "PROJECT_ROOT=%~dp0"
 set "SOURCE_DIR=%PROJECT_ROOT%source"
 set "BUILD_DIR=%PROJECT_ROOT%build"
 set "DIST_DIR=%PROJECT_ROOT%dist"
 set "CMAKE_EXE=%PROJECT_ROOT%..\_Tools\cmake\_4.4.2\bin\cmake.exe"
-set "JUCE_CMAKE=%PROJECT_ROOT%..\_Tools\JUCE\_8.0.15\CMakeLists.txt"
+set "JUCE_CMAKE=%PROJECT_ROOT%..\_Tools\JUCE\_9.0.4\CMakeLists.txt"
 set "TEST_EXE=%BUILD_DIR%\Release\SeqwencerCoreTests.exe"
 set "PROBE_TEST_EXE=%BUILD_DIR%\SeqwencerVST3ProbeTests_artefacts\Release\SeqwencerVST3ProbeTests.exe"
 set "BUNDLE_BINARY=%BUILD_DIR%\Seqwencer_artefacts\Release\VST3\Seqwencer.vst3\Contents\x86_64-win\Seqwencer.vst3"
 set "FINAL_PLUGIN=%DIST_DIR%\Seqwencer.vst3"
 
 echo.
-echo Seqwencer 64-bit VST3 - v1.3.28.0 Build
+echo Seqwencer 64-bit VST3 - v1.4.0 Build
 echo ========================================
 echo.
 
@@ -178,7 +178,7 @@ goto :failed
 :missing_juce
 echo.
 echo BUILD FAILED
-echo   - FAIL: JUCE 8.0.15 was not found
+echo   - FAIL: JUCE 9.0.4 was not found
 echo Expected:
 echo   %JUCE_CMAKE%
 goto :failed

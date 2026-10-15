@@ -1,23 +1,23 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(Seqwencer VERSION 1.3.28.0 LANGUAGES C CXX)
+project(Seqwencer VERSION 1.4.0 LANGUAGES C CXX)
 
-set(JUCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../_Tools/JUCE/_8.0.15")
+set(JUCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../_Tools/JUCE/_9.0.4")
 
 if(NOT EXISTS "${JUCE_DIR}/CMakeLists.txt"
-   AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/../../JUCE_8.0.15/CMakeLists.txt")
-    set(JUCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../JUCE_8.0.15")
+   AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/../../JUCE_9.0.4/CMakeLists.txt")
+    set(JUCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../JUCE_9.0.4")
 endif()
 
 if(NOT EXISTS "${JUCE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
-        "JUCE 8.0.15 was not found. Expected: ${JUCE_DIR}/CMakeLists.txt")
+        "JUCE 9.0.4 was not found. Expected: ${JUCE_DIR}/CMakeLists.txt")
 endif()
 
-add_subdirectory("${JUCE_DIR}" "${CMAKE_BINARY_DIR}/JUCE")
+add_subdirectory("${JUCE_DIR}" "${CMAKE_BINARY_DIR}/JUCE-9.0.4")
 
 juce_add_plugin(Seqwencer
-    VERSION 1.3.28.0
+    VERSION 1.4.0
     COMPANY_NAME "sl23"
     BUNDLE_ID "com.sl23.seqwencer"
     IS_SYNTH FALSE

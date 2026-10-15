@@ -60,6 +60,8 @@ into any enabled pair and receive only that one effect from its matching
 output. These parallel routes use the same controls and sequencers shown in
 Seqwencer, while their internal delay lines, filter histories, envelopes and
 capture buffers remain isolated from the Main chain and from one another.
+Dedicated inputs are not summed into Main Output: for example, `Delay In` must
+be collected from `Delay Out`, while `Input` is collected from `Output`.
 
 Every dedicated bus is disabled by default, preserving the normal single
 stereo input/output layout for existing projects. If its effect is switched
@@ -67,6 +69,13 @@ off—or Seqwencer is globally bypassed—its dedicated output passes its input
 through dry. PHI has no dedicated audio bus because it transmits parameter
 modulation rather than processing an audio signal. Bus-enabling and routing
 controls are provided by the host and their presentation varies between DAWs.
+
+The dedicated Delay pair is an insert-style dry/wet route, not a wet-only send.
+At Mix 0 it outputs the continuous dry input; at Mix 0.5 it outputs equal dry
+and delayed levels; and at Mix 1 it outputs only the delayed signal. Until the
+first delay interval has elapsed, a fully wet route is therefore silent by
+design. With no Delay targets assigned, its sequencers continue to display and
+advance but do not change Time, Feedback, Mix or the audio level.
 
 ## Sequencers
 
@@ -378,7 +387,7 @@ _Projects/
         bin/
           cmake.exe
     JUCE/
-      _8.0.15/
+      _9.0.4/
         CMakeLists.txt
 ```
 
@@ -387,7 +396,7 @@ Requirements:
 - Windows x64
 - Visual Studio Community 2026 with Desktop development with C++
 - CMake 4.4.2 in the layout above
-- JUCE 8.0.15 in the layout above
+- JUCE 9.0.4 in the layout above
 
 To build:
 

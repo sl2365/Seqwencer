@@ -1589,6 +1589,186 @@ int main (int argumentCount, char* arguments[])
     std::cout << "PASS: Delay supports millisecond and host-tempo timing"
               << std::endl;
 
+    // Exercise the VST3 bus that a host exposes as Delay In -> Delay Out.
+    // It is an isolated insert route: Delay In must never be summed into Main
+    // Out, and its own output must retain an uninterrupted dry path at bypass
+    // or zero Mix.  Explicitly clear every Delay target so the continuity
+    // render also proves that a running, unassigned sequencer cannot move the
+    // normal knob values.
+    for (const auto* name : {
+             "Delay Sequencer A TIME Target",
+             "Delay Sequencer A FEEDBACK Target",
+             "Delay Sequencer A MIX Target",
+             "Delay Sequencer B TIME Target",
+             "Delay Sequencer B FEEDBACK Target",
+             "Delay Sequencer B MIX Target" })
+    {
+        findParameterByName (name)->setValueNotifyingHost (0.0f);
+    }
+
+    const auto mainOnlyLayout = instance->getBusesLayout();
+    auto dedicatedDelayLayout = mainOnlyLayout;
+    dedicatedDelayLayout.inputBuses.set (
+        2, juce::AudioChannelSet::stereo());
+    dedicatedDelayLayout.outputBuses.set (
+        2, juce::AudioChannelSet::stereo());
+    if (! instance->setBusesLayout (dedicatedDelayLayout))
+    {
+        std::cout << "FAIL: the dedicated Delay stereo bus could not be enabled\n";
+        return 1;
+    }
+
+    constexpr int dedicatedDelayBlockSize = 257;
+    const auto processDedicatedConstant = [&] (
+        bool enabled, float mix, int blockCount,
+        float leftInput, float rightInput,
+        bool expectDelayedSignal)
+    {
+        delayEnabled->setValueNotifyingHost (enabled ? 1.0f : 0.0f);
+        delayTime->setValueNotifyingHost (0.0f);     // 10 ms / 480 samples.
+        delayFeedback->setValueNotifyingHost (0.0f);
+        delayMix->setValueNotifyingHost (mix);
+        delaySyncEnabled->setValueNotifyingHost (0.0f);
+
+        auto maximumError = 0.0f;
+        auto maximumMainLeak = 0.0f;
+        instance->prepareToPlay (48000.0, dedicatedDelayBlockSize);
+        for (int blockIndex = 0; blockIndex < blockCount; ++blockIndex)
+        {
+            juce::AudioBuffer<float> audio (4, dedicatedDelayBlockSize);
+            audio.clear();
+            std::fill_n (audio.getWritePointer (2),
+                         dedicatedDelayBlockSize, leftInput);
+            std::fill_n (audio.getWritePointer (3),
+                         dedicatedDelayBlockSize, rightInput);
+
+            juce::MidiBuffer blockMidi;
+            instance->processBlock (audio, blockMidi);
+            for (int sample = 0; sample < dedicatedDelayBlockSize; ++sample)
+            {
+                const auto absoluteSample =
+                    blockIndex * dedicatedDelayBlockSize + sample;
+                const auto historyReady = absoluteSample >= 480;
+                const auto expectedScale = enabled
+                    ? (1.0f - mix + (expectDelayedSignal && historyReady
+                                         ? mix : 0.0f))
+                    : 1.0f;
+                maximumError = std::max (
+                    maximumError,
+                    std::abs (audio.getSample (2, sample)
+                              - leftInput * expectedScale));
+                maximumError = std::max (
+                    maximumError,
+                    std::abs (audio.getSample (3, sample)
+                              - rightInput * expectedScale));
+                maximumMainLeak = std::max (
+                    maximumMainLeak,
+                    std::abs (audio.getSample (0, sample)));
+                maximumMainLeak = std::max (
+                    maximumMainLeak,
+                    std::abs (audio.getSample (1, sample)));
+            }
+        }
+        instance->releaseResources();
+        return std::pair<float, float> { maximumError, maximumMainLeak };
+    };
+
+    const auto bypassedDedicatedDelay = processDedicatedConstant (
+        false, 1.0f, 8, 0.37f, -0.23f, false);
+    if (bypassedDedicatedDelay.first > 0.000001f
+        || bypassedDedicatedDelay.second > 0.000001f)
+    {
+        std::cout << "FAIL: bypassed Delay In did not pass continuously to Delay Out, or leaked into Main Out\n";
+        return 1;
+    }
+
+    const auto zeroMixDedicatedDelay = processDedicatedConstant (
+        true, 0.0f, 192, 0.37f, -0.23f, true);
+    if (zeroMixDedicatedDelay.first > 0.000001f
+        || zeroMixDedicatedDelay.second > 0.000001f)
+    {
+        std::cout << "FAIL: Delay Mix 0 was not an uninterrupted dry pass-through, or leaked into Main Out\n";
+        return 1;
+    }
+
+    const auto halfMixDedicatedDelay = processDedicatedConstant (
+        true, 0.5f, 192, 0.40f, -0.30f, true);
+    if (halfMixDedicatedDelay.first > 0.00001f
+        || halfMixDedicatedDelay.second > 0.000001f)
+    {
+        std::cout << "FAIL: Delay Mix 0.5 did not maintain the expected static dry/delayed blend\n";
+        return 1;
+    }
+    if (std::abs (delayTime->getValue()) > 0.000001f
+        || std::abs (delayFeedback->getValue()) > 0.000001f
+        || std::abs (delayMix->getValue() - 0.5f) > 0.000001f
+        || delaySyncEnabled->getValue() >= 0.5f)
+    {
+        std::cout << "FAIL: the unassigned Delay sequencer changed a knob value\n";
+        return 1;
+    }
+
+    constexpr int dedicatedImpulseSamples = 1024;
+    const auto renderDedicatedImpulse = [&] (float mix)
+    {
+        delayEnabled->setValueNotifyingHost (1.0f);
+        delayTime->setValueNotifyingHost (0.0f);
+        delayFeedback->setValueNotifyingHost (0.0f);
+        delayMix->setValueNotifyingHost (mix);
+        delaySyncEnabled->setValueNotifyingHost (0.0f);
+
+        std::array<float, dedicatedImpulseSamples> rendered {};
+        instance->prepareToPlay (48000.0, dedicatedDelayBlockSize);
+        for (int offset = 0; offset < dedicatedImpulseSamples;
+             offset += dedicatedDelayBlockSize)
+        {
+            const auto samples = std::min (
+                dedicatedDelayBlockSize, dedicatedImpulseSamples - offset);
+            juce::AudioBuffer<float> audio (4, samples);
+            audio.clear();
+            if (offset == 0)
+            {
+                audio.setSample (2, 0, 1.0f);
+                audio.setSample (3, 0, 1.0f);
+            }
+            juce::MidiBuffer blockMidi;
+            instance->processBlock (audio, blockMidi);
+            std::copy_n (audio.getReadPointer (2), samples,
+                         rendered.begin() + offset);
+            for (int sample = 0; sample < samples; ++sample)
+                if (std::abs (audio.getSample (0, sample)) > 0.000001f
+                    || std::abs (audio.getSample (1, sample)) > 0.000001f)
+                    rendered[0] = 100.0f;
+        }
+        instance->releaseResources();
+        return rendered;
+    };
+
+    const auto halfMixImpulse = renderDedicatedImpulse (0.5f);
+    if (std::abs (halfMixImpulse[0] - 0.5f) > 0.00001f
+        || std::abs (halfMixImpulse[480] - 0.5f) > 0.00001f)
+    {
+        std::cout << "FAIL: Delay Mix 0.5 did not produce equal dry and delayed impulse levels\n";
+        return 1;
+    }
+
+    const auto wetOnlyImpulse = renderDedicatedImpulse (1.0f);
+    if (std::abs (wetOnlyImpulse[0]) > 0.00001f
+        || std::abs (wetOnlyImpulse[480] - 1.0f) > 0.00001f)
+    {
+        std::cout << "FAIL: Delay Mix 1.0 was not a delayed-only signal\n";
+        return 1;
+    }
+
+    delayEnabled->setValueNotifyingHost (0.0f);
+    if (! instance->setBusesLayout (mainOnlyLayout))
+    {
+        std::cout << "FAIL: the Main-only layout could not be restored after the dedicated Delay test\n";
+        return 1;
+    }
+    std::cout << "PASS: Delay In -> Delay Out is isolated from Main, passes dry at bypass/Mix 0, blends at Mix 0.5, is wet-only at Mix 1, and remains continuous with no targets"
+              << std::endl;
+
     reverbEnabled->setValueNotifyingHost (1.0f);
     reverbSize->setValueNotifyingHost (0.75f);
     reverbDamping->setValueNotifyingHost (0.20f);

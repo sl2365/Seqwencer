@@ -2,6 +2,21 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.4.0 JUCE 9 upgrade
+
+- Updated the portable CMake and Windows build paths from JUCE 8.0.15 to
+  JUCE 9.0.4
+- Updated the project, plug-in binary, build-console and GUI version to v1.4.0
+- Gave JUCE 9.0.4 its own CMake helper-build directory so an existing JUCE
+  8.0.15 juceaide cache cannot break the first JUCE 9 configuration
+- Kept the existing manufacturer, plug-in code, bundle ID, parameters, preset
+  state and audio behaviour unchanged
+- Documented that every dedicated input feeds only its matching dedicated
+  output and is never summed into Main Output
+- Added VST3 regression coverage for the complete dedicated Delay insert path:
+  disabled and Mix 0 dry pass-through, Mix 0.5 dry/wet, Mix 1 wet-only, Main
+  isolation, long-running continuity and static knobs with no assigned targets
+
 ## v1.3.28.0 Dedicated FX buses
 
 - Kept the original Main stereo input/output as the complete, reorderable FX
