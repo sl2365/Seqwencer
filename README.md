@@ -1,13 +1,13 @@
 # Seqwencer
 
+<div align="center">
+
 [![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
-
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/latest/Seqwencer.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/Seqwencer/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/total?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-total&color=blue)](https://github.com/sl2365/Seqwencer/releases)
 
-[![Commits Since Release](https://img.shields.io/github/commits-since/sl2365/Seqwencer/latest?style=for-the-badge-square&logo=github&logoColor=white&color=green)](https://github.com/sl2365/Seqwencer/activity)
-[![Last Commit](https://img.shields.io/github/last-commit/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=green)](https://github.com/sl2365/Seqwencer/activity)
+</div>
 
 ![Seqwencer](Resources/Seqwencer1.jpg)
 
