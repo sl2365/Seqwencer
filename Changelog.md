@@ -2,6 +2,79 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.5.1 compact horizontal preset browser
+
+- Moved Load, Save, Delete, Init and Close into a single compact row at the top
+  of the preset browser
+- Sized the browser, current-name field, preset list and Search field from the
+  exact combined width of the five buttons
+- Moved the current preset name above the list and Search beneath it
+- Removed the unused internal heading that left unnecessary empty space above
+  the controls
+
+## v1.5.0.1 target-list and label correction
+
+- Clamped the Targets viewport above the rounded bottom border so a seventh
+  target no longer leaks into or overlaps the panel edge
+- Added a short explanatory tooltip with the current percentage to each
+  per-target depth knob
+- Centred the A/B `DEPTH` and `OFFSET` captions over their vertical faders
+
+## v1.5.0 per-target depths and compact preset browser
+
+- Added an independent 0-100% depth control to every assigned target in both
+  sequencers while retaining each lane's existing Depth control as the global
+  waveform depth
+- Made 0% target depth return the destination to its saved knob position and
+  100% retain the previous full modulation, with independent values for A and B
+- Applied target depth consistently to ordinary FX controls, sequencer
+  Attack/Release, Start/End/Length and Depth/Offset destinations
+- Added Gate Volume's unity-neutral target scaling so a 0% target depth passes
+  the saved volume without gating
+- Appended all target-depth parameters after the existing parameter list to
+  preserve every pre-v1.5.0 host automation index
+- Widened each Targets panel for its small depth knobs and tightened the row
+  geometry so six assigned targets fit cleanly before scrolling is required
+- Widened the A/B `OFFSET` captions so their text, drag handles and assignment
+  clear marks remain visible
+- Reworked the preset browser to roughly two-thirds of its former width, with
+  a vertical button column on the left and matching Search/Name field widths
+- Added core and VST3 probe coverage for target-depth scaling, defaults,
+  formatting and independent A/B state
+
+## v1.4.1.1 animation and value-text correction
+
+- Removed the audio-block race that could briefly return animated controls to
+  their saved positions, including when the assigned sequence was flat
+- Avoided rewriting and repainting animated controls when their displayed
+  positions have not changed
+- Moved all visible FX value formatting into the parameters themselves so the
+  initial display, later edits and host parameter text always agree
+- Added permanent `%`, `dB`, `ms`, `Hz`/`kHz`, `st`, `:1`, `x`, `step`/`steps`
+  and Pan `C`/`L`/`R` text across the relevant controls
+- Changed Filter Resonance display from its internal `0.10`-`10.00` Q range to
+  the requested `0%`-`100%` presentation without changing its DSP range
+- Added probe coverage for the complete startup text of every FX control
+
+## v1.4.1 target-relative sequencing and Animate
+
+- Corrected every internal FX sequencer target so the target control's saved
+  value is its reference instead of an unrelated absolute sweep
+- Made Unipolar targets travel upward from the saved value and Bipolar targets
+  travel symmetrically around it, limited by the nearest boundary
+- Applied target mapping through each parameter's own normalised conversion so
+  skewed frequency and time controls retain their intended knob response
+- Renamed the visible and host-facing Peak/Move controls to Depth/Offset while
+  preserving their bipolar ranges, behaviour, internal IDs, parameter indices,
+  presets and automation compatibility
+- Added the global top-panel Animate LED, stored in `Data/Settings.ini`; it
+  shows effective target positions without changing saved values or writing
+  host automation
+- Replaced Targets-list checkboxes with LED controls coloured for the current
+  FX while retaining temporary bypass/restore behaviour
+- Added core regression coverage for saved-value references, symmetrical
+  Bipolar travel, Unipolar upward travel and combined Parallel targets
+
 ## v1.4.0 JUCE 9 upgrade
 
 - Updated the portable CMake and Windows build paths from JUCE 8.0.15 to

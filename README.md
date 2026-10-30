@@ -4,12 +4,17 @@
 
 [![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
+
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/latest/Seqwencer.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/Seqwencer/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/total?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-total&color=blue)](https://github.com/sl2365/Seqwencer/releases)
 
 </div>
 
 ![Seqwencer](Resources/Seqwencer1.jpg)
+
+![Seqwencer](Resources/Seqwencer2
+.jpg)
+
 
 Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in,
 designed for fast drawing, flexible modulation and simple routing.
@@ -87,10 +92,10 @@ advance but do not change Time, Feedback, Mix or the audio level.
   heights
 - Independent Rate, Start/End or linked Start/Length, Direction, Attack and
   Release for every effect
-- Bipolar Peak and Move controls for every sequencer lane
+- Bipolar Depth and Offset controls for every sequencer lane
 - Draggable A/B Attack and Release targets on every internal FX page
 - Draggable Start, End and Length targets on every internal FX page
-- Draggable A/B Peak and Move targets on every internal FX page
+- Draggable A/B Depth and Offset targets on every internal FX page
 - Loop, Bounce, Reverse, Played and Random directions
 - Straight and triplet rates from 1/128 through 1/1
 - Waveform drawing presets for each lane
@@ -98,10 +103,15 @@ advance but do not change Time, Feedback, Mix or the audio level.
   independent segment heights
 - Right-click bulk menus for step values, Gate modes and Retrigger blocks
 - Independent left/right nudging for step values and Gate modes
-- Per-lane target lists with temporary enable checkboxes and remove buttons
+- Per-lane target lists with FX-coloured enable LEDs, independent target-depth
+  knobs and remove buttons
 - Target captions that follow the adjustable A/B lane colours, with a distinct
   derived colour when a parameter is assigned to both lanes
 - Host synchronisation and note-triggered playback
+- Optional Animate display for seeing effective target positions without
+  changing stored values or writing automation
+- Consistent control readouts from startup, including `%`, `dB`, `ms`,
+  `Hz`/`kHz`, semitones, ratios, repeat multipliers and step counts
 
 Random uses repeatable shuffled passes: every selected step is visited once per
 pass, the order changes between passes, and saved projects recall the same
@@ -121,8 +131,9 @@ sequencer and therefore uses one Random stream for that pair.
 4. Click and drag inside a lane to draw its steps or individual divided
    segments.
 5. Drag any parameter caption beginning with `::` into the A or B target list.
-6. Tick or untick a target-list checkbox to pause or resume that assignment
-   without deleting it. Click its `X` to remove the assignment.
+6. Click a target-list LED to pause or resume that assignment without deleting
+   it. Drag its small knob vertically to set that target's individual depth;
+   double-click the knob to restore 100%. Click `X` to remove the assignment.
 
 The step shortcuts are:
 
@@ -193,20 +204,36 @@ the same manual range workflow but keeps range captions local, like its envelope
 controls.
 
 Each lane also has two minimal centre-detented faders beside its step field.
-`PEAK` scales the complete waveform: moving it down tames the pattern, while
-moving it up expands the pattern into its available headroom. `MOVE` translates
+`DEPTH` scales the complete waveform: moving it down tames the pattern, while
+moving it up expands the pattern into its available headroom. `OFFSET` translates
 the complete waveform vertically until its highest or lowest point reaches the
 field boundary. Both operations retain the relative shape of the programmed
-steps and divided segments; Peak is applied before Move. The step field updates
+steps and divided segments; Depth is applied before Offset. The step field updates
 to show the transformation selected by the manual faders without rewriting the
-stored pattern. Internally sequenced Peak/Move modulation is intentionally not
+stored pattern. Internally sequenced Depth/Offset modulation is intentionally not
 drawn, keeping the display stable and readable.
 
-Peak and Move are draggable targets on every internal FX page. Their target
+Depth and Offset are draggable targets on every internal FX page. Their target
 modulation uses the raw pre-transform sequence, so a lane can target its own
-Peak or Move value without recursively feeding the already transformed result
+Depth or Offset value without recursively feeding the already transformed result
 back into itself. PHI A-H provide the same manual controls, while their external
 destinations continue to be selected in PHI's Targets browser.
+
+Ordinary targets now use the saved knob position as their modulation reference.
+Unipolar sequencing travels from that saved value toward the control maximum;
+Bipolar sequencing moves symmetrically around it, limited by the nearest
+boundary. Mapping takes place in each parameter's normalised knob space, so
+skewed frequency and time controls retain their intended response. `ANIMATE` on
+the top panel temporarily shows these effective positions while leaving the
+saved values and host automation untouched.
+
+Each assigned target also has its own small 0-100% depth knob. This behaves like
+an individual modulation send: 0% leaves that destination at its saved knob
+position, while 100% applies the sequencer's complete movement. The lane's main
+Depth fader remains the global waveform-depth control and therefore affects all
+of its targets together. Target depths are stored in DAW projects and portable
+presets and remain independent between Sequencers A and B.
+Hovering a target's small depth knob shows its purpose and current percentage.
 
 ## Gate modes
 
@@ -364,8 +391,11 @@ Data/
 ```
 
 `Settings.ini` remembers the editor size and lane colours. Presets store the
-complete state of every internal effect, its sequencers and target assignments.
-Saving over an existing preset requires confirmation.
+complete state of every internal effect, its sequencers, target assignments and
+individual target depths. The compact preset browser places Load, Save, Delete,
+Init and Close in one compact row across the top. The current preset name sits
+above the list and Search sits below it, with every field matching the complete
+button-row width. Saving over an existing preset requires confirmation.
 
 The A Colour and B Colour knobs also control the colour of any draggable
 parameter caption assigned to that lane. A caption assigned to both lanes uses
