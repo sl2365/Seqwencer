@@ -12,6 +12,8 @@
 
 ![Seqwencer](Resources/Seqwencer1.jpg)
 
+![Seqwencer](Resources/Seqwencer2.jpg)
+
 Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in,
 designed for fast drawing, flexible modulation and simple routing.
 Its supplied logo is embedded directly in the plug-in and replaces the former
@@ -24,6 +26,8 @@ Seqwencer can also integrate directly with
 four switchable pairs provide lanes A-H, which can sequence any automatable
 parameter exposed by another loaded plug-in. This includes synth, arp and
 third-party effect parameters—not only Seqwencer's built-in effects.
+
+Credits: Many thanks to Artvera for the logo.
 
 ## Built-in effects
 
