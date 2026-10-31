@@ -2,6 +2,14 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.5.2 embedded Seqwencer logo
+
+- Replaced the text-only `SEQWENCER` heading with the supplied transparent logo
+- Embedded the PNG inside the VST3 so no external image file is required at run
+  time
+- Preserved the existing `DUAL STEP MODULATION & FX` subtitle and version line
+  beneath the new logo
+
 ## v1.5.1 compact horizontal preset browser
 
 - Moved Load, Save, Delete, Init and Close into a single compact row at the top

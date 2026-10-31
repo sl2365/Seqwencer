@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
+
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/latest/Seqwencer.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/Seqwencer/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/total?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-total&color=blue)](https://github.com/sl2365/Seqwencer/releases)
 
@@ -11,10 +12,10 @@
 
 ![Seqwencer](Resources/Seqwencer1.jpg)
 
-![Seqwencer](Resources/Seqwencer2.jpg)
-
 Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in,
 designed for fast drawing, flexible modulation and simple routing.
+Its supplied logo is embedded directly in the plug-in and replaces the former
+text-only wordmark while retaining the subtitle and version beneath it.
 Each internal effect owns an independent pair of 32-step sequencers, so its
 pattern, speed, range and direction do not have to match the other effects.
 
