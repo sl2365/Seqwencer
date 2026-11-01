@@ -89,7 +89,9 @@ advance but do not change Time, Feedback, Mix or the audio level.
 - Two 32-step lanes: A and B
 - Parallel mode for independent 32-step patterns
 - Serial mode for one continuous 64-step pattern
-- Unipolar and Bipolar values
+- Three target-polarity modes on every lane: Unipolar + moves upward from the
+  saved parameter value, Bipolar moves in both directions, and Unipolar - moves
+  downward
 - Per-step `•`, `H`, `2` and `3` subdivision modes with independent segment
   heights
 - Independent Rate, Start/End or linked Start/Length, Direction, Attack and
@@ -111,7 +113,8 @@ advance but do not change Time, Feedback, Mix or the audio level.
   derived colour when a parameter is assigned to both lanes
 - Host synchronisation and note-triggered playback
 - Optional Animate display for seeing effective target positions without
-  changing stored values or writing automation
+  changing stored values or writing automation; animated values stay latched
+  across audio-block paths so controls no longer flicker back to saved values
 - Consistent control readouts from startup, including `%`, `dB`, `ms`,
   `Hz`/`kHz`, semitones, ratios, repeat multipliers and step counts
 

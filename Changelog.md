@@ -2,6 +2,28 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.6.0 three-way polarity and stable animation
+
+- Replaced each two-state Bipolar control with a three-state polarity selector:
+  `UNIPOLAR +`, `BIPOLAR` and `UNIPOLAR -`
+- Added Aqua, Rose and Purple mode LEDs so the current target direction is
+  visible at a glance
+- Kept every existing Bipolar parameter and automation index unchanged, with
+  new negative-direction flags appended after the complete v1.5.2 parameter
+  list for project and preset compatibility
+- Applied negative unipolar movement to ordinary FX targets, sequencer
+  Attack/Release, Start/End/Length and Depth/Offset targets, including mixed
+  A/B polarity combinations and per-target depth controls
+- Mirrored negative-unipolar step drawing downward in the editor while keeping
+  the existing stored step data and positive/Bipolar waveforms intact
+- Carried negative PHI A-H lanes through the existing bridge format using its
+  negative Bipolar half, avoiding a breaking protocol change
+- Latched the last valid animated target position while its assignment remains
+  active, preventing legitimate non-publishing audio blocks from making knobs
+  flicker between animated and saved values
+- Added regression coverage for negative-unipolar target mapping, mixed
+  parallel polarities, defaults and independent lane state
+
 ## v1.5.2 embedded Seqwencer logo
 
 - Replaced the text-only `SEQWENCER` heading with the supplied transparent logo
