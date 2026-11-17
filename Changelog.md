@@ -2,6 +2,37 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.7.2 Rest/Off correction and Volume animation preview
+
+- Corrected the Gate step right-click menu: **Rest** sets every step in
+  the chosen lane to the existing Link mode (continuous 100% step throughput),
+  and the new **Off** command sets each step to the existing Off mode (silence).
+  The other lane is unchanged and all existing preset mode numbers remain valid.
+- Menu order: Short, Long, Rest, Off, Random, Reset, Copy, Paste.
+- Volume knob animation now previews the programmed level without sampling
+  the short rhythmic closures of Short and Long Gate modes. Explicit Off steps
+  still show their silence. The actual audio retains its unchanged full gate
+  envelope, Short/Long timing, attack/release and existing safety slew.
+- Audio-to-editor Volume animation reflects only active, enabled Gate lanes;
+  disabling an assigned lane, Gate or the global effect bypass immediately
+  restores the saved knob position instead of displaying stale modulation.
+- Added core regression checks for Rest/Off semantics, preview isolation,
+  per-target depth, and parallel A/B Volume level composition.
+- Preserved v1.7.0 zoom/header behaviour, parameter IDs, preset format,
+  and every existing DSP/audio function.
+
+## v1.7.1 Gate Rest menu and smoother animation
+
+- Added **Rest** to the Gate step right-click menu, setting all 32 modes
+  in the selected Gate sequencer lane to the existing Off/REST state
+- Kept Short, Long, Random, Reset, Copy and Paste unchanged
+- Smoothed animated knob/fader display positions on the 30 Hz GUI timer to
+  reduce abrupt full-to-zero flashes from rapidly changing modulation
+- Kept the actual DSP modulation, audio output, host automation and stored
+  parameter values unchanged; turning off ANIMATE still restores the saved UI
+  position immediately
+- Preserved the v1.7.0 logo/header and persistent 75%-300% zoom menu
+
 ## v1.7.0 logo zoom and header layout
 
 - Doubled the embedded Seqwencer logo's display area while preserving its

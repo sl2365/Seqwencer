@@ -530,6 +530,22 @@ inline GateStepMode gateStepModeFromChoice (float choice) noexcept
     return static_cast<GateStepMode> (index);
 }
 
+// The animated Volume knob previews the programmed level, not the rapid
+// rhythmic closures of Short and Long gates. Preserve explicit Off steps;
+// Rest is the existing Link mode, which continuously passes its step level.
+// This affects only the animation preview, never the audible Gate pattern.
+inline GateModePattern gateVolumePreviewModes (
+    GateModePattern modes) noexcept
+{
+    for (auto& mode : modes)
+    {
+        if (mode == GateStepMode::shortStep
+            || mode == GateStepMode::longStep)
+            mode = GateStepMode::linkStep;
+    }
+    return modes;
+}
+
 inline double beatsForRate (int rateIndex) noexcept
 {
     constexpr std::array<double, rateChoiceCount> beatsPerRate {

@@ -1329,6 +1329,8 @@ private:
         gateReset,
         gateCopy,
         gatePaste,
+        gateRest = 107,
+        gateOff,
         subdivisionOff = 201,
         subdivisionHalf,
         subdivisionTwo,
@@ -1915,6 +1917,8 @@ private:
         menu.addSectionHeader ("SEQUENCER " + getLaneName());
         menu.addItem (gateShort, "Short");
         menu.addItem (gateLong, "Long");
+        menu.addItem (gateRest, "Rest");
+        menu.addItem (gateOff, "Off");
         menu.addItem (gateRandom, "Random");
         menu.addSeparator();
         menu.addItem (gateReset, "Reset");
@@ -2088,11 +2092,25 @@ private:
                     random.nextInt (static_cast<int> (
                         seqwencer::GateStepMode::linkStep) + 1));
         }
+        else if (command == gateRest)
+        {
+            modes.fill (seqwencer::GateStepMode::linkStep);
+        }
+        else if (command == gateOff)
+        {
+            modes.fill (seqwencer::GateStepMode::off);
+        }
+        else if (command == gateShort)
+        {
+            modes.fill (seqwencer::GateStepMode::shortStep);
+        }
+        else if (command == gateLong)
+        {
+            modes.fill (seqwencer::GateStepMode::longStep);
+        }
         else
         {
-            modes.fill (command == gateShort
-                ? seqwencer::GateStepMode::shortStep
-                : seqwencer::GateStepMode::longStep);
+            return;
         }
         setGateModes (modes);
     }
@@ -6172,7 +6190,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
     }
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.7.0",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.7.2",
                        810, 18, 450, 16,
                        juce::Justification::centredRight, false);
 
@@ -6613,10 +6631,20 @@ void SeqwencerAudioProcessorEditor::timerCallback()
             const auto previousValue = alreadyAnimated
                 ? static_cast<float> (static_cast<double> (
                       properties[animatedSliderPositionProperty]))
-                : -1.0f;
-            if (alreadyAnimated && std::abs (previousValue - value) < 0.00001f)
+                : static_cast<float> (
+                      slider.valueToProportionOfLength (slider.getValue()));
+            // Smooth the display only. Gate envelopes can jump between zero
+            // and full volume within a step, making a directly driven knob
+            // flash. The actual modulated audio and stored values stay exact.
+            constexpr float visualFollowAmount = 0.24f; // 30 Hz GUI timer
+            const auto displayValue = juce::jlimit (
+                0.0f, 1.0f, previousValue
+                    + visualFollowAmount * (value - previousValue));
+            if (alreadyAnimated && std::abs (previousValue - displayValue)
+                                       < 0.0001f)
                 return;
-            slider.getProperties().set (animatedSliderPositionProperty, value);
+            slider.getProperties().set (
+                animatedSliderPositionProperty, displayValue);
         }
         else
         {

@@ -4167,8 +4167,27 @@ float SeqwencerAudioProcessor::getAnimatedTargetValue (
             && (enabled[arrayIndex] == nullptr
                 || enabled[arrayIndex]->load() >= 0.5f);
     };
-    if (! laneIsActive (targetsAssignedA, targetsEnabledA)
-        && ! laneIsActive (targetsAssignedB, targetsEnabledB))
+    if (target == seqwencer::ModulationTarget::gateLevel)
+    {
+        if (bypass != nullptr && bypass->load() >= 0.5f)
+            return -1.0f;
+        if (gateEnabled == nullptr || gateEnabled->load() < 0.5f)
+            return -1.0f;
+
+        const auto linked = playbackMode != nullptr
+                         && playbackMode->load() >= 0.5f;
+        const auto activeA = laneIsActive (
+            targetsAssignedA, targetsEnabledA)
+            && (linked || seqAEnabled == nullptr
+                || seqAEnabled->load() >= 0.5f);
+        const auto activeB = ! linked
+            && laneIsActive (targetsAssignedB, targetsEnabledB)
+            && seqBEnabled != nullptr && seqBEnabled->load() >= 0.5f;
+        if (! activeA && ! activeB)
+            return -1.0f;
+    }
+    else if (! laneIsActive (targetsAssignedA, targetsEnabledA)
+             && ! laneIsActive (targetsAssignedB, targetsEnabledB))
     {
         return -1.0f;
     }
@@ -5144,6 +5163,10 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& fullBuffer
         ? gateBipolarB : gateBipolarA;
     const auto gateModesForA = readGateModes (0);
     const auto gateModesForB = readGateModes (1);
+    const auto gatePreviewModesA = seqwencer::gateVolumePreviewModes (
+        gateModesForA);
+    const auto gatePreviewModesB = seqwencer::gateVolumePreviewModes (
+        gateModesForB);
     const auto gateRateIndex = juce::jlimit (
         0, seqwencer::rateChoiceCount - 1,
         static_cast<int> (std::lround (rate != nullptr ? rate->load() : 6.0f)));
@@ -7805,9 +7828,33 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& fullBuffer
                 ? seqwencer::applyModulationDepth (
                     base, targetDepthValue - 1.0f, depth)
                 : 1.0f;
-            publishAnimation (
-                seqwencer::ModulationTarget::gateLevel,
-                targetGain, volumeAIsAssigned);
+            if (volumeAIsAssigned
+                && sample == buffer.getNumSamples() - 1)
+            {
+                const auto previewLevel =
+                    seqwencer::evaluateSubdividedGateLinkedRange (
+                        gateLevelPatternA, gateLevelPatternB,
+                        gatePreviewModesA, gatePreviewModesB,
+                        gateUnipolarSubdivisionsA, gateUnipolarSubdivisionsB,
+                        gatePhase, gateSampleRange,
+                        effectiveGateSerialAttack, effectiveGateSerialRelease,
+                        effectiveGateSerialAttack, effectiveGateSerialRelease,
+                        nullptr, nullptr, shortLength, longLength,
+                        gateTraversalMode,
+                        seqwencer::sequencerRandomStream (
+                            seqwencer::SequencerEngine::gate, 2),
+                        true, serialBounds.minimum, serialBounds.maximum,
+                        effectiveGateTransforms[profile * 2],
+                        effectiveGateTransforms[profile * 2 + 1]);
+                const auto previewWithDepth =
+                    seqwencer::applyGateTargetDepth (
+                        previewLevel, targetDepthFor (
+                            0, seqwencer::ModulationTarget::gateLevel));
+                publishAnimation (
+                    seqwencer::ModulationTarget::gateLevel,
+                    seqwencer::applyModulationDepth (
+                        base, previewWithDepth - 1.0f, depth), true);
+            }
             smoothedGain += safetyCoefficient * (targetGain - smoothedGain);
             if (dedicatedGateIsProcessing)
             {
@@ -7871,9 +7918,58 @@ void SeqwencerAudioProcessor::processBlock (juce::AudioBuffer<float>& fullBuffer
                 ? seqwencer::applyModulationDepth (
                     base, combinedGate - 1.0f, depth)
                 : 1.0f;
-            publishAnimation (
-                seqwencer::ModulationTarget::gateLevel,
-                targetGain, volumeAIsAssigned || volumeBIsAssigned);
+            if (sample == buffer.getNumSamples() - 1
+                && ((gateAIsEnabled && volumeAIsAssigned)
+                    || (gateBIsEnabled && volumeBIsAssigned)))
+            {
+                auto previewGate = 1.0f;
+                if (gateAIsEnabled && volumeAIsAssigned)
+                {
+                    const auto previewA =
+                        seqwencer::evaluateSubdividedGateBankRange (
+                            gateLevelPatternA, gatePreviewModesA,
+                            gateUnipolarSubdivisionsA,
+                            gatePhase, gateSampleRange,
+                            effectiveGateAttackA, effectiveGateReleaseA,
+                            nullptr, shortLength, longLength,
+                            gateTraversalMode,
+                            seqwencer::sequencerRandomStream (
+                                seqwencer::SequencerEngine::gate, 0),
+                            true,
+                            gateTransformState.unipolarBounds[0].minimum,
+                            gateTransformState.unipolarBounds[0].maximum,
+                            effectiveGateTransforms[0],
+                            effectiveGateTransforms[1]);
+                    previewGate *= seqwencer::applyGateTargetDepth (
+                        previewA, targetDepthFor (
+                            0, seqwencer::ModulationTarget::gateLevel));
+                }
+                if (gateBIsEnabled && volumeBIsAssigned)
+                {
+                    const auto previewB =
+                        seqwencer::evaluateSubdividedGateBankRange (
+                            gateLevelPatternB, gatePreviewModesB,
+                            gateUnipolarSubdivisionsB,
+                            gatePhase, gateSampleRange,
+                            effectiveGateAttackB, effectiveGateReleaseB,
+                            nullptr, shortLength, longLength,
+                            gateTraversalMode,
+                            seqwencer::sequencerRandomStream (
+                                seqwencer::SequencerEngine::gate, 1),
+                            true,
+                            gateTransformState.unipolarBounds[1].minimum,
+                            gateTransformState.unipolarBounds[1].maximum,
+                            effectiveGateTransforms[2],
+                            effectiveGateTransforms[3]);
+                    previewGate *= seqwencer::applyGateTargetDepth (
+                        previewB, targetDepthFor (
+                            1, seqwencer::ModulationTarget::gateLevel));
+                }
+                publishAnimation (
+                    seqwencer::ModulationTarget::gateLevel,
+                    seqwencer::applyModulationDepth (
+                        base, previewGate - 1.0f, depth), true);
+            }
             smoothedGain += safetyCoefficient * (targetGain - smoothedGain);
             if (dedicatedGateIsProcessing)
             {

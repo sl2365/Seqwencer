@@ -802,6 +802,91 @@ int main()
     expectEqual ("Gate mode choice three restores as Link",
                  static_cast<int> (seqwencer::gateStepModeFromChoice (3.0f)),
                  static_cast<int> (seqwencer::GateStepMode::linkStep));
+    seqwencer::GateModePattern previewSourceModes {};
+    previewSourceModes.fill (seqwencer::GateStepMode::longStep);
+    previewSourceModes[1] = seqwencer::GateStepMode::shortStep;
+    previewSourceModes[2] = seqwencer::GateStepMode::off;
+    previewSourceModes[3] = seqwencer::GateStepMode::linkStep;
+    const auto previewModes = seqwencer::gateVolumePreviewModes (
+        previewSourceModes);
+    expectEqual ("Rest mode stays Link (full step throughput)",
+                 static_cast<int> (previewModes[3]),
+                 static_cast<int> (seqwencer::GateStepMode::linkStep));
+    expectEqual ("Off mode stays Off (closed gate)",
+                 static_cast<int> (previewModes[2]),
+                 static_cast<int> (seqwencer::GateStepMode::off));
+    expectEqual ("Short mode previews the continuous step level",
+                 static_cast<int> (previewModes[1]),
+                 static_cast<int> (seqwencer::GateStepMode::linkStep));
+    expectEqual ("Long mode previews the continuous step level",
+                 static_cast<int> (previewModes[0]),
+                 static_cast<int> (seqwencer::GateStepMode::linkStep));
+    expectEqual ("Volume preview never mutates the audible Gate modes",
+                 static_cast<int> (previewSourceModes[0]),
+                 static_cast<int> (seqwencer::GateStepMode::longStep));
+    expectNear ("Long gate still closes audibly late in each step",
+                seqwencer::evaluateGateStep (
+                    0.7f, 0.7f, seqwencer::GateStepMode::longStep,
+                    previewSourceModes[0], 0.96f, 0.0f, 0.0f),
+                0.0f);
+    expectNear ("Volume preview retains the programmed height instead",
+                seqwencer::evaluateGateStep (
+                    0.7f, 0.7f, seqwencer::GateStepMode::linkStep,
+                    previewModes[0], 0.96f, 0.0f, 0.0f),
+                0.7f);
+    expectNear ("Volume preview keeps Off steps silent",
+                seqwencer::evaluateGateStep (
+                    0.7f, 0.7f, seqwencer::GateStepMode::linkStep,
+                    previewModes[2], 0.96f, 0.0f, 0.0f),
+                0.0f);
+    seqwencer::Pattern flatVolumePattern {};
+    flatVolumePattern.fill (0.7f);
+    seqwencer::GateModePattern audibleLongModes {};
+    audibleLongModes.fill (seqwencer::GateStepMode::longStep);
+    const auto continuousPreviewModes = seqwencer::gateVolumePreviewModes (
+        audibleLongModes);
+    seqwencer::StepSubdivisionPattern flatVolumeSubdivisions {};
+    const seqwencer::StepRange fullVolumeRange { 0, 31 };
+    const auto animatedLevelA = seqwencer::evaluateSubdividedGateBankRange (
+        flatVolumePattern, continuousPreviewModes,
+        flatVolumeSubdivisions, 0.96, fullVolumeRange,
+        0.0f, 0.0f, nullptr, 0.5f, 0.9f,
+        seqwencer::SequenceMode::loop, 0U);
+    const auto animatedLevelB = seqwencer::evaluateSubdividedGateBankRange (
+        flatVolumePattern, continuousPreviewModes,
+        flatVolumeSubdivisions, 0.96, fullVolumeRange,
+        0.0f, 0.0f, nullptr, 0.5f, 0.9f,
+        seqwencer::SequenceMode::loop, 1U);
+    expectNear ("Seq A animated Volume previews the step height",
+                animatedLevelA, 0.7f);
+    expectNear ("Seq B animated Volume previews the same step height",
+                animatedLevelB, 0.7f);
+    expectNear ("Seq A audible Long gate still closes normally",
+                seqwencer::evaluateSubdividedGateBankRange (
+                    flatVolumePattern, audibleLongModes,
+                    flatVolumeSubdivisions, 0.96, fullVolumeRange,
+                    0.0f, 0.0f, nullptr, 0.5f, 0.9f,
+                    seqwencer::SequenceMode::loop, 0U),
+                0.0f);
+    expectNear ("Seq B audible Long gate still closes normally",
+                seqwencer::evaluateSubdividedGateBankRange (
+                    flatVolumePattern, audibleLongModes,
+                    flatVolumeSubdivisions, 0.96, fullVolumeRange,
+                    0.0f, 0.0f, nullptr, 0.5f, 0.9f,
+                    seqwencer::SequenceMode::loop, 1U),
+                0.0f);
+    expectNear ("Volume target depth zero is neutral for Seq A",
+                seqwencer::applyGateTargetDepth (0.2f, 0.0f),
+                1.0f);
+    expectNear ("Volume target depth zero is neutral for Seq B",
+                seqwencer::applyGateTargetDepth (0.8f, 0.0f),
+                1.0f);
+    expectNear ("independent A and B Volume previews multiply correctly",
+                seqwencer::applyModulationDepth (
+                    1.0f, seqwencer::applyGateTargetDepth (0.5f, 1.0f)
+                          * seqwencer::applyGateTargetDepth (0.8f, 1.0f)
+                          - 1.0f, 1.0f),
+                0.4f);
     expectNear ("an Off Gate step is silent",
                 seqwencer::evaluateGateStep (
                     1.0f, 1.0f,

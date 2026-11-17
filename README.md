@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
+
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/latest/Seqwencer.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/Seqwencer/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/total?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-total&color=blue)](https://github.com/sl2365/Seqwencer/releases)
 
@@ -85,6 +86,14 @@ and delayed levels; and at Mix 1 it outputs only the delayed signal. Until the
 first delay interval has elapsed, a fully wet route is therefore silent by
 design. With no Delay targets assigned, its sequencers continue to display and
 advance but do not change Time, Feedback, Mix or the audio level.
+
+Right-click the Gate mode row to set all 32 steps in the selected lane to
+**Short**, **Long**, **Rest**, or **Off**. Rest uses the existing Link state:
+the gate stays open throughout each step and carries the programmed level
+into the next step. Off closes the gate (silence); the other lane is unchanged.
+With ANIMATE enabled, Volume previews the programmed sequenced level without
+flashing for every Short/Long closure; actual gated audio and preset values
+remain unchanged. Explicit Off steps still display silence.
 
 ## Sequencers
 
@@ -255,7 +264,7 @@ Each Gate step has a small mode cell above its value bar:
 Short Step covers 10-60% of a step and Long Step covers 65-95%. Their knobs
 change the audio timing without changing the fixed cell symbols.
 
-Right-click any Gate mode cell for Short, Long, Random, Reset, Copy and Paste
+Right-click any Gate mode cell for Short, Long, Rest, Off, Random, Reset, Copy and Paste
 commands covering that complete A or B Gate-mode row. The `GATE < >` controls
 shown only on the Gate page rotate all Gate modes independently of the values.
 
