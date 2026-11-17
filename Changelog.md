@@ -2,6 +2,25 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.7.0 logo zoom and header layout
+
+- Doubled the embedded Seqwencer logo's display area while preserving its
+  aspect ratio and anchoring it at the left of the header
+- Moved the subtitle and v1.7.0 version label to the right of the header
+- Added a left-click logo zoom menu with checked choices from 75% to 300%
+  in 25% steps, using the existing fixed-aspect-ratio window layout
+- Extended window size limits to 960 x 510 through 3840 x 2040 and retained
+  previously saved window dimensions without imposing the old 1600px cap
+- Persisted menu zoom selections immediately in the existing `Settings.ini`
+  without adding or changing preset or audio parameters
+
+## v1.6.1 Depth and Offset fader stalks
+
+- Added FX-coloured stalks from the neutral centre point to the current handle
+  position on every sequencer Depth and Offset fader
+- Preserved the existing fader positions, travel, automation and animation
+  behaviour
+
 ## v1.6.0 three-way polarity and stable animation
 
 - Replaced each two-state Bipolar control with a three-state polarity selector:

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=aqua)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
+[![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/latest/Seqwencer.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/Seqwencer/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/total?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-total&color=blue)](https://github.com/sl2365/Seqwencer/releases)
@@ -15,8 +15,11 @@
 
 Seqwencer is a Windows x64 VST3 dual step-sequencer and effects plug-in,
 designed for fast drawing, flexible modulation and simple routing.
-Its supplied logo is embedded directly in the plug-in and replaces the former
-text-only wordmark while retaining the subtitle and version beneath it.
+Its supplied logo is embedded directly in the plug-in. The enlarged logo sits
+at the left of the header, with the subtitle and version on the right. Click
+the logo for a zoom menu with 75% through 300% sizes in 25% increments.
+The chosen zoom is saved immediately in the existing portable `Settings.ini`;
+manual window resizing remains available. Older saved window sizes are honoured.
 Each internal effect owns an independent pair of 32-step sequencers, so its
 pattern, speed, range and direction do not have to match the other effects.
 
@@ -95,7 +98,8 @@ advance but do not change Time, Feedback, Mix or the audio level.
   heights
 - Independent Rate, Start/End or linked Start/Length, Direction, Attack and
   Release for every effect
-- Bipolar Depth and Offset controls for every sequencer lane
+- Bipolar Depth and Offset controls for every sequencer lane, with coloured
+  centre-to-handle stalks that make their current displacement easy to see
 - Draggable A/B Attack and Release targets on every internal FX page
 - Draggable Start, End and Length targets on every internal FX page
 - Draggable A/B Depth and Offset targets on every internal FX page
