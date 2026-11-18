@@ -2,8 +2,9 @@
 
 <div align="center">
 
-[![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=aqua)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
+[![Release](https://img.shields.io/github/v/release/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=purple)](https://github.com/sl2365/Seqwencer/releases/latest/download/Seqwencer.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Seqwencer?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Seqwencer/releases)
+
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/latest/Seqwencer.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/Seqwencer/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/sl2365/Seqwencer/total?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-total&color=blue)](https://github.com/sl2365/Seqwencer/releases)
 
@@ -166,13 +167,13 @@ different FX.
 Every sequencer right-click menu is headed `SEQUENCER A` or `SEQUENCER B`.
 `Save Sequence...` writes the selected lane's 32 step values, `•/H/2/3` modes
 and independent divided-segment heights to a portable `.ini` file beneath
-`Data/Sequences`. Rate, Start/End/Length, Direction, Attack/Release, FX
+`Seqwencer_Data/Sequences`. Rate, Start/End/Length, Direction, Attack/Release, FX
 settings and Gate Short/Long modes are intentionally not included.
 
 The top bar groups the compact A/B waveform selectors beneath `WAVEFORM` and
 the user-sequence selectors beneath `USER`. The USER menu is rebuilt each time
 it opens. Folders and `.ini` files manually arranged inside
-`Data/Sequences` therefore appear as the same nested menu structure. Loading
+`Seqwencer_Data/Sequences` therefore appear as the same nested menu structure. Loading
 changes only A or B for the currently displayed FX.
 
 The small `STEPS < >` controls beneath each lane's Attack/Release knobs rotate
@@ -396,11 +397,12 @@ normally in other VST3 hosts.
 
 ## Presets and portable data
 
-Seqwencer stores all of its portable data beside the plug-in:
+Seqwencer stores all of its portable data beside the plug-in. On first run,
+an existing `Data` folder is automatically renamed to `Seqwencer_Data`:
 
 ```text
 Seqwencer.vst3
-Data/
+Seqwencer_Data/
   Settings.ini
   Presets/
     Preset Name.ini

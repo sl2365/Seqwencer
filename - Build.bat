@@ -42,7 +42,7 @@ pause
 exit /b %BUILD_EXIT_CODE%
 
 :run_build
-title Seqwencer - v1.7.2 Build
+title Seqwencer - v1.7.3 Build
 
 set "PROJECT_ROOT=%~dp0"
 set "SOURCE_DIR=%PROJECT_ROOT%source"
@@ -56,7 +56,7 @@ set "BUNDLE_BINARY=%BUILD_DIR%\Seqwencer_artefacts\Release\VST3\Seqwencer.vst3\C
 set "FINAL_PLUGIN=%DIST_DIR%\Seqwencer.vst3"
 
 echo.
-echo Seqwencer 64-bit VST3 - v1.7.2 Build
+echo Seqwencer 64-bit VST3 - v1.7.3 Build
 echo ========================================
 echo.
 
@@ -111,7 +111,9 @@ echo.
 echo [5/7] Creating the portable single-file output...
 if not exist "%DIST_DIR%" mkdir "%DIST_DIR%"
 if errorlevel 1 goto :dist_failed
-if not exist "%DIST_DIR%\Data\Presets" mkdir "%DIST_DIR%\Data\Presets"
+if exist "%DIST_DIR%\Data\" ren "%DIST_DIR%\Data" "Seqwencer_Data"
+if errorlevel 1 goto :dist_failed
+if not exist "%DIST_DIR%\Seqwencer_Data\Presets" mkdir "%DIST_DIR%\Seqwencer_Data\Presets"
 if errorlevel 1 goto :dist_failed
 if exist "%FINAL_PLUGIN%\" rmdir /s /q "%FINAL_PLUGIN%"
 if exist "%FINAL_PLUGIN%" del /f /q "%FINAL_PLUGIN%"
@@ -144,7 +146,7 @@ if errorlevel 1 goto :wrong_architecture
 
 powershell.exe -NoProfile -Command ^
   "$extra = Get-ChildItem -LiteralPath '%DIST_DIR%' -Force | Where-Object {" ^
-  "  $_.Name -ne 'Seqwencer.vst3' -and $_.Name -ne 'Seqwencer.rar' -and -not ($_.Name -eq 'Data' -and $_.PSIsContainer)" ^
+  "  $_.Name -ne 'Seqwencer.vst3' -and $_.Name -ne 'Seqwencer.rar' -and -not ($_.Name -eq 'Seqwencer_Data' -and $_.PSIsContainer)" ^
   "};" ^
   "if ($extra) { $extra | ForEach-Object { Write-Host ('Unexpected: ' + $_.FullName) }; exit 1 }"
 if errorlevel 1 goto :unexpected_dist_files
@@ -290,7 +292,7 @@ echo   - FAIL: dist contains an unexpected file or folder
 echo Allowed:
 echo   Seqwencer.vst3
 echo   Seqwencer.rar  ^(optional release archive^)
-echo   Data  ^(optional existing runtime folder^)
+echo   Seqwencer_Data  ^(optional existing runtime folder^)
 goto :failed
 
 :failed

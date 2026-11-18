@@ -3341,7 +3341,7 @@ public:
         graphics.setColour (juce::Colour (mutedText));
         graphics.setFont (juce::FontOptions { 10.0f });
         graphics.drawText (
-            "Portable files: Data/Presets",
+            "Portable files: Seqwencer_Data/Presets",
             horizontalMargin, getHeight() - 21, contentWidth, 14,
             juce::Justification::centredLeft, false);
     }
@@ -6190,7 +6190,7 @@ void SeqwencerAudioProcessorEditor::paint (juce::Graphics& graphics)
     }
     graphics.setColour (juce::Colour (globalAccent));
     graphics.setFont (juce::FontOptions { 10.5f, juce::Font::bold });
-    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.7.2",
+    graphics.drawText ("DUAL STEP MODULATION & FX  |  v1.7.3",
                        810, 18, 450, 16,
                        juce::Justification::centredRight, false);
 

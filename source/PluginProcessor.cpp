@@ -1873,6 +1873,8 @@ juce::String SeqwencerAudioProcessor::targetDisplayName (
 
 juce::File SeqwencerAudioProcessor::getPortableDataDirectory()
 {
+    auto pluginDirectory = juce::File::getSpecialLocation (
+        juce::File::currentApplicationFile).getParentDirectory();
 #if JUCE_WINDOWS
     static int moduleAnchor = 0;
     HMODULE module = nullptr;
@@ -1886,12 +1888,15 @@ juce::File SeqwencerAudioProcessor::getPortableDataDirectory()
         const auto length = GetModuleFileNameW (
             module, modulePath.data(), static_cast<DWORD> (modulePath.size()));
         if (length > 0 && length < modulePath.size())
-            return juce::File (juce::String (modulePath.data()))
-                .getParentDirectory().getChildFile ("Data");
+            pluginDirectory = juce::File (juce::String (modulePath.data()))
+                                  .getParentDirectory();
     }
 #endif
-    return juce::File::getSpecialLocation (juce::File::currentApplicationFile)
-        .getParentDirectory().getChildFile ("Data");
+    const auto oldDirectory = pluginDirectory.getChildFile ("Data");
+    const auto newDirectory = pluginDirectory.getChildFile ("Seqwencer_Data");
+    if (oldDirectory.isDirectory())
+        oldDirectory.moveFileTo (newDirectory);
+    return newDirectory;
 }
 
 juce::File SeqwencerAudioProcessor::getPortablePresetDirectory()

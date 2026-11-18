@@ -2,6 +2,14 @@
 
 Seqwencer development history, regression notes and planned work.
 
+## v1.7.3 Portable data folder rename
+
+- Renamed the portable runtime folder from `Data` to `Seqwencer_Data`.
+- Automatically renames an existing `Data` folder beside the VST3 on first access,
+  preserving its Settings.ini, Presets and Sequences without conversion.
+- Updated the build output folder and validation, preset browser text and README.
+- No DSP, preset format, parameter or GUI-control changes.
+
 ## v1.7.2 Rest/Off correction and Volume animation preview
 
 - Corrected the Gate step right-click menu: **Rest** sets every step in
